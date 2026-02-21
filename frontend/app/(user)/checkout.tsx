@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { getItem, removeItem } from '../../utils/storage';
+import { getItem, removeItem } from '@/utils/storage';
 
 // Use NGROK if available, fallback to LAN IP
 const API_URL =
@@ -47,6 +47,24 @@ export default function Checkout() {
         setTaxPrice(tax);
         setShippingPrice(shipping);
         setTotalPrice(parseFloat((sub + tax + shipping).toFixed(2)));
+        // Load stored user address (if any) and prefill shipping fields
+        try {
+          const rawUser = await getItem('user');
+          if (rawUser) {
+            const u = JSON.parse(rawUser);
+            const addr = u.address || '';
+            if (addr) {
+              setAddress(addr);
+              // Try simple parsing: Street, City, Postal, Country
+              const parts = addr.split(',').map((p: string) => p.trim());
+              if (parts.length >= 2) setCity(parts[1] || '');
+              if (parts.length >= 3) setPostalCode(parts[2] || '');
+              if (parts.length >= 4) setCountry(parts[3] || '');
+            }
+          }
+        } catch (err) {
+          // ignore non-fatal parse errors
+        }
       } catch (err) {
         console.error('Error loading cart for checkout:', err);
       }

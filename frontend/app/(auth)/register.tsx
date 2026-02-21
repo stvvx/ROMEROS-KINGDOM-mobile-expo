@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
+import { setItem } from '@/utils/storage';
 
 // Use NGROK if available, fallback to LAN IP
 const API_URL = 
@@ -108,7 +109,7 @@ export default function Register() {
             }
 
         Alert.alert('Success', 'Account created successfully');
-        router.replace('/(tabs)');
+        router.replace('/(user)/UserProfile');
       }
     } catch (err: any) {
       const message =

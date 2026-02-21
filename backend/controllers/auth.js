@@ -10,7 +10,7 @@ exports.registerUser = async (req, res, next) => {
   try {
     console.log('Register Request:', req.body);
 
-    const { name, email, password } = req.body;
+    const { name, email, password, address } = req.body;
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -50,6 +50,7 @@ exports.registerUser = async (req, res, next) => {
       name,
       email,
       password,
+      address: address || '',
       provider: 'local', // Set provider to local for email/password auth
       avatar: avatarData,
     });
@@ -298,7 +299,7 @@ exports.registerFirebaseUser = async (req, res, next) => {
   try {
     console.log('Firebase register endpoint hit');
     
-    const { uid, name, email, provider = 'firebase', avatar } = req.body;
+    const { uid, name, email, provider = 'firebase', avatar, address } = req.body;
 
     if (!uid || !email) {
       return res.status(400).json({ 
@@ -327,6 +328,7 @@ exports.registerFirebaseUser = async (req, res, next) => {
       uid,
       name: name || email.split('@')[0],
       email,
+      address: address || '',
       provider,
       avatar: avatar ? { url: avatar } : undefined,
       lastLogin: new Date()
@@ -373,7 +375,7 @@ exports.syncFirebaseUser = async (req, res, next) => {
       ]
     });
 
-    if (user) {
+      if (user) {
       // Update existing user
       const updates = {};
       if (name && user.name !== name) {
@@ -382,6 +384,9 @@ exports.syncFirebaseUser = async (req, res, next) => {
       if (avatar && user.avatar?.url !== avatar) {
         updates.avatar = { url: avatar };
       }
+        if (address && user.address !== address) {
+          updates.address = address;
+        }
       updates.lastLogin = new Date();
 
       if (Object.keys(updates).length > 0) {

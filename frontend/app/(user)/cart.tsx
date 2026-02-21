@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
-import { getItem, setItem } from '../../utils/storage';
+import { getItem, setItem } from '@/utils/storage';
 
 // Use NGROK if available, fallback to LAN IP
 const API_URL = 

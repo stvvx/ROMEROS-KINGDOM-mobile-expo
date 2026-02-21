@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
-import { getItem, setItem } from '../../utils/storage';
+import { getItem, setItem } from '@/utils/storage';
 
 // Use NGROK if available, fallback to LAN IP
 const API_URL = 
@@ -136,7 +136,7 @@ export default function ProductDetails() {
       const cartData = await getItem('cartItems');
       let cartItems = cartData ? JSON.parse(cartData) : [];
 
-      const existingItemIndex = cartItems.findIndex((item: any) => item._id === product._id);
+      const existingItemIndex = cartItems.findIndex((item: any) => item._id === product._id || item.product === product._id);
       if (existingItemIndex > -1) {
         cartItems[existingItemIndex].quantity += quantity;
       } else {
@@ -203,7 +203,7 @@ export default function ProductDetails() {
   }
 
   const hasImages = product.images && product.images.length > 0;
-  const currentImage = hasImages ? product.images![currentImageIndex] : null;
+  const currentImage = hasImages ? product.images![currentImageIndex % product.images!.length] : null;
   const stockStatus = product.stock && product.stock > 0 ? 'In Stock' : 'Out of Stock';
   const stockColor = product.stock && product.stock > 0 ? '#27ae60' : '#e74c3c';
 
@@ -212,7 +212,13 @@ export default function ProductDetails() {
       {/* Image Carousel */}
       {hasImages && (
         <View style={styles.imageContainer}>
-          <Image source={{ uri: currentImage!.url }} style={styles.mainImage} resizeMode="cover" />
+          {currentImage && typeof currentImage.url === 'string' ? (
+            <Image source={{ uri: currentImage.url }} style={styles.mainImage} resizeMode="cover" />
+          ) : (
+            <View style={[styles.mainImage, { justifyContent: 'center', alignItems: 'center' }]}>
+              <Text>Image unavailable</Text>
+            </View>
+          )}
 
           {/* Left/Right Arrows */}
           {product.images!.length > 1 && (
@@ -298,7 +304,7 @@ export default function ProductDetails() {
             <TouchableOpacity
               style={styles.quantityBtn}
               onPress={handleIncreaseQty}
-              disabled={product.stock && quantity >= product.stock}
+              disabled={!!product.stock && quantity >= product.stock}
             >
               <Text style={styles.quantityBtnText}>+</Text>
             </TouchableOpacity>

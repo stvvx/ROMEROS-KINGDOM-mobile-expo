@@ -21,7 +21,7 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { getItem, removeItem } from '../../utils/storage';
+import { getItem, removeItem } from '@/utils/storage';
 import Slider from '@react-native-community/slider';
 import axios from 'axios';
 import Constants from 'expo-constants';
@@ -372,6 +372,7 @@ export default function Home() {
   /* Auth State */
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [profile, setProfile] = useState<{ name?: string; avatar?: string } | null>(null);
 
   /* Check auth on mount and when focused */
   useFocusEffect(
@@ -389,6 +390,16 @@ export default function Home() {
           const count = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
           setCartCount(count);
           console.log('[Index] Cart count:', count);
+          // Load stored user profile for header display
+          const rawUser = await getItem('user');
+          if (mounted && rawUser) {
+            try {
+              const u = JSON.parse(rawUser);
+              setProfile({ name: u.name, avatar: u.avatar?.url || u.avatar || undefined });
+            } catch (err) {
+              setProfile({ name: rawUser });
+            }
+          }
         } catch (err) {
           console.error('Error checking auth:', err);
           setIsLoggedIn(false);
@@ -415,6 +426,15 @@ export default function Home() {
         const items = cartData ? JSON.parse(cartData) : [];
         const count = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
         setCartCount(count);
+        const rawUser = await getItem('user');
+        if (mounted && rawUser) {
+          try {
+            const u = JSON.parse(rawUser);
+            setProfile({ name: u.name, avatar: u.avatar?.url || u.avatar || undefined });
+          } catch (err) {
+            setProfile({ name: rawUser });
+          }
+        }
       } catch (err) {
         console.error('Error in mount auth check:', err);
       }
@@ -666,11 +686,22 @@ export default function Home() {
                       </View>
                     )}
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.webNavProfile}
+                    onPress={() => router.push('/(user)/UserProfile')}
+                  >
+                    {profile?.avatar ? (
+                      <Image source={{ uri: profile.avatar }} style={s.webAvatar} />
+                    ) : (
+                      <Text style={s.webNavBtnTxt}>👤</Text>
+                    )}
+                    <Text style={s.webNavName}>{profile?.name ?? 'Profile'}</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity 
                     style={s.webNavBtn}
                     onPress={handleLogout}
                   >
-                    <Text style={s.webNavBtnTxt}>👤 Logout</Text>
+                    <Text style={s.webNavBtnTxt}>Logout</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -714,11 +745,23 @@ export default function Home() {
                       </View>
                     )}
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={s.profileBtnMobile}
+                    onPress={() => router.push('/(user)/UserProfile')}
+                  >
+                    {profile?.avatar ? (
+                      <Image source={{ uri: profile.avatar }} style={s.mobileAvatar} />
+                    ) : (
+                      <Text style={s.iconBtnTxt}>👤</Text>
+                    )}
+                  </TouchableOpacity>
+
                   <TouchableOpacity 
                     style={s.iconBtn}
                     onPress={handleLogout}
                   >
-                    <Text style={s.iconBtnTxt}>👤</Text>
+                    <Text style={s.iconBtnTxt}>⇦</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -1118,6 +1161,27 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  webNavProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  webAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  webNavName: {
+    color: C.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
 
   /* ── Mobile Header ── */
   mobileHeader: {
@@ -1167,6 +1231,18 @@ const s = StyleSheet.create({
     backgroundColor: C.accentGlow,
   },
   iconBtnTxt: { fontSize: 18, color: C.text },
+  profileBtnMobile: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  mobileAvatar: { width: 36, height: 36, borderRadius: 10 },
 
   /* ── Badge ── */
   badge: {
