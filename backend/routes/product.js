@@ -10,6 +10,7 @@ const {
     deleteProduct,
     getProducts,
     productSales,
+    getCategories,
     createProductReview,
     getProductReviews,
     deleteReview,
@@ -26,6 +27,7 @@ router.put('/admin/product/:id', upload.array('images', 10), updateProduct);
 router.delete('/admin/product/:id', deleteProduct);
 
 router.get('/products', getProducts)
+router.get('/products/categories', getCategories)
 router.get('/admin/product-sales', productSales);
 router.put('/review', isAuthenticatedUser, createProductReview);
 router.get('/reviews',isAuthenticatedUser, getProductReviews)

@@ -180,3 +180,18 @@ exports.deleteReview = async (req, res, next) => {
     await Product.findByIdAndUpdate(req.query.productId, { reviews, ratings, numOfReviews }, { new: true, runValidators: true, useFindAndModify: false })
     return res.status(200).json({ success: true })
 }
+
+// GET CATEGORIES WITH COUNTS
+exports.getCategories = async (req, res, next) => {
+    try {
+        const categories = await Product.aggregate([
+            { $group: { _id: '$category', count: { $sum: 1 } } },
+            { $project: { _id: 0, category: '$_id', count: 1 } },
+            { $sort: { count: -1 } }
+        ])
+
+        return res.status(200).json({ success: true, categories })
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message })
+    }
+}

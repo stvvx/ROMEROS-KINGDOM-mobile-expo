@@ -80,7 +80,17 @@ export default function Login() {
         }
 
         Alert.alert('Success', 'Login successful');
-        router.replace('/(tabs)');
+        // Redirect admin users to admin dashboard
+        try {
+          const role = user?.role || (typeof user === 'string' ? JSON.parse(user).role : undefined)
+          if (role === 'admin') {
+            router.replace('/(admin)/dashboard')
+          } else {
+            router.replace('/(tabs)')
+          }
+        } catch (e) {
+          router.replace('/(tabs)')
+        }
       }
     } catch (err: any) {
       const message =
