@@ -16,6 +16,13 @@ app.use('/api/v1', products);
 app.use('/api/v1', auth);
 app.use('/api/v1', order);
 
+// Generic error handler — return JSON instead of HTML stack traces
+app.use((err, req, res, next) => {
+	console.error('Unhandled error:', err && err.stack ? err.stack : err);
+	const status = err.status || 500;
+	res.status(status).json({ success: false, message: err.message || 'Internal Server Error' });
+});
+
 
 
 

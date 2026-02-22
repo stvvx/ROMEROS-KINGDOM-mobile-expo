@@ -95,7 +95,7 @@ export default function Checkout() {
         quantity: it.quantity,
         image: it.images?.[0]?.url || '',
         price: it.price,
-        product: it._id,
+        product: it._id || it.product || it.id,
       }));
 
       const shippingInfo = {
@@ -135,8 +135,23 @@ export default function Checkout() {
       }
     } catch (err: any) {
       console.error('Checkout error:', err?.response || err);
-      const msg = err?.response?.data?.message || err?.message || 'Checkout failed';
-      Alert.alert('Checkout Error', msg);
+      // Normalize server error message — sometimes server returns HTML (500 page)
+      let msg = 'Checkout failed'
+      const resp = err?.response
+      if (resp) {
+        if (typeof resp.data === 'string') {
+          // Try to extract a short message from HTML title or body
+          const titleMatch = resp.data.match(/<title>(.*?)<\/title>/i)
+          msg = titleMatch ? titleMatch[1] : `Server error (${resp.status})`
+        } else if (resp.data && typeof resp.data === 'object') {
+          msg = resp.data.message || JSON.stringify(resp.data)
+        } else {
+          msg = `Server error (${resp.status})`
+        }
+      } else {
+        msg = err?.message || msg
+      }
+      Alert.alert('Checkout Error', msg)
     } finally {
       setLoading(false);
     }

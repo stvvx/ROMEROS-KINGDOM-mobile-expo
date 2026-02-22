@@ -52,13 +52,14 @@ exports.newProduct = async (req, res, next) => {
 // GET SINGLE PRODUCT
 exports.getSingleProduct = async (req, res, next) => {
     const product = await Product.findById(req.params.id)
-    if (!product) return res.status(404).json({ success: false, message: 'Product not found' })
+    if (!product || product.isDeleted) return res.status(404).json({ success: false, message: 'Product not found' })
     return res.status(200).json({ success: true, product })
 }
 
 // GET ADMIN PRODUCTS
 exports.getAdminProducts = async (req, res, next) => {
-    const products = await Product.find()
+    // Exclude soft-deleted products by default
+    const products = await Product.find({ isDeleted: { $ne: true } })
     return res.status(200).json({ success: true, products })
 }
 
@@ -96,17 +97,23 @@ exports.updateProduct = async (req, res, next) => {
 
 // DELETE PRODUCT
 exports.deleteProduct = async (req, res, next) => {
-    const product = await Product.findByIdAndDelete(req.params.id)
+    const product = await Product.findById(req.params.id)
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' })
-    return res.status(200).json({ success: true, message: 'Product deleted' })
+
+    // Soft delete
+    product.isDeleted = true
+    product.deletedAt = Date.now()
+    await product.save()
+
+    return res.status(200).json({ success: true, message: 'Product soft-deleted' })
 }
 
 // GET PRODUCTS WITH PAGINATION AND FILTER
 exports.getProducts = async (req, res) => {
     const resPerPage = 4
-    const productsCount = await Product.countDocuments()
+    const productsCount = await Product.countDocuments({ isDeleted: { $ne: true } })
 
-    const apiFeatures = new APIFeatures(Product.find(), req.query).search().filter()
+    const apiFeatures = new APIFeatures(Product.find({ isDeleted: { $ne: true } }), req.query).search().filter()
     apiFeatures.pagination(resPerPage)
     const products = await apiFeatures.query
     const filteredProductsCount = products.length

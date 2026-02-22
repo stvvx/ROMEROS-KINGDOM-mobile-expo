@@ -16,20 +16,35 @@ exports.newOrder = async (req, res, next) => {
         paymentInfo
 
     } = req.body;
+    try {
+        // Ensure we have a usable model (workaround for require/circular issues)
+        const mongoose = require('mongoose')
+        const OrderModel = (Order && typeof Order.create === 'function') ? Order : (mongoose.models.Order || mongoose.model('Order'))
 
-    const order = await Order.create({
-        orderItems,
-        shippingInfo,
-        itemsPrice,
-        taxPrice,
-        shippingPrice,
-        totalPrice,
-        paymentInfo,
-        paidAt: Date.now(),
-        user: req.user._id
-    })
-    // send order confirmation email (non-blocking for response)
-    (async () => {
+        const orderData = {
+            orderItems,
+            shippingInfo,
+            itemsPrice,
+            taxPrice,
+            shippingPrice,
+            totalPrice,
+            paymentInfo,
+            paidAt: Date.now(),
+            user: req.user && req.user._id
+        }
+
+        let order
+        if (OrderModel && typeof OrderModel.create === 'function') {
+            order = await OrderModel.create(orderData)
+        } else if (typeof OrderModel === 'function') {
+            // Try to instantiate and save (fallback)
+            const doc = new OrderModel(orderData)
+            order = await doc.save()
+        } else {
+            throw new Error('Order model is not constructible')
+        }
+        // send order confirmation email (non-blocking for response)
+        (async () => {
         try {
             const itemsSummary = order.orderItems.map(i => `${i.name} x${i.quantity}`).join(', ');
             const message = `Hello ${req.user && req.user.name ? req.user.name : 'Customer'},<br/><br/>` +
@@ -46,12 +61,13 @@ exports.newOrder = async (req, res, next) => {
         } catch (err) {
             console.error('Order confirmation email failed:', err && err.message ? err.message : err);
         }
-    })();
+        })();
 
-    res.status(200).json({
-        success: true,
-        order
-    })
+        return res.status(200).json({ success: true, order })
+    } catch (err) {
+        console.error('New order error:', err && err.stack ? err.stack : err)
+        return res.status(500).json({ success: false, message: err && err.message ? err.message : 'Failed to create order' })
+    }
 }
 
 exports.myOrders = async (req, res, next) => {

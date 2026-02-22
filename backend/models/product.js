@@ -51,4 +51,16 @@ const productSchema = new mongoose.Schema({
     }
 })
 
+// Soft-delete fields
+productSchema.add({
+    isDeleted: {
+        type: Boolean,
+        default: false,
+    },
+    deletedAt: {
+        type: Date,
+        default: null,
+    }
+})
+
 module.exports = mongoose.models.Product || mongoose.model('Product', productSchema);

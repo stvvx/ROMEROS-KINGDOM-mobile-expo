@@ -497,7 +497,12 @@ export default function Home() {
       const res = await axios.get(`${API_URL}/products/categories`, {
         timeout: 8000,
       });
-      const cats: string[] = res.data?.categories ?? res.data ?? [];
+      const raw: any = res.data?.categories ?? res.data ?? [];
+      const cats: string[] = Array.isArray(raw)
+        ? raw.map((c: any) =>
+            typeof c === 'string' ? c : c?.category ?? c?._id ?? String(c)
+          )
+        : [];
       if (cats.length > 0) {
         setCategories(['All', ...cats]);
       }
