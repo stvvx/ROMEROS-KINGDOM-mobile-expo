@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   Image,
+  ScrollView,
 } from 'react-native'
 import axios from 'axios'
 import Constants from 'expo-constants'
@@ -17,7 +18,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { usePathname, useRouter } from 'expo-router'
 import { getItem } from '@/utils/storage'
 
-// ==================== API URL CONFIGURATION ====================
+// ==================== API URL ====================
 let API_URL =
   process.env.NGROK_URL ||
   process.env.EXPO_PUBLIC_API_URL ||
@@ -25,13 +26,11 @@ let API_URL =
 
 const manifest: any =
   (Constants as any).manifest || (Constants as any).expoConfig
-const debuggerHost = manifest?.debuggerHost
-  ? manifest.debuggerHost.split(':')[0]
-  : null
+const debuggerHost = manifest?.debuggerHost?.split(':')[0]
 
 if (debuggerHost && debuggerHost !== 'localhost') {
   API_URL = API_URL.replace('localhost', debuggerHost)
-} else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
+} else if (Platform.OS === 'android') {
   API_URL = API_URL.replace('localhost', '10.0.2.2')
 }
 
@@ -62,6 +61,7 @@ interface Category {
   count: number
 }
 
+// ==================== HEADER ====================
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/(admin)/dashboard' },
   { label: 'Products', path: '/(admin)/products' },
@@ -70,40 +70,25 @@ const NAV_ITEMS = [
   { label: 'Reviews', path: '/(admin)/review' },
 ]
 
-const AdminHeader: React.FC = () => {
+const AdminHeader = () => {
   const router = useRouter()
   const pathname = usePathname()
 
   return (
     <View style={headerStyles.wrapper}>
       <Text style={headerStyles.brand}>⚙️ Admin</Text>
-
       <FlatList
         data={NAV_ITEMS}
         horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.path}
-        contentContainerStyle={headerStyles.navRow}
+        keyExtractor={(i) => i.path}
         renderItem={({ item }) => {
-          const isActive = pathname === item.path
-
+          const active = pathname === item.path
           return (
             <TouchableOpacity
-              style={[
-                headerStyles.navBtn,
-                isActive && headerStyles.activeBtn,
-              ]}
+              style={[headerStyles.navBtn, active && headerStyles.activeBtn]}
               onPress={() => router.push(item.path)}
-              activeOpacity={0.8}
             >
-              <Text
-                style={[
-                  headerStyles.navLabel,
-                  isActive && headerStyles.activeLabel,
-                ]}
-              >
-                {item.label}
-              </Text>
+              <Text style={headerStyles.navLabel}>{item.label}</Text>
             </TouchableOpacity>
           )
         }}
@@ -112,52 +97,15 @@ const AdminHeader: React.FC = () => {
   )
 }
 
-const headerStyles = StyleSheet.create({
-  wrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  brand: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-    marginRight: 10,
-  },
-  navRow: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  navBtn: {
-    backgroundColor: '#2280b0',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  activeBtn: {
-    backgroundColor: '#4caf50',
-  },
-  navLabel: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  activeLabel: {
-    fontWeight: '800',
-  },
-})
-
-// ==================== MAIN COMPONENT ====================
+// ==================== MAIN ====================
 export default function AdminProducts() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+
   const [editingId, setEditingId] = useState<string | null>(null)
   const [pickedImages, setPickedImages] = useState<PickedImage[]>([])
   const [remoteImages, setRemoteImages] = useState<CloudinaryImage[]>([])
@@ -176,35 +124,22 @@ export default function AdminProducts() {
     return token ? { Authorization: `Bearer ${token}` } : {}
   }
 
-  // ==================== INITIAL LOAD ====================
+  // ==================== LOAD ====================
   useEffect(() => {
-    const load = async () => {
-      await Promise.all([fetchProducts(), fetchCategories()])
-    }
-    load()
+    fetchProducts()
+    fetchCategories()
   }, [])
 
-  // ==================== API ====================
   const fetchProducts = async (opts?: { silent?: boolean }) => {
     try {
-      if (opts?.silent) {
-        setRefreshing(true)
-      } else {
-        setLoading(true)
-      }
-
+      opts?.silent ? setRefreshing(true) : setLoading(true)
       const headers = await getAuthHeader()
       const res = await axios.get(`${API_URL}/admin/products`, { headers })
       setProducts(res.data.products || [])
-    } catch (err) {
-      console.error('Error loading products', err)
+    } catch {
       Alert.alert('Error', 'Failed to load products')
     } finally {
-      if (opts?.silent) {
-        setRefreshing(false)
-      } else {
-        setLoading(false)
-      }
+      opts?.silent ? setRefreshing(false) : setLoading(false)
     }
   }
 
@@ -212,36 +147,68 @@ export default function AdminProducts() {
     try {
       const res = await axios.get(`${API_URL}/products/categories`)
       setCategories(res.data.categories || [])
-    } catch (err) {
-      console.error('Error loading categories', err)
+    } catch {
+      setCategories([])
     }
   }
 
-  // ==================== HELPERS ====================
-  const resetForm = () => {
-    setForm({
-      name: '',
-      price: '',
-      description: '',
-      category: '',
-      stock: '',
+  // ==================== IMAGE PICK ====================
+  const pickImage = async () => {
+    const remaining = 3 - (pickedImages.length + remoteImages.length)
+    if (remaining <= 0) {
+      Alert.alert('Limit', 'Max 3 images only')
+      return
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.8,
     })
-    setEditingId(null)
-    setPickedImages([])
-    setRemoteImages([])
+
+    if (!result.canceled) {
+      const imgs = result.assets.map((a, i) => ({
+        uri: a.uri,
+        name: `gallery_${Date.now()}_${i}.jpg`,
+        type: 'image/jpeg',
+      }))
+      setPickedImages([...pickedImages, ...imgs].slice(0, 3))
+    }
   }
 
-  const formatCurrency = (value: number) => {
-    if (!Number.isFinite(value)) return '$0.00'
-    return `$${value.toFixed(2)}`
+  // ==================== CAMERA ====================
+  const takePhoto = async () => {
+    const remaining = 3 - (pickedImages.length + remoteImages.length)
+    if (remaining <= 0) {
+      Alert.alert('Limit', 'Max 3 images only')
+      return
+    }
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Camera permission is required')
+      return
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      allowsEditing: true,
+    })
+
+    if (!result.canceled) {
+      const img = {
+        uri: result.assets[0].uri,
+        name: `camera_${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      }
+      setPickedImages([...pickedImages, img].slice(0, 3))
+    }
   }
 
   // ==================== CLOUDINARY ====================
-  const uploadImagesToCloudinary = async (
-    images: PickedImage[]
-  ): Promise<CloudinaryImage[]> => {
-    const cloudName =
-      process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || 'debzvfysb'
+  const uploadImagesToCloudinary = async (images: PickedImage[]) => {
+    const cloudName = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || 'debzvfysb'
     const uploadPreset =
       process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'romeros'
 
@@ -249,11 +216,7 @@ export default function AdminProducts() {
 
     for (const img of images) {
       const formData = new FormData()
-      formData.append('file', {
-        uri: img.uri,
-        name: img.name,
-        type: img.type,
-      } as any)
+      formData.append('file', img as any)
       formData.append('upload_preset', uploadPreset)
       formData.append('folder', 'romeros/products')
 
@@ -268,79 +231,35 @@ export default function AdminProducts() {
         url: res.data.secure_url,
       })
     }
-
     return uploaded
-  }
-
-  // ==================== IMAGE PICKER ====================
-  const pickImage = async () => {
-    const remaining = Math.max(0, 3 - (remoteImages.length + pickedImages.length))
-    if (!remaining) {
-      Alert.alert('Limit', 'You can upload up to 3 images per product')
-      return
-    }
-
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') return
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      selectionLimit: remaining,
-      quality: 0.8,
-    })
-
-    if (!result.canceled) {
-      const imgs = result.assets.map((a, i) => ({
-        uri: a.uri,
-        name: `img_${Date.now()}_${i}.jpg`,
-        type: 'image/jpeg',
-      }))
-      setPickedImages([...pickedImages, ...imgs].slice(0, 3))
-    }
-  }
-
-  const removeRemoteImage = (idx: number) => {
-    setRemoteImages(remoteImages.filter((_, i) => i !== idx))
-  }
-
-  const removePickedImage = (idx: number) => {
-    setPickedImages(pickedImages.filter((_, i) => i !== idx))
   }
 
   // ==================== SUBMIT ====================
   const submitProduct = async () => {
-    if (!form.name.trim() || !form.price.trim() || !form.category.trim()) {
-      Alert.alert('Validation', 'Name, price, and category are required')
-      return
-    }
-
-    if (!form.stock.trim()) {
-      Alert.alert('Validation', 'Stock is required')
+    if (!form.name || !form.price || !form.category || !form.stock) {
+      Alert.alert('Validation', 'Fill all required fields')
       return
     }
 
     try {
       setSubmitting(true)
 
-      let finalImages = [...remoteImages]
+      let images = [...remoteImages]
       if (pickedImages.length) {
         const uploaded = await uploadImagesToCloudinary(pickedImages)
-        finalImages = [...remoteImages, ...uploaded].slice(0, 3)
+        images = [...images, ...uploaded]
       }
 
-      if (!finalImages.length) {
-        Alert.alert('Validation', 'At least one image is required')
+      if (!images.length) {
+        Alert.alert('Validation', 'At least one image required')
         return
       }
 
       const payload = {
-        name: form.name.trim(),
+        ...form,
         price: Number(form.price),
-        description: form.description.trim(),
-        category: form.category.trim(),
         stock: Number(form.stock),
-        images: finalImages,
+        images,
       }
 
       const headers = await getAuthHeader()
@@ -352,126 +271,68 @@ export default function AdminProducts() {
         method: editingId ? 'put' : 'post',
         url,
         data: payload,
-        headers: { 'Content-Type': 'application/json', ...headers },
+        headers,
       })
 
       Alert.alert('Success', editingId ? 'Product updated' : 'Product created')
-      await fetchProducts({ silent: true })
       resetForm()
+      fetchProducts({ silent: true })
     } catch (err: any) {
-      console.error('Save product error', err)
-      Alert.alert(
-        'Error',
-        err?.response?.data?.message || err.message || 'Failed to save product'
-      )
+      const msg = err?.response?.data?.message || 'Failed to save product'
+      Alert.alert('Error', msg)
     } finally {
       setSubmitting(false)
     }
   }
 
-  // ==================== EDIT/DELETE ====================
-  const onEdit = (p: Product) => {
-    setEditingId(p._id)
+  const resetForm = () => {
+    setEditingId(null)
+    setPickedImages([])
+    setRemoteImages([])
+    setForm({ name: '', price: '', description: '', category: '', stock: '' })
+  }
+
+  const handleEdit = (product: Product) => {
+    setEditingId(product._id)
     setForm({
-      name: p.name,
-      price: String(p.price),
-      description: p.description,
-      category: p.category,
-      stock: String(p.stock),
+      name: product.name,
+      price: String(product.price),
+      description: product.description || '',
+      category: product.category || '',
+      stock: String(product.stock),
     })
-    setRemoteImages(p.images || [])
+    setRemoteImages(product.images || [])
     setPickedImages([])
   }
 
   const handleDelete = async (id: string) => {
-    try {
-      setDeleteId(id)
-      const headers = await getAuthHeader()
-      await axios.delete(`${API_URL}/admin/product/${id}`, { headers })
-      await fetchProducts({ silent: true })
-      if (editingId === id) resetForm()
-      Alert.alert('Deleted', 'Product removed')
-    } catch (err: any) {
-      console.error('Delete product error', err)
-      Alert.alert(
-        'Error',
-        err?.response?.data?.message || 'Failed to delete product'
-      )
-    } finally {
-      setDeleteId(null)
-    }
+    Alert.alert('Confirm delete', 'Delete this product?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setDeleteId(id)
+            const headers = await getAuthHeader()
+            await axios.delete(`${API_URL}/admin/product/${id}`, { headers })
+            setProducts((prev) => prev.filter((p) => p._id !== id))
+          } catch {
+            Alert.alert('Error', 'Failed to delete product')
+          } finally {
+            setDeleteId(null)
+          }
+        },
+      },
+    ])
   }
 
   // ==================== RENDER ====================
-  const renderProductCard = ({ item }: { item: Product }) => {
-    const firstImage = item.images?.[0]?.url
-    return (
-      <View style={styles.productCard}>
-        <View style={styles.productRow}>
-          {firstImage ? (
-            <Image source={{ uri: firstImage }} style={styles.productImg} />
-          ) : (
-            <View style={[styles.productImg, styles.placeholderImg]}>
-              <Text style={styles.placeholderText}>No Image</Text>
-            </View>
-          )}
-          <View style={styles.productInfo}>
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productMeta}>
-              {formatCurrency(item.price)} • Stock {item.stock}
-            </Text>
-            <Text style={styles.productMeta}>Category: {item.category}</Text>
-            <Text numberOfLines={2} style={styles.productDesc}>
-              {item.description}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => onEdit(item)}
-            disabled={deleteId === item._id}
-          >
-            <Text style={styles.actionText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            disabled={deleteId === item._id}
-            onPress={() =>
-              Alert.alert(
-                'Delete product',
-                'Are you sure you want to delete this product?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => handleDelete(item._id),
-                  },
-                ]
-              )
-            }
-          >
-            {deleteId === item._id ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.actionText}>Delete</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-    )
-  }
-
   if (loading) {
     return (
-      <>
-        <AdminHeader />
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#2280b0" />
-        </View>
-      </>
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" />
+      </View>
     )
   }
 
@@ -480,101 +341,84 @@ export default function AdminProducts() {
       <AdminHeader />
       <FlatList
         data={products}
-        keyExtractor={(item) => item._id}
-        renderItem={renderProductCard}
+        keyExtractor={(i) => i._id}
         refreshing={refreshing}
         onRefresh={() => fetchProducts({ silent: true })}
-        ListHeaderComponent={(
+        ListHeaderComponent={
           <View style={styles.formCard}>
-            <View style={styles.formHeader}>
-              <Text style={styles.title}>
-                {editingId ? 'Edit Product' : 'Add Product'}
-              </Text>
-              {editingId && (
-                <TouchableOpacity onPress={resetForm}>
-                  <Text style={styles.resetText}>Reset</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <Text style={styles.title}>
+              {editingId ? 'Edit Product' : 'Add Product'}
+            </Text>
 
             <TextInput
-              placeholder="Product name"
+              placeholder="Name"
+              style={styles.input}
               value={form.name}
               onChangeText={(t) => setForm({ ...form, name: t })}
-              style={styles.input}
             />
+
             <View style={styles.row}>
               <TextInput
                 placeholder="Price"
+                style={[styles.input, styles.half]}
                 keyboardType="decimal-pad"
                 value={form.price}
                 onChangeText={(t) => setForm({ ...form, price: t })}
-                style={[styles.input, styles.half]}
               />
               <TextInput
                 placeholder="Stock"
+                style={[styles.input, styles.half]}
                 keyboardType="numeric"
                 value={form.stock}
                 onChangeText={(t) => setForm({ ...form, stock: t })}
-                style={[styles.input, styles.half]}
               />
             </View>
 
             <TextInput
               placeholder="Description"
+              style={[styles.input, styles.multiline]}
               multiline
               value={form.description}
               onChangeText={(t) => setForm({ ...form, description: t })}
-              style={[styles.input, styles.multiline]}
-              textAlignVertical="top"
             />
 
             <Text style={styles.label}>Category</Text>
-            <View style={styles.chipRow}>
-              {categories.map((cat) => {
-                const isActive = form.category === cat.category
-                return (
-                  <TouchableOpacity
-                    key={cat.category}
-                    style={[styles.chip, isActive && styles.chipActive]}
-                    onPress={() => setForm({ ...form, category: cat.category })}
-                  >
-                    <Text style={isActive ? styles.chipTextActive : styles.chipText}>
-                      {cat.category} ({cat.count})
-                    </Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
+            {categories.length ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipRow}
+              >
+                {categories.map((c) => {
+                  const active = form.category === c.category
+                  return (
+                    <TouchableOpacity
+                      key={c.category}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setForm({ ...form, category: c.category })}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {c.category} ({c.count})
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </ScrollView>
+            ) : (
+              <Text style={styles.helper}>No categories found</Text>
+            )}
 
-            <View style={styles.imageRow}>
-              {remoteImages.map((img, idx) => (
-                <View key={`remote-${img.public_id}-${idx}`} style={styles.imagePill}>
-                  <Image source={{ uri: img.url }} style={styles.thumb} />
-                  <TouchableOpacity
-                    style={styles.removeBtn}
-                    onPress={() => removeRemoteImage(idx)}
-                  >
-                    <Text style={styles.removeText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-              {pickedImages.map((img, idx) => (
-                <View key={`picked-${img.uri}-${idx}`} style={styles.imagePill}>
-                  <Image source={{ uri: img.uri }} style={styles.thumb} />
-                  <TouchableOpacity
-                    style={styles.removeBtn}
-                    onPress={() => removePickedImage(idx)}
-                  >
-                    <Text style={styles.removeText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={styles.btn} onPress={pickImage}>
+                <Text style={styles.btnText}>Pick Images</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btn, { backgroundColor: '#6a1b9a' }]}
+                onPress={takePhoto}
+              >
+                <Text style={styles.btnText}>Use Camera</Text>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity style={styles.btn} onPress={pickImage}>
-              <Text style={styles.btnText}>Pick Images</Text>
-            </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.submitBtn, submitting && styles.disabledBtn]}
@@ -582,17 +426,90 @@ export default function AdminProducts() {
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.btnText}>
                   {editingId ? 'Update Product' : 'Create Product'}
                 </Text>
               )}
             </TouchableOpacity>
+
+            {!!(remoteImages.length || pickedImages.length) && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.previewRow}
+              >
+                {remoteImages.map((img) => (
+                  <Image
+                    key={img.public_id}
+                    source={{ uri: img.url }}
+                    style={styles.preview}
+                  />
+                ))}
+                {pickedImages.map((img) => (
+                  <Image
+                    key={img.uri}
+                    source={{ uri: img.uri }}
+                    style={styles.preview}
+                  />
+                ))}
+              </ScrollView>
+            )}
+
+            {editingId && (
+              <TouchableOpacity style={styles.cancelBtn} onPress={resetForm}>
+                <Text style={styles.cancelText}>Cancel editing</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {item.images?.[0]?.url ? (
+                <Image
+                  source={{ uri: item.images[0].url }}
+                  style={styles.cardImage}
+                />
+              ) : (
+                <View style={[styles.cardImage, styles.emptyImage]}>
+                  <Text style={styles.emptyImageText}>No Image</Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>{item.name}</Text>
+                <Text style={styles.cardMeta}>${item.price.toFixed(2)}</Text>
+                <Text style={styles.cardMeta}>Stock: {item.stock}</Text>
+                <Text style={styles.cardMeta}>Category: {item.category}</Text>
+              </View>
+            </View>
+
+            <View style={styles.cardActions}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.editBtn]}
+                onPress={() => handleEdit(item)}
+              >
+                <Text style={styles.actionText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.deleteBtn]}
+                onPress={() => handleDelete(item._id)}
+                disabled={deleteId === item._id}
+              >
+                {deleteId === item._id ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.actionText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No products yet. Add your first one.</Text>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No products yet</Text>
+          </View>
         }
         contentContainerStyle={styles.listContent}
       />
@@ -601,30 +518,32 @@ export default function AdminProducts() {
 }
 
 // ==================== STYLES ====================
+const headerStyles = StyleSheet.create({
+  wrapper: {
+    flexDirection: 'row',
+    padding: 10,
+    backgroundColor: '#1a1a2e',
+  },
+  brand: { color: '#fff', fontWeight: '700', marginRight: 10 },
+  navBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#2280b0',
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  activeBtn: { backgroundColor: '#4caf50' },
+  navLabel: { color: '#fff' },
+})
+
 const styles = StyleSheet.create({
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { padding: 16, paddingBottom: 32 },
-  formCard: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  formHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  title: { fontSize: 20, fontWeight: '700' },
-  resetText: { color: '#f44336', fontWeight: '600' },
+  listContent: { padding: 16 },
+  formCard: { backgroundColor: '#fff', padding: 14, borderRadius: 10 },
+  title: { fontSize: 20, fontWeight: '700', marginBottom: 10 },
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#ddd',
     padding: 10,
     borderRadius: 8,
     marginBottom: 10,
@@ -632,49 +551,13 @@ const styles = StyleSheet.create({
   multiline: { minHeight: 80 },
   row: { flexDirection: 'row', gap: 10 },
   half: { flex: 1 },
-  label: { fontWeight: '600', marginBottom: 6, marginTop: 6 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  chip: {
-    borderWidth: 1,
-    borderColor: '#b0bec5',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#f5f7fa',
-  },
-  chipActive: {
-    backgroundColor: '#2280b0',
-    borderColor: '#2280b0',
-  },
-  chipText: { color: '#1a1a1a', fontWeight: '600' },
-  chipTextActive: { color: '#fff', fontWeight: '700' },
-  imageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  imagePill: {
-    position: 'relative',
-    width: 70,
-    height: 70,
-    borderRadius: 8,
-    overflow: 'hidden',
-    backgroundColor: '#f2f2f2',
-  },
-  thumb: { width: '100%', height: '100%' },
-  removeBtn: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeText: { color: '#fff', fontWeight: '800', lineHeight: 18 },
+  label: { fontWeight: '600', marginBottom: 6 },
+  helper: { color: '#777', marginBottom: 10 },
   btn: {
+    flex: 1,
     backgroundColor: '#4CAF50',
     padding: 12,
     borderRadius: 8,
-    marginBottom: 10,
     alignItems: 'center',
   },
   submitBtn: {
@@ -682,40 +565,60 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 10,
   },
-  disabledBtn: { opacity: 0.7 },
-  btnText: { color: '#fff', textAlign: 'center', fontWeight: '700' },
-  productCard: {
+  disabledBtn: { opacity: 0.6 },
+  btnText: { color: '#fff', fontWeight: '700' },
+  previewRow: { gap: 10, marginTop: 10 },
+  preview: { width: 70, height: 70, borderRadius: 8, backgroundColor: '#eee' },
+  cancelBtn: {
+    marginTop: 10,
+    padding: 10,
+    alignItems: 'center',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  cancelText: { color: '#333', fontWeight: '600' },
+  card: {
     backgroundColor: '#fff',
-    borderRadius: 10,
     padding: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    borderRadius: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
-  productRow: { flexDirection: 'row', gap: 12 },
-  productImg: { width: 80, height: 80, borderRadius: 8, backgroundColor: '#eee' },
-  placeholderImg: { justifyContent: 'center', alignItems: 'center' },
-  placeholderText: { color: '#666', fontWeight: '600' },
-  productInfo: { flex: 1 },
-  productName: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
-  productMeta: { color: '#455a64', marginBottom: 2 },
-  productDesc: { color: '#616161', marginTop: 2 },
-  cardActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
-  editBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#0288d1',
+  cardImage: { width: 80, height: 80, borderRadius: 8, backgroundColor: '#eee' },
+  emptyImage: { justifyContent: 'center', alignItems: 'center' },
+  emptyImageText: { color: '#999', fontSize: 12 },
+  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  cardMeta: { color: '#555' },
+  cardActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  actionBtn: {
+    flex: 1,
+    padding: 10,
     borderRadius: 8,
+    alignItems: 'center',
   },
-  deleteBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#e53935',
-    borderRadius: 8,
-  },
+  editBtn: { backgroundColor: '#1976d2' },
+  deleteBtn: { backgroundColor: '#d32f2f' },
   actionText: { color: '#fff', fontWeight: '700' },
-  emptyText: { textAlign: 'center', color: '#666', marginTop: 12 },
+  emptyState: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: { color: '#777' },
+  chipRow: { gap: 8, marginBottom: 10 },
+  chip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginRight: 6,
+    backgroundColor: '#f7f7f7',
+  },
+  chipActive: { backgroundColor: '#1976d2', borderColor: '#1976d2' },
+  chipText: { color: '#333', fontWeight: '600' },
+  chipTextActive: { color: '#fff' },
 })

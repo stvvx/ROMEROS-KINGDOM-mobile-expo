@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   FlatList,
+  ScrollView,
 } from 'react-native'
 import { useRouter, usePathname } from 'expo-router'
 import axios from 'axios'
