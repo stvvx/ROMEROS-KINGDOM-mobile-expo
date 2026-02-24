@@ -62,6 +62,10 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin', 'vendor'],
     default: 'user'
   },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
   provider: {
     type: String,
     enum: ['local', 'firebase', 'google'],

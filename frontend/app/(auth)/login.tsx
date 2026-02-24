@@ -216,6 +216,13 @@ export default function Login() {
       const res = await axios.post(`${API_URL}/login`, { email, password }, { timeout: 10000 });
       if (res.data.success) {
         const { token, user } = res.data;
+
+        if (user?.isActive === false) {
+          setServerError({ field: 'email', message: 'Account is deactivated' });
+          Alert.alert('Account Inactive', 'Your account has been deactivated. Please contact support.');
+          return;
+        }
+
         try {
           await setItem('authToken', token);
           await setItem('user', JSON.stringify(user));
@@ -241,6 +248,9 @@ export default function Login() {
       } else if (statusCode === 401 || message.toLowerCase().includes('password')) {
         setServerError({ field: 'password', message: 'Incorrect password' });
         Alert.alert('Login Failed', 'Incorrect password. Please try again.');
+      } else if (statusCode === 403 || message.toLowerCase().includes('deactiv')) {
+        setServerError({ field: 'email', message: 'Account is deactivated' });
+        Alert.alert('Account Inactive', 'Your account has been deactivated. Please contact support.');
       } else {
         Alert.alert('Login Failed', message);
       }

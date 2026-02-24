@@ -287,6 +287,10 @@ exports.updateUser = async (req, res) => {
     role: req.body.role,
   };
 
+  if (typeof req.body.isActive === 'boolean') {
+    newUserData.isActive = req.body.isActive;
+  }
+
   await User.findByIdAndUpdate(req.params.id, newUserData, {
     new: true,
     runValidators: true,
