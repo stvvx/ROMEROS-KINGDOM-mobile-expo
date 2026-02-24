@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -348,101 +347,100 @@ const Categories: React.FC = () => {
   return (
     <>
       <AdminHeader />
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.headerSection}>
-          <Text style={styles.title}>Categories Management</Text>
-          <TouchableOpacity
-            style={styles.createBtn}
-            onPress={() => {
-              if (showForm) {
-                handleCloseForm()
-              } else {
-                setShowForm(true)
-              }
-            }}
-          >
-            <Text style={styles.createBtnText}>
-              {showForm ? 'Cancel' : '+ New Category'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {showForm && (
-          <View style={styles.formCard}>
-            <Text style={styles.formTitle}>
-              {editingId ? 'Edit Category' : 'Create New Category'}
-            </Text>
-
-            <Text style={styles.label}>Category Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter category name"
-              placeholderTextColor="#999"
-              value={formData.name}
-              onChangeText={(text) =>
-                setFormData({ ...formData, name: text })
-              }
-              editable={!submitting}
-            />
-
-            <Text style={styles.label}>Description (Optional)</Text>
-            <TextInput
-              style={[styles.input, styles.multilineInput]}
-              placeholder="Enter category description"
-              placeholderTextColor="#999"
-              value={formData.description}
-              onChangeText={(text) =>
-                setFormData({ ...formData, description: text })
-              }
-              multiline
-              numberOfLines={3}
-              editable={!submitting}
-              textAlignVertical="top"
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                submitting && styles.submitBtnDisabled,
-              ]}
-              onPress={editingId ? handleUpdateCategory : handleCreateCategory}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.submitBtnText}>
-                  {editingId ? 'Update Category' : 'Create Category'}
+      <FlatList
+        data={categories}
+        renderItem={renderCategoryItem}
+        keyExtractor={(item) => item._id}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.headerSection}>
+              <Text style={styles.title}>Categories Management</Text>
+              <TouchableOpacity
+                style={styles.createBtn}
+                onPress={() => {
+                  if (showForm) {
+                    handleCloseForm()
+                  } else {
+                    setShowForm(true)
+                  }
+                }}
+              >
+                <Text style={styles.createBtnText}>
+                  {showForm ? 'Cancel' : '+ New Category'}
                 </Text>
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
+
+            {showForm && (
+              <View style={styles.formCard}>
+                <Text style={styles.formTitle}>
+                  {editingId ? 'Edit Category' : 'Create New Category'}
+                </Text>
+
+                <Text style={styles.label}>Category Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter category name"
+                  placeholderTextColor="#999"
+                  value={formData.name}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, name: text })
+                  }
+                  editable={!submitting}
+                />
+
+                <Text style={styles.label}>Description (Optional)</Text>
+                <TextInput
+                  style={[styles.input, styles.multilineInput]}
+                  placeholder="Enter category description"
+                  placeholderTextColor="#999"
+                  value={formData.description}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, description: text })
+                  }
+                  multiline
+                  numberOfLines={3}
+                  editable={!submitting}
+                  textAlignVertical="top"
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.submitBtn,
+                    submitting && styles.submitBtnDisabled,
+                  ]}
+                  onPress={editingId ? handleUpdateCategory : handleCreateCategory}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.submitBtnText}>
+                      {editingId ? 'Update Category' : 'Create Category'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={styles.statsCard}>
+              <Text style={styles.statsText}>Total Categories: {categories.length}</Text>
+            </View>
+
+            <Text style={styles.listTitle}>All Categories</Text>
           </View>
-        )}
-
-        <View style={styles.statsCard}>
-          <Text style={styles.statsText}>Total Categories: {categories.length}</Text>
-        </View>
-
-        <Text style={styles.listTitle}>All Categories</Text>
-
-        {categories.length === 0 ? (
+        }
+        ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No categories yet</Text>
             <Text style={styles.emptySubtext}>
               Create your first category to get started
             </Text>
           </View>
-        ) : (
-          <FlatList
-            data={categories}
-            renderItem={renderCategoryItem}
-            keyExtractor={(item) => item._id}
-            scrollEnabled={false}
-          />
-        )}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+        }
+        contentContainerStyle={styles.container}
+        ListFooterComponent={<View style={{ height: 40 }} />}
+      />
     </>
   )
 }

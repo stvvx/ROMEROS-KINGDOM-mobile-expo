@@ -13,6 +13,7 @@ import { LineChart, BarChart, PieChart } from 'react-native-chart-kit'
 import { useRouter, usePathname } from 'expo-router'
 import axios from 'axios'
 import Constants from 'expo-constants'
+import { getItem } from '@/utils/storage'
 
 // ─────────────────────────────────────────────────────────────
 // API CONFIG
@@ -163,22 +164,43 @@ const Dashboard: React.FC = () => {
   >([])
 
   const [pieData, setPieData] = useState<any[]>([])
+  const [totals, setTotals] = useState<{ orders: number; sales: number }>(
+    { orders: 0, sales: 0 }
+  )
+  const [recentOrders, setRecentOrders] = useState<any[]>([])
+
+  const formatCurrency = (value: number) => {
+    if (!Number.isFinite(value)) return '$0.00'
+    return `$${Number(value).toFixed(2)}`
+  }
+
+  const getAuthHeader = async () => {
+    const token = await getItem('authToken')
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  }
 
   useEffect(() => {
     let mounted = true
 
     const fetchDashboard = async () => {
       try {
+        const headers = await getAuthHeader()
         const [
           monthsRes,
           productRes,
           customerRes,
           categoryRes,
+          ordersRes,
+          totalOrdersRes,
+          totalSalesRes,
         ] = await Promise.all([
-          axios.get(`${API_URL}/admin/sales-per-month`),
-          axios.get(`${API_URL}/admin/product-sales`),
-          axios.get(`${API_URL}/admin/customer-sales`),
+          axios.get(`${API_URL}/admin/sales-per-month`, { headers }),
+          axios.get(`${API_URL}/admin/product-sales`, { headers }),
+          axios.get(`${API_URL}/admin/customer-sales`, { headers }),
           axios.get(`${API_URL}/products/categories`),
+          axios.get(`${API_URL}/admin/orders`, { headers }),
+          axios.get(`${API_URL}/admin/total-orders`, { headers }),
+          axios.get(`${API_URL}/admin/total-sales`, { headers }),
         ])
 
         if (!mounted) return
@@ -191,12 +213,18 @@ const Dashboard: React.FC = () => {
         })
 
         // Product sales
-        const totalPercentage = productRes.data.totalPercentage ?? []
+        const sales = productRes.data.sales ?? []
+        const totalSales = Number(productRes.data.totalSales || 0)
         setProductSales({
-          labels: totalPercentage.map((p: any) =>
-            p.name.length > 10 ? p.name.slice(0, 10) + '…' : p.name
+          labels: sales.map((p: any) => {
+            const name = p?._id || p?.name || 'Product'
+            return name.length > 12 ? name.slice(0, 12) + '…' : name
+          }),
+          data: sales.map((p: any) =>
+            totalSales && p?.total
+              ? Number(((p.total / totalSales) * 100).toFixed(1))
+              : 0
           ),
-          data: totalPercentage.map((p: any) => Number(p.percent)),
         })
 
         // Top customers pie
@@ -223,6 +251,14 @@ const Dashboard: React.FC = () => {
                 }
           )
         )
+
+        // Orders summary
+        const ordersCount = totalOrdersRes?.data?.totalOrders?.[0]?.count || 0
+        const totalSalesValue = totalSalesRes?.data?.totalSales?.[0]?.totalSales || 0
+        setTotals({ orders: Number(ordersCount), sales: Number(totalSalesValue) })
+
+        const orders = ordersRes?.data?.orders || []
+        setRecentOrders(orders.slice(0, 5))
       } catch (err) {
         console.warn('Dashboard error:', err)
       } finally {
@@ -311,6 +347,40 @@ const Dashboard: React.FC = () => {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.cardTitle}>Orders Summary</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryBox}>
+              <Text style={styles.summaryLabel}>Total Orders</Text>
+              <Text style={styles.summaryValue}>{totals.orders}</Text>
+            </View>
+            <View style={styles.summaryBox}>
+              <Text style={styles.summaryLabel}>Total Sales</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(totals.sales)}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.subheading}>Recent Orders</Text>
+          {recentOrders.length ? (
+            recentOrders.map((o) => (
+              <View key={o._id} style={styles.orderRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.orderId}>#{String(o._id).slice(-6)}</Text>
+                  <Text style={styles.orderMeta}>
+                    {new Date(o.createdAt || o.paidAt || Date.now()).toLocaleDateString()}
+                  </Text>
+                </View>
+                <Text style={styles.orderMeta}>{formatCurrency(o.totalPrice)}</Text>
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusText}>{o.orderStatus || 'Pending'}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.orderMeta}>No orders yet</Text>
+          )}
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>
             Categories ({categories.length})
           </Text>
@@ -358,6 +428,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
+  summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  summaryBox: {
+    flex: 1,
+    backgroundColor: '#f7f9fc',
+    borderRadius: 8,
+    padding: 10,
+  },
+  summaryLabel: { color: '#455a64', fontWeight: '600', marginBottom: 4 },
+  summaryValue: { fontSize: 18, fontWeight: '800', color: '#0d47a1' },
+  subheading: { fontWeight: '700', marginBottom: 8, marginTop: 4 },
+  orderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  orderId: { fontWeight: '700', color: '#222' },
+  orderMeta: { color: '#546e7a' },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 12,
+  },
+  statusText: { color: '#1565c0', fontWeight: '700' },
   chart: {
     borderRadius: 8,
   },
