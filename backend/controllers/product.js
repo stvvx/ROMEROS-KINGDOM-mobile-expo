@@ -548,21 +548,32 @@ exports.deleteReview = async (req, res) => {
 // ==========================
 exports.getCategories = async (req, res) => {
   try {
-    console.log('[getCategories] Fetching product categories')
+    console.log('[getCategories] Fetching all categories')
     
-    const categories = await Product.aggregate([
+    // Get all categories from Category collection
+    const Category = require('../models/category')
+    const allCategories = await Category.find({ isDeleted: { $ne: true } }).sort({ name: 1 })
+    
+    // Get product counts per category
+    const productCounts = await Product.aggregate([
       { $match: { isDeleted: { $ne: true } } },
       { $group: { 
         _id: '$category', 
         count: { $sum: 1 } 
-      }},
-      { $project: { 
-        _id: 0, 
-        category: '$_id', 
-        count: 1 
-      }},
-      { $sort: { category: 1 } }
+      }}
     ])
+    
+    // Create a map of category names to counts
+    const countMap = {}
+    productCounts.forEach(pc => {
+      countMap[pc._id] = pc.count
+    })
+
+    // Format response with all categories and their product counts
+    const categories = allCategories.map(cat => ({
+      category: cat.name,
+      count: countMap[cat.name] || 0
+    }))
 
     console.log('[getCategories] Found', categories.length, 'categories')
 
