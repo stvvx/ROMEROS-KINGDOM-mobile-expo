@@ -396,10 +396,11 @@ exports.createProductReview = async (req, res) => {
     console.log('[createProductReview] Rating:', rating)
     console.log('[createProductReview] Comment:', comment)
 
-    if (!rating || !comment || !productId) {
+    const numericRating = Number(rating)
+    if (!numericRating || numericRating < 1 || numericRating > 5 || !comment?.trim() || !productId) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide rating, comment and productId'
+        message: 'Please provide rating (1-5), comment and productId'
       })
     }
 
@@ -416,8 +417,8 @@ exports.createProductReview = async (req, res) => {
     const review = {
       user: req.user._id,
       name: req.user.name,
-      rating: Number(rating),
-      comment,
+      rating: numericRating,
+      comment: comment.trim(),
     }
 
     const isReviewed = product.reviews.find(
@@ -428,8 +429,8 @@ exports.createProductReview = async (req, res) => {
       console.log('[createProductReview] Updating existing review')
       product.reviews.forEach(r => {
         if (r.user.toString() === req.user._id.toString()) {
-          r.rating = rating
-          r.comment = comment
+          r.rating = numericRating
+          r.comment = comment.trim()
         }
       })
     } else {
@@ -538,6 +539,97 @@ exports.deleteReview = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting review',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+}
+
+// ==========================
+// GET AUTH USER REVIEWS
+// ==========================
+exports.getMyReviews = async (req, res) => {
+  try {
+    const userId = req.user._id
+    console.log('[getMyReviews] Fetching reviews for user:', userId)
+
+    const products = await Product.find(
+      { 'reviews.user': userId },
+      { name: 1, images: 1, reviews: 1 }
+    )
+
+    const reviews = []
+    products.forEach(product => {
+      product.reviews.forEach(r => {
+        if (r.user.toString() === userId.toString()) {
+          reviews.push({
+            _id: r._id,
+            productId: product._id,
+            productName: product.name,
+            productImage: product.images?.[0]?.url || null,
+            rating: r.rating,
+            comment: r.comment,
+            createdAt: r.createdAt,
+          })
+        }
+      })
+    })
+
+    reviews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+    res.status(200).json({ success: true, reviews })
+  } catch (error) {
+    console.error('[getMyReviews Error]', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user reviews',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+}
+
+// ==========================
+// GET ALL REVIEWS (ADMIN)
+// ==========================
+exports.getAllReviews = async (req, res) => {
+  try {
+    console.log('[getAllReviews] Fetching all reviews for admin')
+
+    const reviews = await Product.aggregate([
+      { $match: { 'reviews.0': { $exists: true } } },
+      { $unwind: '$reviews' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'reviews.user',
+          foreignField: '_id',
+          as: 'userDetails'
+        }
+      },
+      { $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          reviewId: '$reviews._id',
+          productId: '$_id',
+          productName: '$name',
+          productImage: { $arrayElemAt: ['$images.url', 0] },
+          rating: '$reviews.rating',
+          comment: '$reviews.comment',
+          userId: '$reviews.user',
+          userName: '$reviews.name',
+          userEmail: '$userDetails.email',
+          createdAt: '$reviews.createdAt'
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ])
+
+    res.status(200).json({ success: true, reviews })
+  } catch (error) {
+    console.error('[getAllReviews Error]', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching reviews',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     })
   }

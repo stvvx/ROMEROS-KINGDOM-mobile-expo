@@ -10,16 +10,27 @@ import {
   Image,
   ActivityIndicator,
   FlatList,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { getItem, setItem } from '@/utils/storage';
+import Constants from 'expo-constants';
 
-// Use NGROK if available, fallback to LAN IP
-const API_URL = 
-  process.env.NGROK_URL || 
-  process.env.EXPO_PUBLIC_API_URL || 
+// Resolve API URL for device/emulator/web
+let API_URL =
+  process.env.NGROK_URL ||
+  process.env.EXPO_PUBLIC_API_URL ||
   'http://localhost:4000/api/v1';
+
+const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig;
+const debuggerHost = manifest?.debuggerHost?.split(':')[0];
+
+if (debuggerHost && debuggerHost !== 'localhost') {
+  API_URL = API_URL.replace('localhost', debuggerHost);
+} else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
+  API_URL = API_URL.replace('localhost', '10.0.2.2');
+}
 
 interface IProduct {
   _id: string;
@@ -55,6 +66,8 @@ export default function ProductDetails() {
   const [product, setProduct] = useState<IProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<IUser | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -62,12 +75,20 @@ export default function ProductDetails() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [hasPurchased, setHasPurchased] = useState(false);
 
-  // Example user, replace with your AuthContext
-  const user: IUser | null = {
-    _id: 'user123',
-    name: 'John Doe',
-    email: 'john@example.com',
-  };
+  useEffect(() => {
+    (async () => {
+      try {
+        const storedUser = await getItem('user');
+        const token = await getItem('authToken');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+        setAuthToken(token);
+      } catch (err) {
+        console.warn('Failed to load auth state', err);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -76,7 +97,7 @@ export default function ProductDetails() {
       return;
     }
     fetchProductDetails();
-  }, [id]);
+  }, [id, authToken, user]);
 
   const fetchProductDetails = async () => {
     try {
@@ -86,7 +107,16 @@ export default function ProductDetails() {
       const res = await axios.get(url, { timeout: 10000 });
       if (res.data.product) {
         setProduct(res.data.product);
-        if (user) checkPurchaseStatus(user._id, res.data.product._id);
+        if (res.data.product.reviews && user) {
+          const mine = res.data.product.reviews.find(
+            (r: any) => String(r.user) === String(user._id)
+          );
+          if (mine) {
+            setRating(mine.rating);
+            setComment(mine.comment);
+          }
+        }
+        await checkPurchaseStatus(res.data.product._id);
       } else {
         setError('Product not found');
       }
@@ -98,16 +128,26 @@ export default function ProductDetails() {
     }
   };
 
-  const checkPurchaseStatus = async (userId: string, productId: string) => {
+  const checkPurchaseStatus = async (productId: string) => {
     try {
-      const res = await axios.get(`${API_URL}/orders/user/${userId}`);
+      if (!authToken) {
+        setHasPurchased(false);
+        return;
+      }
+
+      const res = await axios.get(`${API_URL}/orders/me`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
       const orders = res.data.orders || [];
       const purchased = orders.some((order: any) =>
-        order.items.some((item: any) => item.product === productId)
+        order.orderItems?.some((item: any) => String(item.product) === String(productId))
       );
+
       setHasPurchased(purchased);
     } catch (err) {
       console.error('Failed to check purchase status:', err);
+      setHasPurchased(false);
     }
   };
 
@@ -165,10 +205,24 @@ export default function ProductDetails() {
   const handleSubmitReview = async () => {
     if (!comment.trim()) return Alert.alert('Error', 'Please write a comment');
     if (rating === 0) return Alert.alert('Error', 'Please select a rating');
+    if (!authToken) {
+      Alert.alert('Sign in required', 'Please sign in to leave a review');
+      router.push('/(auth)/login');
+      return;
+    }
+    if (!hasPurchased) {
+      Alert.alert('Purchase required', 'You can only review products you bought.');
+      return;
+    }
     try {
       setSubmittingReview(true);
       const reviewData = { rating, comment, productId: id };
-      const config = { headers: { 'Content-Type': 'application/json' } };
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+      };
       await axios.put(`${API_URL}/review`, reviewData, config);
       Alert.alert('Success', 'Review submitted successfully');
       setComment('');

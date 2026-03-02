@@ -13,6 +13,8 @@ const {
   createProductReview,
   getProductReviews,
   deleteReview,
+  getMyReviews,
+  getAllReviews,
 } = require('../controllers/product')
 
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth')
@@ -67,6 +69,13 @@ router.get(
 /* ================= REVIEWS ================= */
 router.put('/review', isAuthenticatedUser, createProductReview)
 router.get('/reviews', isAuthenticatedUser, getProductReviews)
+router.get('/reviews/my', isAuthenticatedUser, getMyReviews)
+router.get(
+  '/admin/reviews',
+  isAuthenticatedUser,
+  authorizeRoles('admin'),
+  getAllReviews
+)
 router.delete(
   '/reviews',
   isAuthenticatedUser,
