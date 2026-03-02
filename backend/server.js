@@ -1,8 +1,9 @@
-const app = require('./app');
-const connectDatabase = require('./config/database')
-
+// ⚠️  dotenv MUST load before any config that reads process.env
 const dotenv = require('dotenv');
 dotenv.config({path: './config/.env'})
+
+const app = require('./app');
+const connectDatabase = require('./config/database')
 
 connectDatabase();
 

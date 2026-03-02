@@ -188,40 +188,65 @@ exports.getUserProfile = async (req, res, next) => {
 exports.updateProfile = async (req, res, next) => {
   try {
     const newUserData = {
-      name: req.body.name,
-      email: req.body.email,
-      address: req.body.address || '',  // <-- add address
-    };
+      name:    req.body.name    || undefined,
+      email:   req.body.email   || undefined,
+      address: req.body.address ?? '',
+    }
 
-    if (req.body.avatar && req.body.avatar !== '') {
-      const user = await User.findById(req.user.id);
+    // Remove undefined keys so we don't overwrite with undefined
+    Object.keys(newUserData).forEach(k => newUserData[k] === undefined && delete newUserData[k])
 
-      // Delete old avatar
-      await cloudinary.v2.uploader.destroy(user.avatar.public_id);
+    // Handle avatar upload via multer (req.file) or base64 fallback (req.body.avatar)
+    if (req.file) {
+      try {
+        const user = await User.findById(req.user.id)
 
-      const result = await cloudinary.v2.uploader.upload(req.body.avatar, {
-        folder: 'avatars',
-        width: 150,
-        crop: 'scale',
-      });
+        // Delete old avatar if it's not the default placeholder
+        if (user.avatar?.public_id && user.avatar.public_id !== 'avatars/default') {
+          await cloudinary.v2.uploader.destroy(user.avatar.public_id).catch(() => {})
+        }
 
-      newUserData.avatar = {
-        public_id: result.public_id,
-        url: result.secure_url,
-      };
+        // Upload buffer as base64 data URI
+        const b64 = Buffer.from(req.file.buffer).toString('base64')
+        const dataURI = `data:${req.file.mimetype};base64,${b64}`
+        const result = await cloudinary.v2.uploader.upload(dataURI, {
+          folder: 'avatars',
+          width: 300,
+          crop: 'scale',
+        })
+
+        newUserData.avatar = { public_id: result.public_id, url: result.secure_url }
+      } catch (uploadErr) {
+        console.warn('[updateProfile] avatar upload failed:', uploadErr.message)
+        // Continue saving other fields even if avatar upload fails
+      }
+    } else if (req.body.avatar && req.body.avatar !== '') {
+      // Legacy base64 path (kept for backward compat)
+      try {
+        const user = await User.findById(req.user.id)
+        if (user.avatar?.public_id && user.avatar.public_id !== 'avatars/default') {
+          await cloudinary.v2.uploader.destroy(user.avatar.public_id).catch(() => {})
+        }
+        const result = await cloudinary.v2.uploader.upload(req.body.avatar, {
+          folder: 'avatars', width: 300, crop: 'scale',
+        })
+        newUserData.avatar = { public_id: result.public_id, url: result.secure_url }
+      } catch (uploadErr) {
+        console.warn('[updateProfile] legacy avatar upload failed:', uploadErr.message)
+      }
     }
 
     const user = await User.findByIdAndUpdate(req.user.id, newUserData, {
       new: true,
       runValidators: true,
-    });
+    })
 
-    res.status(200).json({ success: true, user });
+    res.status(200).json({ success: true, user })
   } catch (error) {
-    console.error('Update Profile Error:', error);
-    res.status(500).json({ message: error.message });
+    console.error('Update Profile Error:', error)
+    res.status(500).json({ message: error.message })
   }
-};
+}
 
 
 // UPDATE PASSWORD

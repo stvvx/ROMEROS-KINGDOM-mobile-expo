@@ -11,7 +11,9 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
+  ActionSheetIOS,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { getItem, setItem } from '@/utils/storage';
@@ -75,6 +77,7 @@ export default function ProductDetails() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [hasPurchased, setHasPurchased] = useState(false); // ordered AND delivered
   const [hasOrdered, setHasOrdered] = useState(false);    // ordered but not yet delivered
+  const [reviewImages, setReviewImages] = useState<Array<{ uri: string; name: string; type: string }>>([]);
 
   useEffect(() => {
     (async () => {
@@ -219,6 +222,70 @@ export default function ProductDetails() {
 
   const handleRatingPress = (value: number) => setRating(value);
 
+  /* ── Image picker helpers ── */
+  const pickOrCapture = async (mode: 'camera' | 'gallery') => {
+    if (reviewImages.length >= 4) {
+      Alert.alert('Max images', 'You can attach up to 4 images per review.');
+      return;
+    }
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (mode === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Camera access is required.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.75,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Photo library access is required.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.75,
+          allowsMultipleSelection: true,
+          selectionLimit: 4 - reviewImages.length,
+        });
+      }
+      if (!result.canceled && result.assets?.length) {
+        const newImgs = result.assets.map((a) => {
+          const filename = a.uri.split('/').pop() || 'review.jpg';
+          const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+          return { uri: a.uri, name: filename, type: `image/${ext === 'jpg' ? 'jpeg' : ext}` };
+        });
+        setReviewImages((prev) => [...prev, ...newImgs].slice(0, 4));
+      }
+    } catch (err) {
+      console.warn('Image picker error', err);
+    }
+  };
+
+  const openImagePicker = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', '📷 Take Photo', '🖼  Choose from Library'], cancelButtonIndex: 0 },
+        (idx) => { if (idx === 1) pickOrCapture('camera'); else if (idx === 2) pickOrCapture('gallery'); }
+      );
+    } else {
+      Alert.alert('Add Photo', 'Choose a source', [
+        { text: 'Camera',  onPress: () => pickOrCapture('camera')  },
+        { text: 'Gallery', onPress: () => pickOrCapture('gallery') },
+        { text: 'Cancel',  style: 'cancel' },
+      ]);
+    }
+  };
+
+  const removeReviewImage = (idx: number) =>
+    setReviewImages((prev) => prev.filter((_, i) => i !== idx));
+
   const handleSubmitReview = async () => {
     if (!comment.trim()) return Alert.alert('Error', 'Please write a comment');
     if (rating === 0) return Alert.alert('Error', 'Please select a rating');
@@ -233,17 +300,40 @@ export default function ProductDetails() {
     }
     try {
       setSubmittingReview(true);
-      const reviewData = { rating, comment, productId: id };
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-      };
-      await axios.put(`${API_URL}/review`, reviewData, config);
+      let response;
+      if (reviewImages.length > 0) {
+        // Send as multipart/form-data when images are attached
+        const formData = new FormData();
+        formData.append('rating', String(rating));
+        formData.append('comment', comment.trim());
+        formData.append('productId', id as string);
+        reviewImages.forEach((img) => {
+          formData.append('reviewImages', { uri: img.uri, name: img.name, type: img.type } as any);
+        });
+        response = await axios.put(`${API_URL}/review`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${authToken}`,
+          },
+          timeout: 20000,
+        });
+      } else {
+        // No images — send JSON as before
+        response = await axios.put(
+          `${API_URL}/review`,
+          { rating, comment: comment.trim(), productId: id },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+          }
+        );
+      }
       Alert.alert('Success', 'Review submitted successfully');
       setComment('');
       setRating(0);
+      setReviewImages([]);
       await fetchProductDetails();
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Failed to submit review';
@@ -419,6 +509,34 @@ export default function ProductDetails() {
                 value={comment}
                 onChangeText={setComment}
               />
+
+              {/* ── Image picker / thumbnails ── */}
+              {reviewImages.length > 0 && (
+                <View style={styles.imgPreviewRow}>
+                  {reviewImages.map((img, idx) => (
+                    <View key={idx} style={styles.imgThumbWrap}>
+                      <Image source={{ uri: img.uri }} style={styles.imgThumb} resizeMode="cover" />
+                      <TouchableOpacity
+                        style={styles.imgRemoveBtn}
+                        onPress={() => removeReviewImage(idx)}
+                      >
+                        <Text style={styles.imgRemoveTxt}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.addPhotoBtn}
+                onPress={openImagePicker}
+                disabled={reviewImages.length >= 4}
+              >
+                <Text style={styles.addPhotoBtnTxt}>
+                  {reviewImages.length >= 4 ? '📷  Max 4 photos' : `📷  Add Photo (${reviewImages.length}/4)`}
+                </Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.submitReviewBtn}
                 onPress={handleSubmitReview}
@@ -526,6 +644,33 @@ const styles = StyleSheet.create({
   commentInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 6, padding: 10, height: 100, marginBottom: 12, fontSize: 14, color: '#000', textAlignVertical: 'top' },
   submitReviewBtn: { backgroundColor: '#27ae60', paddingVertical: 12, borderRadius: 6 },
   submitReviewText: { color: '#fff', fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
+
+  /* ── Review image picker ── */
+  addPhotoBtn: {
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  addPhotoBtnTxt: { color: '#555', fontSize: 13, fontWeight: '600' },
+  imgPreviewRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  imgThumbWrap: { position: 'relative' },
+  imgThumb: { width: 70, height: 70, borderRadius: 8, backgroundColor: '#eee' },
+  imgRemoveBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#e74c3c',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imgRemoveTxt: { color: '#fff', fontSize: 10, fontWeight: '800', lineHeight: 12 },
   pendingReviewBox: { backgroundColor: '#fffbea', borderWidth: 1, borderColor: '#f0c040', borderRadius: 10, padding: 16, marginBottom: 16, alignItems: 'center', gap: 6 },
   pendingReviewIcon: { fontSize: 28 },
   pendingReviewTitle: { color: '#7a5c00', fontSize: 14, fontWeight: '700' },

@@ -523,10 +523,13 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState(routeKw ?? '');
   const [activeCategory, setActiveCategory] = useState('All');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   /* Animations */
   const headerFade = useRef(new Animated.Value(0)).current;
   const filterH = useRef(new Animated.Value(0)).current;
+  const menuSlide = useRef(new Animated.Value(-300)).current;
+  const menuOverlayOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(headerFade, {
@@ -543,6 +546,21 @@ export default function Home() {
       useNativeDriver: false,
     }).start();
   }, [filterOpen]);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(menuSlide, {
+        toValue: menuOpen ? 0 : -300,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(menuOverlayOpacity, {
+        toValue: menuOpen ? 1 : 0,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [menuOpen]);
 
   const animatedFilterH = filterH.interpolate({
     inputRange: [0, 1],
@@ -879,55 +897,19 @@ export default function Home() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={s.iconBtn}
-                onPress={handleNotificationPress}
+                onPress={() => setMenuOpen(true)}
               >
-                <Text style={s.iconBtnTxt}>🔔</Text>
-                {notifCount > 0 && (
+                <View style={s.hamburgerLines}>
+                  <View style={s.hamburgerLine} />
+                  <View style={[s.hamburgerLine, { width: 18 }]} />
+                  <View style={s.hamburgerLine} />
+                </View>
+                {(cartCount > 0 || notifCount > 0) && (
                   <View style={s.badge}>
-                    <Text style={s.badgeTxt}>{notifCount}</Text>
+                    <Text style={s.badgeTxt}>{cartCount + notifCount}</Text>
                   </View>
                 )}
               </TouchableOpacity>
-              {!isLoggedIn ? (
-                <TouchableOpacity 
-                  style={s.iconBtn}
-                  onPress={handleLoginPress}
-                >
-                  <Text style={s.iconBtnTxt}>🔐</Text>
-                </TouchableOpacity>
-              ) : (
-                <>
-                  <TouchableOpacity 
-                    style={s.iconBtn}
-                    onPress={handleCartPress}
-                  >
-                    <Text style={s.iconBtnTxt}>🛒</Text>
-                    {cartCount > 0 && (
-                      <View style={s.badge}>
-                        <Text style={s.badgeTxt}>{cartCount}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={s.profileBtnMobile}
-                    onPress={() => router.push('/(user)/UserProfile')}
-                  >
-                    {profile?.avatar ? (
-                      <Image source={{ uri: profile.avatar }} style={s.mobileAvatar} />
-                    ) : (
-                      <Text style={s.iconBtnTxt}>👤</Text>
-                    )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={s.iconBtn}
-                    onPress={handleLogout}
-                  >
-                    <Text style={s.iconBtnTxt}>⇦</Text>
-                  </TouchableOpacity>
-                </>
-              )}
             </View>
           </View>
 
@@ -1189,6 +1171,170 @@ export default function Home() {
             {error ? ` | ERR: ${error}` : ''}
           </Text>
         </View>
+      )}
+
+      {/* ══ MOBILE: Hamburger Drawer Overlay ══ */}
+      {!isWeb && menuOpen && (
+        <>
+          {/* Backdrop */}
+          <Animated.View
+            style={[s.drawerBackdrop, { opacity: menuOverlayOpacity }]}
+          >
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={1}
+              onPress={() => setMenuOpen(false)}
+            />
+          </Animated.View>
+
+          {/* Drawer Panel */}
+          <Animated.View
+            style={[
+              s.drawerPanel,
+              { transform: [{ translateX: menuSlide }] },
+            ]}
+          >
+            {/* Drawer Header */}
+            <View style={s.drawerHeader}>
+              <View>
+                <Text style={s.drawerEyebrow}>◈ ROMEROS</Text>
+                <Text style={s.drawerTitle}>MENU</Text>
+              </View>
+              <TouchableOpacity
+                style={s.drawerCloseBtn}
+                onPress={() => setMenuOpen(false)}
+              >
+                <Text style={s.drawerCloseTxt}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Profile section */}
+            {isLoggedIn && (
+              <TouchableOpacity
+                style={s.drawerProfile}
+                onPress={() => {
+                  setMenuOpen(false);
+                  router.push('/(user)/UserProfile');
+                }}
+              >
+                <View style={s.drawerAvatarWrap}>
+                  {profile?.avatar ? (
+                    <Image
+                      source={{ uri: profile.avatar }}
+                      style={s.drawerAvatar}
+                    />
+                  ) : (
+                    <Text style={{ fontSize: 26 }}>👤</Text>
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.drawerProfileName}>
+                    {profile?.name ?? 'User'}
+                  </Text>
+                  <Text style={s.drawerProfileSub}>View Profile →</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            <View style={s.drawerDivider} />
+
+            {/* Nav Items */}
+            {!isLoggedIn ? (
+              <TouchableOpacity
+                style={s.drawerItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  handleLoginPress();
+                }}
+              >
+                <Text style={s.drawerItemIcon}>🔐</Text>
+                <Text style={s.drawerItemLabel}>Sign In</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={s.drawerItem}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    handleCartPress();
+                  }}
+                >
+                  <Text style={s.drawerItemIcon}>🛒</Text>
+                  <Text style={s.drawerItemLabel}>Cart</Text>
+                  {cartCount > 0 && (
+                    <View style={s.drawerBadge}>
+                      <Text style={s.drawerBadgeTxt}>{cartCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={s.drawerItem}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    handleNotificationPress();
+                  }}
+                >
+                  <Text style={s.drawerItemIcon}>🔔</Text>
+                  <Text style={s.drawerItemLabel}>Notifications</Text>
+                  {notifCount > 0 && (
+                    <View style={s.drawerBadge}>
+                      <Text style={s.drawerBadgeTxt}>{notifCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={s.drawerItem}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    router.push('/(user)/UserProfile');
+                  }}
+                >
+                  <Text style={s.drawerItemIcon}>👤</Text>
+                  <Text style={s.drawerItemLabel}>My Profile</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={s.drawerItem}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    router.push('/(user)/orders');
+                  }}
+                >
+                  <Text style={s.drawerItemIcon}>📦</Text>
+                  <Text style={s.drawerItemLabel}>My Orders</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={s.drawerItem}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    router.push('/(user)/review');
+                  }}
+                >
+                  <Text style={s.drawerItemIcon}>★</Text>
+                  <Text style={s.drawerItemLabel}>My Reviews</Text>
+                </TouchableOpacity>
+
+                <View style={s.drawerDivider} />
+
+                <TouchableOpacity
+                  style={[s.drawerItem, s.drawerItemDanger]}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    handleLogout();
+                  }}
+                >
+                  <Text style={s.drawerItemIcon}>⇦</Text>
+                  <Text style={[s.drawerItemLabel, { color: C.danger }]}>
+                    Logout
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </Animated.View>
+        </>
       )}
     </View>
   );
@@ -1828,5 +1974,158 @@ const s = StyleSheet.create({
     color: C.accent,
     fontSize: 9,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+
+  /* ── Hamburger button lines ── */
+  hamburgerLines: {
+    gap: 4,
+    alignItems: 'flex-end',
+  },
+  hamburgerLine: {
+    width: 22,
+    height: 2.5,
+    borderRadius: 2,
+    backgroundColor: C.text,
+  },
+
+  /* ── Drawer Backdrop ── */
+  drawerBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    zIndex: 200,
+  },
+
+  /* ── Drawer Panel ── */
+  drawerPanel: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 280,
+    backgroundColor: C.bgLayer,
+    borderRightWidth: 1,
+    borderRightColor: C.border,
+    zIndex: 201,
+    paddingTop: Platform.OS === 'ios' ? 56 : 40,
+    paddingBottom: 40,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  drawerEyebrow: {
+    color: C.accent,
+    fontSize: 10,
+    letterSpacing: 3,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  drawerTitle: {
+    color: C.text,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  drawerCloseBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  drawerCloseTxt: {
+    color: C.textSub,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  drawerProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 14,
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  drawerAvatarWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: C.bgLayer,
+    borderWidth: 1,
+    borderColor: C.accentDim,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  drawerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+  },
+  drawerProfileName: {
+    color: C.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  drawerProfileSub: {
+    color: C.accent,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  drawerDivider: {
+    height: 1,
+    backgroundColor: C.border,
+    marginHorizontal: 16,
+    marginVertical: 10,
+  },
+  drawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+  },
+  drawerItemDanger: {
+    marginTop: 4,
+  },
+  drawerItemIcon: {
+    fontSize: 20,
+    width: 28,
+    textAlign: 'center',
+  },
+  drawerItemLabel: {
+    flex: 1,
+    color: C.text,
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  drawerBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: C.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  drawerBadgeTxt: {
+    color: C.bg,
+    fontSize: 10,
+    fontWeight: '800',
   },
 });

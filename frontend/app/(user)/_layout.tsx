@@ -19,6 +19,14 @@ export default function UserLayout() {
         name="review" 
         options={{ headerShown: false }} 
       />
+      <Stack.Screen 
+        name="orders" 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen
+        name="UserProfile"
+        options={{ headerShown: false }}
+      />
     </Stack>
   );
 }

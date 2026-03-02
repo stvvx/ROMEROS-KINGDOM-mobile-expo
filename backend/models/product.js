@@ -82,6 +82,13 @@ const productSchema = new mongoose.Schema({
         required: true,
         trim: true,
       },
+      images: [
+        {
+          public_id: { type: String },
+          url: { type: String },
+          _id: false,
+        },
+      ],
       createdAt: {
         type: Date,
         default: Date.now,

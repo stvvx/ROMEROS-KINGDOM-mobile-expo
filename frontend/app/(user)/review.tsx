@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Image,
+  ScrollView,
 } from 'react-native';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
@@ -36,6 +38,7 @@ interface Review {
   productImage?: string | null;
   rating: number;
   comment: string;
+  images?: { public_id?: string; url: string }[];
   createdAt: string;
 }
 
@@ -65,6 +68,26 @@ const ReviewCard = ({ review, onPress }: { review: Review; onPress: () => void }
 
     <StarRow rating={review.rating} />
     <Text style={styles.comment}>{review.comment}</Text>
+
+    {/* Review images */}
+    {review.images && review.images.length > 0 && (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginTop: 8 }}
+        contentContainerStyle={{ gap: 8 }}
+      >
+        {review.images.map((img, i) => (
+          <Image
+            key={i}
+            source={{ uri: img.url }}
+            style={styles.reviewImg}
+            resizeMode="cover"
+          />
+        ))}
+      </ScrollView>
+    )}
+
     <Text style={styles.cta}>View product →</Text>
   </TouchableOpacity>
 );
@@ -205,4 +228,12 @@ const styles = StyleSheet.create({
   emptyTitle: { color: '#E8EDF5', fontSize: 18, fontWeight: '700' },
   emptyText: { color: '#7A859E', textAlign: 'center', paddingHorizontal: 24 },
   error: { color: '#FF5A6E', fontSize: 13 },
+  reviewImg: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    backgroundColor: '#1F2540',
+    borderWidth: 1,
+    borderColor: '#2B3247',
+  },
 });

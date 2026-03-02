@@ -2,6 +2,7 @@ const Product = require('../models/product')
 const Order = require('../models/order')
 const APIFeatures = require('../utils/apiFeatures')
 const { notify } = require('../utils/notification')
+const cloudinary = require('../config/cloudinary')
 
 // ==========================
 // CREATE NEW PRODUCT
@@ -433,11 +434,32 @@ exports.createProductReview = async (req, res) => {
       })
     }
 
+    // ── Upload review images to Cloudinary (if any) ──
+    let uploadedImages = []
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        try {
+          const result = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { folder: 'reviews', resource_type: 'image' },
+              (error, result) => { if (error) reject(error); else resolve(result) }
+            )
+            stream.end(file.buffer)
+          })
+          uploadedImages.push({ public_id: result.public_id, url: result.secure_url })
+        } catch (uploadErr) {
+          console.error('[createProductReview] Cloudinary upload failed for file:', file.originalname, uploadErr.message)
+          // Continue without failing the whole request — skip this image
+        }
+      }
+    }
+
     const review = {
       user: req.user._id,
       name: req.user.name,
       rating: numericRating,
       comment: comment.trim(),
+      images: uploadedImages,
     }
 
     const isReviewed = product.reviews.find(
@@ -450,6 +472,8 @@ exports.createProductReview = async (req, res) => {
         if (r.user.toString() === req.user._id.toString()) {
           r.rating = numericRating
           r.comment = comment.trim()
+          // Replace images only when new ones were uploaded
+          if (uploadedImages.length > 0) r.images = uploadedImages
         }
       })
     } else {
@@ -621,6 +645,7 @@ exports.getMyReviews = async (req, res) => {
             productImage: product.images?.[0]?.url || null,
             rating: r.rating,
             comment: r.comment,
+            images: r.images || [],
             createdAt: r.createdAt,
           })
         }
