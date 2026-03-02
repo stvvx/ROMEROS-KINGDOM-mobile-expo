@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import {
   View,
   Text,
@@ -10,16 +10,17 @@ import {
   Alert,
   FlatList,
   ScrollView,
+  Modal,
+  Pressable,
+  Animated,
 } from 'react-native'
 import { useRouter, usePathname } from 'expo-router'
 import axios from 'axios'
 import Constants from 'expo-constants'
 import { getItem } from '@/utils/storage'
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 
-// ─────────────────────────────────────────────────────────────
-// API CONFIG
-// ─────────────────────────────────────────────────────────────
-
+// ─── API CONFIG ───────────────────────────────────────────────
 let API_URL =
   process.env.NGROK_URL ||
   process.env.EXPO_PUBLIC_API_URL ||
@@ -27,7 +28,6 @@ let API_URL =
 
 const manifest: any =
   (Constants as any).manifest || (Constants as any).expoConfig
-
 const debuggerHost = manifest?.debuggerHost
   ? manifest.debuggerHost.split(':')[0]
   : null
@@ -38,50 +38,37 @@ if (debuggerHost && debuggerHost !== 'localhost') {
   API_URL = API_URL.replace('localhost', '10.0.2.2')
 }
 
-// ─────────────────────────────────────────────────────────────
-// ADMIN HEADER
-// ─────────────────────────────────────────────────────────────
-
+// ─── NAV ─────────────────────────────────────────────────────
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/(admin)/dashboard' },
-  { label: 'Products', path: '/(admin)/products' },
-  { label: 'Categories', path: '/(admin)/categories' },
-  { label: 'Users', path: '/(admin)/users' },
-  { label: 'Reviews', path: '/(admin)/review' },
+  { label: 'Products',  path: '/(admin)/products'  },
+  { label: 'Categories',path: '/(admin)/categories'},
+  { label: 'Users',     path: '/(admin)/users'     },
+  { label: 'Reviews',   path: '/(admin)/review'    },
 ]
 
 const AdminHeader: React.FC = () => {
-  const router = useRouter()
+  const router   = useRouter()
   const pathname = usePathname()
 
   return (
-    <View style={headerStyles.wrapper}>
-      <Text style={headerStyles.brand}>⚙️ Admin</Text>
-
+    <View style={hdr.wrapper}>
+      <MaterialCommunityIcons name="folder-multiple" size={18} color="#fff" style={{ marginRight: 8 }} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={headerStyles.navRow}
+        contentContainerStyle={hdr.navRow}
       >
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.path
-
           return (
             <TouchableOpacity
               key={item.path}
-              style={[
-                headerStyles.navBtn,
-                isActive && headerStyles.activeBtn,
-              ]}
-              onPress={() => router.push(item.path)}
+              style={[hdr.navBtn, isActive && hdr.activeBtn]}
+              onPress={() => router.push(item.path as any)}
               activeOpacity={0.8}
             >
-              <Text
-                style={[
-                  headerStyles.navLabel,
-                  isActive && headerStyles.activeLabel,
-                ]}
-              >
+              <Text style={[hdr.navLabel, isActive && hdr.activeLabel]}>
                 {item.label}
               </Text>
             </TouchableOpacity>
@@ -92,48 +79,249 @@ const AdminHeader: React.FC = () => {
   )
 }
 
-const headerStyles = StyleSheet.create({
+const hdr = StyleSheet.create({
   wrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1a1a2e',
     paddingHorizontal: 12,
     paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  brand: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-    marginRight: 10,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  navRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   navBtn: {
     backgroundColor: '#2280b0',
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
   },
-  activeBtn: {
-    backgroundColor: '#4caf50',
+  activeBtn:   { backgroundColor: '#4caf50' },
+  navLabel:    { color: '#fff', fontSize: 13, fontWeight: '600' },
+  activeLabel: { fontWeight: '800' },
+})
+
+// ─── THEMED ALERT MODAL ───────────────────────────────────────
+interface ThemedAlertProps {
+  visible: boolean
+  type: 'success' | 'error'
+  title: string
+  message: string
+  onClose: () => void
+}
+
+const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message, onClose }) => {
+  const isSuccess = type === 'success'
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={al.overlay} onPress={onClose}>
+        <Pressable style={al.card} onPress={() => {}}>
+          <View style={[al.iconWrap, isSuccess ? al.iconSuccess : al.iconError]}>
+            <Ionicons
+              name={isSuccess ? 'checkmark-circle' : 'alert-circle'}
+              size={32}
+              color={isSuccess ? '#4caf50' : '#ff6b6b'}
+            />
+          </View>
+          <Text style={al.title}>{title}</Text>
+          <Text style={al.message}>{message}</Text>
+          <View style={al.divider} />
+          <TouchableOpacity
+            style={[al.btn, isSuccess ? al.btnSuccess : al.btnError]}
+            onPress={onClose}
+            activeOpacity={0.85}
+          >
+            <Text style={al.btnText}>{isSuccess ? 'Great!' : 'Got it'}</Text>
+          </TouchableOpacity>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  )
+}
+
+// ─── THEMED CONFIRM DIALOG ───────────────────────────────────
+interface ConfirmDialogProps {
+  visible: boolean
+  title: string
+  message: string
+  destructiveText?: string
+  cancelText?: string
+  onConfirm: () => void
+  onCancel: () => void
+  isLoading?: boolean
+}
+
+const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
+  visible,
+  title,
+  message,
+  destructiveText = 'Delete',
+  cancelText = 'Cancel',
+  onConfirm,
+  onCancel,
+  isLoading = false,
+}) => {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable style={cd.overlay} onPress={onCancel}>
+        <Pressable style={cd.card} onPress={() => {}}>
+          <View style={cd.iconWrap}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={40} color="#ff6b6b" />
+          </View>
+          <Text style={cd.title}>{title}</Text>
+          <Text style={cd.message}>{message}</Text>
+          <View style={cd.divider} />
+          <View style={cd.buttonRow}>
+            <TouchableOpacity
+              style={cd.cancelBtn}
+              onPress={onCancel}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              <Text style={cd.cancelBtnText}>{cancelText}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[cd.confirmBtn, isLoading && cd.confirmBtnDisabled]}
+              onPress={onConfirm}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Feather name="trash-2" size={15} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={cd.confirmBtnText}>{destructiveText}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  )
+}
+
+const cd = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
   },
-  navLabel: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
+  card: {
+    width: '100%',
+    backgroundColor: '#16213e',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.6,
+    shadowRadius: 40,
+    elevation: 20,
   },
-  activeLabel: {
-    fontWeight: '800',
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,107,107,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,107,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
+  title:   { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' },
+  message: { fontSize: 13, color: 'rgba(160,174,192,0.75)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  divider: { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 20 },
+  buttonRow: { flexDirection: 'row', gap: 12, width: '100%' },
+  cancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 13,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  cancelBtnText: { fontSize: 14, fontWeight: '700', color: 'rgba(160,174,192,0.7)' },
+  confirmBtn: {
+    flex: 1,
+    backgroundColor: '#ff6b6b',
+    borderRadius: 13,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#ff6b6b',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  confirmBtnDisabled: { opacity: 0.6 },
+  confirmBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+})
+
+const al = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+  },
+  card: {
+    width: '100%',
+    backgroundColor: '#16213e',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.6,
+    shadowRadius: 40,
+    elevation: 20,
+  },
+  iconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  iconSuccess: { backgroundColor: 'rgba(76,175,80,0.12)', borderWidth: 1, borderColor: 'rgba(76,175,80,0.3)'  },
+  iconError:   { backgroundColor: 'rgba(255,107,107,0.12)',borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)'},
+  title:   { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' },
+  message: { fontSize: 13, color: 'rgba(160,174,192,0.8)', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  divider: { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 20 },
+  btn: {
+    width: '100%',
+    borderRadius: 13,
+    paddingVertical: 14,
+    alignItems: 'center',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  btnSuccess: { backgroundColor: '#4caf50', shadowColor: '#4caf50' },
+  btnError:   { backgroundColor: '#ff6b6b', shadowColor: '#ff6b6b' },
+  btnText:    { color: '#fff', fontSize: 15, fontWeight: '700' },
 })
 
 // ─────────────────────────────────────────────────────────────
 // CATEGORIES SCREEN
 // ─────────────────────────────────────────────────────────────
 
+// ─── TYPES ────────────────────────────────────────────────────
 interface Category {
   _id: string
   name: string
@@ -144,18 +332,38 @@ interface Category {
   createdAt: string
 }
 
-const Categories: React.FC = () => {
+// ─── MAIN SCREEN ─────────────────────────────────────────────
+export default function AdminCategories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const [modalVisible, setModalVisible] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
   })
+
+  // Themed alert state
+  const [alertVisible, setAlertVisible] = useState(false)
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success')
+  const [alertTitle, setAlertTitle] = useState('')
+  const [alertMessage, setAlertMessage] = useState('')
+
+  // Delete confirmation state
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const showAlert = (type: 'success' | 'error', title: string, message: string) => {
+    setAlertType(type)
+    setAlertTitle(title)
+    setAlertMessage(message)
+    setAlertVisible(true)
+  }
 
   const getAuthHeader = async () => {
     const token = await getItem('authToken')
@@ -173,173 +381,101 @@ const Categories: React.FC = () => {
       const res = await axios.get(`${API_URL}/categories`, { headers })
       setCategories(res.data.categories || [])
     } catch (error) {
-      console.error('Error fetching categories:', error)
-      Alert.alert('Error', 'Failed to fetch categories')
+      showAlert('error', 'Failed to Load', 'Could not fetch categories. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCreateCategory = async () => {
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter category name')
-      return
+  const openCategoryModal = (category?: Category) => {
+    if (category) {
+      setSelectedCategory(category)
+      setFormData({
+        name: category.name,
+        description: category.description || '',
+      })
+    } else {
+      setSelectedCategory(null)
+      setFormData({ name: '', description: '' })
     }
-
-    try {
-      setSubmitting(true)
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(await getAuthHeader()),
-      }
-      const res = await axios.post(`${API_URL}/admin/category/new`, formData, { headers })
-
-      if (res.data.success) {
-        Alert.alert('Success', 'Category created successfully')
-        setFormData({ name: '', description: '' })
-        setShowForm(false)
-        fetchCategories()
-      }
-    } catch (error: any) {
-      console.error('Error creating category:', error)
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to create category'
-      )
-    } finally {
-      setSubmitting(false)
-    }
+    setModalVisible(true)
   }
 
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      setDeleteId(id)
-      const headers = await getAuthHeader()
-      const res = await axios.delete(`${API_URL}/admin/category/${id}`, { headers })
-
-      if (res.data.success) {
-        Alert.alert('Success', 'Category deleted successfully')
-        fetchCategories()
-      }
-    } catch (error: any) {
-      console.error('Error deleting category:', error)
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to delete category'
-      )
-    } finally {
-      setDeleteId(null)
-    }
-  }
-
-  const handleEditCategory = (category: Category) => {
-    setEditingId(category._id)
-    setFormData({
-      name: category.name,
-      description: category.description || '',
-    })
-    setShowForm(true)
-  }
-
-  const handleUpdateCategory = async () => {
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter category name')
-      return
-    }
-
-    try {
-      setSubmitting(true)
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(await getAuthHeader()),
-      }
-      const res = await axios.put(
-        `${API_URL}/admin/category/${editingId}`,
-        formData,
-        { headers }
-      )
-
-      if (res.data.success) {
-        Alert.alert('Success', 'Category updated successfully')
-        setFormData({ name: '', description: '' })
-        setEditingId(null)
-        setShowForm(false)
-        fetchCategories()
-      }
-    } catch (error: any) {
-      console.error('Error updating category:', error)
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to update category'
-      )
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleCloseForm = () => {
-    setShowForm(false)
-    setEditingId(null)
+  const closeModal = () => {
+    setModalVisible(false)
+    setSelectedCategory(null)
     setFormData({ name: '', description: '' })
   }
 
-  const renderCategoryItem = ({ item }: { item: Category }) => (
-    <View style={styles.categoryCard}>
-      <View style={styles.cardContent}>
-        <Text style={styles.categoryName}>{item.name}</Text>
-        {item.description && (
-          <Text style={styles.categoryDesc} numberOfLines={2}>
-            {item.description}
-          </Text>
-        )}
-        <Text style={styles.categoryDate}>
-          Created: {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
+  const handleSaveCategory = async () => {
+    if (!formData.name.trim()) {
+      showAlert('error', 'Validation Error', 'Please enter a category name')
+      return
+    }
 
-      <View style={styles.buttonGroup}>
-        <TouchableOpacity
-          style={styles.editBtn}
-          onPress={() => handleEditCategory(item)}
-          disabled={deleteId === item._id || editingId === item._id}
-        >
-          <Text style={styles.editBtnText}>Edit</Text>
-        </TouchableOpacity>
+    try {
+      setUpdating(true)
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(await getAuthHeader()),
+      }
 
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() => {
-            Alert.alert(
-              'Delete Category',
-              'Are you sure you want to delete this category?',
-              [
-                { text: 'Cancel', onPress: () => {} },
-                {
-                  text: 'Delete',
-                  onPress: () => handleDeleteCategory(item._id),
-                  style: 'destructive',
-                },
-              ]
-            )
-          }}
-          disabled={deleteId === item._id}
-        >
-          {deleteId === item._id ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.deleteBtnText}>Delete</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+      if (selectedCategory) {
+        // Update
+        await axios.put(
+          `${API_URL}/admin/category/${selectedCategory._id}`,
+          formData,
+          { headers }
+        )
+        showAlert('success', 'Updated', 'Category has been updated successfully')
+      } else {
+        // Create
+        await axios.post(`${API_URL}/admin/category/new`, formData, { headers })
+        showAlert('success', 'Created', 'Category has been created successfully')
+      }
+      closeModal()
+      fetchCategories()
+    } catch (error: any) {
+      showAlert('error', 'Operation Failed', error.response?.data?.message || 'Something went wrong')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleDeleteCategory = (id: string) => {
+    setDeleteTargetId(id)
+    setDeleteConfirmVisible(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return
+    try {
+      setIsDeleting(true)
+      const headers = await getAuthHeader()
+      await axios.delete(`${API_URL}/admin/category/${deleteTargetId}`, { headers })
+      setDeleteConfirmVisible(false)
+      setDeleteTargetId(null)
+      showAlert('success', 'Deleted', 'Category has been deleted successfully')
+      fetchCategories()
+    } catch (error: any) {
+      showAlert('error', 'Delete Failed', error.response?.data?.message || 'Failed to delete')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const filteredCategories = categories.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
   )
 
-  if (loading) {
+  if (loading && categories.length === 0) {
     return (
       <>
         <AdminHeader />
-        <View style={styles.center}>
+        <View style={s.loader}>
           <ActivityIndicator size="large" color="#2280b0" />
+          <Text style={s.loaderText}>Loading categories...</Text>
         </View>
       </>
     )
@@ -348,279 +484,525 @@ const Categories: React.FC = () => {
   return (
     <>
       <AdminHeader />
-      <FlatList
-        data={categories}
-        renderItem={renderCategoryItem}
-        keyExtractor={(item) => item._id}
-        ListHeaderComponent={
+
+      {/* Themed Alert */}
+      <ThemedAlert
+        visible={alertVisible}
+        type={alertType}
+        title={alertTitle}
+        message={alertMessage}
+        onClose={() => setAlertVisible(false)}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        visible={deleteConfirmVisible}
+        title="Delete Category"
+        message="This action cannot be undone. Are you sure you want to delete this category?"
+        destructiveText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeleteConfirmVisible(false)
+          setDeleteTargetId(null)
+        }}
+        isLoading={isDeleting}
+      />
+
+      <View style={s.root}>
+
+        {/* ── Page Header ── */}
+        <View style={s.pageHeader}>
           <View>
-            <View style={styles.headerSection}>
-              <Text style={styles.title}>Categories Management</Text>
-              <TouchableOpacity
-                style={styles.createBtn}
-                onPress={() => {
-                  if (showForm) {
-                    handleCloseForm()
-                  } else {
-                    setShowForm(true)
-                  }
-                }}
-              >
-                <Text style={styles.createBtnText}>
-                  {showForm ? 'Cancel' : '+ New Category'}
-                </Text>
-              </TouchableOpacity>
+            <Text style={s.pageTitle}>Categories</Text>
+            <Text style={s.pageSubtitle}>Manage product categories</Text>
+          </View>
+          <TouchableOpacity style={s.refreshBtn} onPress={fetchCategories}>
+            <Feather name="refresh-cw" size={15} color="#2280b0" />
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Stats Row ── */}
+        <View style={s.statsRow}>
+          <View style={s.statCard}>
+            <MaterialCommunityIcons name="folder-multiple" size={20} color="#2280b0" />
+            <Text style={s.statNum}>{categories.length}</Text>
+            <Text style={s.statLabel}>Total</Text>
+          </View>
+          <View style={s.statCard}>
+            <Feather name="plus-circle" size={20} color="#4caf50" />
+            <Text style={s.statNum}>{filteredCategories.length}</Text>
+            <Text style={s.statLabel}>Found</Text>
+          </View>
+        </View>
+
+        {/* ── Search ── */}
+        <View style={[s.searchWrap, searchFocused && s.searchWrapFocused]}>
+          <Feather name="search" size={16} color="rgba(160,174,192,0.6)" style={{ marginRight: 10 }} />
+          <TextInput
+            placeholder="Search categories..."
+            style={s.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="rgba(160,174,192,0.35)"
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+          />
+          {!!searchQuery && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={15} color="rgba(160,174,192,0.5)" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* ── Results count & Create button ── */}
+        <View style={s.actionBar}>
+          <Text style={s.resultsCount}>
+            {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
+          </Text>
+          <TouchableOpacity
+            style={s.createBtn}
+            onPress={() => openCategoryModal()}
+            activeOpacity={0.8}
+          >
+            <Feather name="plus" size={14} color="#fff" style={{ marginRight: 6 }} />
+            <Text style={s.createBtnText}>New</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── List ── */}
+        {filteredCategories.length === 0 ? (
+          <View style={s.emptyState}>
+            <View style={s.emptyIconWrap}>
+              <MaterialCommunityIcons name="folder-open-outline" size={36} color="rgba(160,174,192,0.4)" />
             </View>
+            <Text style={s.emptyTitle}>No categories found</Text>
+            <Text style={s.emptySubtitle}>
+              {searchQuery ? 'Try a different search' : 'Create your first category'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredCategories}
+            keyExtractor={(item) => item._id}
+            onRefresh={fetchCategories}
+            refreshing={loading}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={s.card}
+                onPress={() => openCategoryModal(item)}
+                activeOpacity={0.75}
+              >
+                <View style={s.cardIcon}>
+                  <MaterialCommunityIcons name="folder" size={20} color="#2280b0" />
+                </View>
 
-            {showForm && (
-              <View style={styles.formCard}>
-                <Text style={styles.formTitle}>
-                  {editingId ? 'Edit Category' : 'Create New Category'}
-                </Text>
+                <View style={s.cardInfo}>
+                  <Text style={s.cardName}>{item.name}</Text>
+                  {item.description && (
+                    <Text style={s.cardDesc} numberOfLines={1}>{item.description}</Text>
+                  )}
+                  <Text style={s.cardDate}>
+                    {new Date(item.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
 
-                <Text style={styles.label}>Category Name</Text>
+                <View style={s.cardActions}>
+                  <TouchableOpacity
+                    style={s.actionIcon}
+                    onPress={() => openCategoryModal(item)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Feather name="edit-2" size={14} color="#2280b0" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.actionIcon}
+                    onPress={() => handleDeleteCategory(item._id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="trash-2" size={14} color="#ff6b6b" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        )}
+
+        {/* ── Edit Modal ── */}
+        <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
+          <View style={s.modalOverlay}>
+            <Pressable style={s.modalBackdrop} onPress={closeModal} />
+            <View style={s.modalSheet}>
+
+              {/* Handle */}
+              <View style={s.modalHandle} />
+
+              {/* Modal Header */}
+              <View style={s.modalHeader}>
+                <View>
+                  <Text style={s.modalTitle}>
+                    {selectedCategory ? 'Edit Category' : 'New Category'}
+                  </Text>
+                  <Text style={s.modalSubtitle}>
+                    {selectedCategory ? 'Update category details' : 'Create a new product category'}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={closeModal} style={s.modalCloseBtn}>
+                  <Feather name="x" size={18} color="rgba(160,174,192,0.7)" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={s.modalDivider} />
+
+              <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 20 }}>
+                {/* Name */}
+                <Text style={s.sectionLabel}>Category Name</Text>
                 <TextInput
-                  style={styles.input}
+                  style={s.input}
                   placeholder="Enter category name"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="rgba(160,174,192,0.35)"
                   value={formData.name}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, name: text })
-                  }
-                  editable={!submitting}
+                  onChangeText={(text) => setFormData({ ...formData, name: text })}
+                  editable={!updating}
                 />
 
-                <Text style={styles.label}>Description (Optional)</Text>
+                {/* Description */}
+                <Text style={s.sectionLabel}>Description</Text>
                 <TextInput
-                  style={[styles.input, styles.multilineInput]}
-                  placeholder="Enter category description"
-                  placeholderTextColor="#999"
+                  style={[s.input, s.multilineInput]}
+                  placeholder="Enter category description (optional)"
+                  placeholderTextColor="rgba(160,174,192,0.35)"
                   value={formData.description}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, description: text })
-                  }
+                  onChangeText={(text) => setFormData({ ...formData, description: text })}
                   multiline
-                  numberOfLines={3}
-                  editable={!submitting}
+                  numberOfLines={4}
+                  editable={!updating}
                   textAlignVertical="top"
                 />
+              </ScrollView>
 
+              {/* Actions */}
+              <View style={s.modalActions}>
+                <TouchableOpacity style={s.cancelBtn} onPress={closeModal} disabled={updating}>
+                  <Text style={s.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.submitBtn,
-                    submitting && styles.submitBtnDisabled,
-                  ]}
-                  onPress={editingId ? handleUpdateCategory : handleCreateCategory}
-                  disabled={submitting}
+                  style={[s.saveBtn, updating && s.saveBtnDisabled]}
+                  onPress={handleSaveCategory}
+                  disabled={updating}
                 >
-                  {submitting ? (
+                  {updating ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.submitBtnText}>
-                      {editingId ? 'Update Category' : 'Create Category'}
-                    </Text>
+                    <>
+                      <Feather name="save" size={15} color="#fff" />
+                      <Text style={s.saveBtnText}>
+                        {selectedCategory ? ' Update' : ' Create'}
+                      </Text>
+                    </>
                   )}
                 </TouchableOpacity>
               </View>
-            )}
 
-            <View style={styles.statsCard}>
-              <Text style={styles.statsText}>Total Categories: {categories.length}</Text>
             </View>
+          </View>
+        </Modal>
 
-            <Text style={styles.listTitle}>All Categories</Text>
-          </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No categories yet</Text>
-            <Text style={styles.emptySubtext}>
-              Create your first category to get started
-            </Text>
-          </View>
-        }
-        contentContainerStyle={styles.container}
-        ListFooterComponent={<View style={{ height: 40 }} />}
-      />
+      </View>
     </>
   )
 }
 
-const styles = StyleSheet.create({
-  center: {
+// ─── STYLES ──────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+  },
+  loader: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#1a1a2e',
+    gap: 12,
   },
-  container: {
-    padding: 16,
-    paddingBottom: 40,
+  loaderText: {
+    color: 'rgba(160,174,192,0.6)',
+    fontSize: 14,
   },
-  headerSection: {
+
+  // ── Page Header ──
+  pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    paddingBottom: 14,
   },
-  title: {
+  pageTitle: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#000',
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  pageSubtitle: {
+    fontSize: 12,
+    color: 'rgba(160,174,192,0.6)',
+  },
+  refreshBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(34,128,176,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,128,176,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Stats ──
+  statsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 18,
+    gap: 10,
+    marginBottom: 16,
+  },
+  statCard: {
     flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statNum:   { fontSize: 18, fontWeight: '800', color: '#fff' },
+  statLabel: { fontSize: 10, color: 'rgba(160,174,192,0.6)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  // ── Search ──
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 18,
+    marginBottom: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    borderRadius: 13,
+    paddingHorizontal: 14,
+    height: 48,
+  },
+  searchWrapFocused: {
+    borderColor: '#2280b0',
+    backgroundColor: 'rgba(34,128,176,0.08)',
+  },
+  searchInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    height: '100%',
+  },
+
+  // ── Action Bar ──
+  actionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    marginBottom: 12,
+  },
+  resultsCount: {
+    fontSize: 11,
+    color: 'rgba(160,174,192,0.45)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   createBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     backgroundColor: '#4caf50',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   createBtnText: {
     color: '#fff',
     fontSize: 13,
-    fontWeight: '600',
-  },
-  formCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2,
-  },
-  formTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#000',
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#000',
-    marginBottom: 12,
-  },
-  multilineInput: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-    paddingTop: 10,
-  },
-  submitBtn: {
-    backgroundColor: '#2280b0',
-    paddingVertical: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-  },
-  submitBtnText: {
-    color: '#fff',
-    fontSize: 14,
     fontWeight: '700',
   },
-  statsCard: {
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#2280b0',
-  },
-  statsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2280b0',
-  },
-  listTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#000',
-    marginBottom: 12,
-  },
-  categoryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    elevation: 2,
-  },
-  cardContent: {
+
+  // ── Empty ──
+  emptyState: {
     flex: 1,
-    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 80,
+    gap: 10,
   },
-  categoryName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#000',
-    marginBottom: 4,
-  },
-  categoryDesc: {
-    fontSize: 13,
-    color: '#666',
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 6,
   },
-  categoryDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  editBtn: {
-    backgroundColor: '#2280b0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  editBtnText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  deleteBtn: {
-    backgroundColor: '#f44336',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    minWidth: 70,
-    alignItems: 'center',
-  },
-  deleteBtnText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-  },
-})
+  emptyTitle:    { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.6)' },
+  emptySubtitle: { fontSize: 13, color: 'rgba(160,174,192,0.4)' },
 
-export default Categories
+  // ── Category Card ──
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginHorizontal: 18,
+    marginBottom: 10,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+  cardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(34,128,176,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  cardInfo:  { flex: 1 },
+  cardName:  { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 3 },
+  cardDesc:  { fontSize: 12, color: 'rgba(160,174,192,0.55)', marginBottom: 5 },
+  cardDate:  { fontSize: 11, color: 'rgba(160,174,192,0.4)' },
+  cardActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  actionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Modal ──
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  modalSheet: {
+    backgroundColor: '#16213e',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    paddingTop: 12,
+    maxHeight: '88%',
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'center',
+    marginBottom: 18,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  modalTitle:    { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 2 },
+  modalSubtitle: { fontSize: 12, color: 'rgba(160,174,192,0.6)' },
+  modalCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    marginBottom: 20,
+  },
+
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(160,174,192,0.7)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+
+  // Inputs
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  multilineInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+    paddingTop: 13,
+  },
+
+  // Modal actions
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  cancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 13,
+    paddingVertical: 15,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  cancelBtnText: { fontSize: 14, fontWeight: '700', color: 'rgba(160,174,192,0.7)' },
+  saveBtn: {
+    flex: 1,
+    backgroundColor: '#2280b0',
+    borderRadius: 13,
+    paddingVertical: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2280b0',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+})
