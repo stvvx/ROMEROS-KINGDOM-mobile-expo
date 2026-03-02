@@ -75,6 +75,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  expoPushToken: {
+    type: String,
+    default: null,
+  },
   lastLogin: {
     type: Date,
     default: Date.now

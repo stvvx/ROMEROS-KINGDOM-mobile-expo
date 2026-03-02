@@ -372,6 +372,7 @@ export default function Home() {
   /* Auth State */
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [notifCount, setNotifCount] = useState(0);
   const [profile, setProfile] = useState<{ name?: string; avatar?: string } | null>(null);
 
   /* Check auth on mount and when focused */
@@ -400,6 +401,7 @@ export default function Home() {
               setProfile({ name: rawUser });
             }
           }
+          await fetchNotificationCount();
         } catch (err) {
           console.error('Error checking auth:', err);
           setIsLoggedIn(false);
@@ -435,6 +437,7 @@ export default function Home() {
             setProfile({ name: rawUser });
           }
         }
+        await fetchNotificationCount();
       } catch (err) {
         console.error('Error in mount auth check:', err);
       }
@@ -559,6 +562,28 @@ export default function Home() {
     }
   }, [routeKw, currentPage, price, activeCategory]);
 
+  /* ── Fetch notification count ── */
+  const fetchNotificationCount = useCallback(async () => {
+    try {
+      const token = await getItem('authToken');
+      if (!token) {
+        setNotifCount(0);
+        return;
+      }
+      const res = await axios.get(`${API_URL}/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 8000,
+      });
+      const list = res.data?.notifications || [];
+      const unread = Array.isArray(list)
+        ? list.filter((n: any) => !n.isRead).length
+        : 0;
+      setNotifCount(unread);
+    } catch (err) {
+      setNotifCount(0);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -583,6 +608,7 @@ export default function Home() {
       // Update local state
       setIsLoggedIn(false);
       setCartCount(0);
+      setNotifCount(0);
       
       // Navigate to home - use different approach for web vs mobile
       if (Platform.OS === 'web') {
@@ -618,6 +644,22 @@ export default function Home() {
       Alert.alert(
         'Login Required',
         'Please login to view your cart',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Login', onPress: () => router.push('/(auth)/login') }
+        ]
+      );
+    }
+  };
+
+  const handleNotificationPress = () => {
+    if (isLoggedIn) {
+      setNotifCount(0);
+      router.push('/(user)/notifications');
+    } else {
+      Alert.alert(
+        'Login Required',
+        'Please login to view your notifications',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Login', onPress: () => router.push('/(auth)/login') }
@@ -691,6 +733,17 @@ export default function Home() {
                       </View>
                     )}
                   </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.webNavBtn}
+                      onPress={handleNotificationPress}
+                    >
+                      <Text style={s.webNavBtnTxt}>🔔 Notify</Text>
+                      {notifCount > 0 && (
+                        <View style={s.badge}>
+                          <Text style={s.badgeTxt}>{notifCount}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
                   <TouchableOpacity
                     style={s.webNavProfile}
                     onPress={() => router.push('/(user)/UserProfile')}
@@ -729,6 +782,17 @@ export default function Home() {
                 onPress={() => setFilterOpen((v) => !v)}
               >
                 <Text style={s.iconBtnTxt}>⚙</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.iconBtn}
+                onPress={handleNotificationPress}
+              >
+                <Text style={s.iconBtnTxt}>🔔</Text>
+                {notifCount > 0 && (
+                  <View style={s.badge}>
+                    <Text style={s.badgeTxt}>{notifCount}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
               {!isLoggedIn ? (
                 <TouchableOpacity 

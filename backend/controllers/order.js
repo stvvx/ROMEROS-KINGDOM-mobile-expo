@@ -1,6 +1,7 @@
 const Order = require('../models/order');
 const Product = require('../models/product');
 const sendEmail = require('../utils/sendEmail');
+const { notify } = require('../utils/notification');
 
 
 
@@ -62,6 +63,27 @@ exports.newOrder = async (req, res, next) => {
             console.error('Order confirmation email failed:', err && err.message ? err.message : err);
         }
         })();
+
+        // Notifications for user and admin
+        notify({
+            userId: req.user && req.user._id,
+            role: 'user',
+            title: 'Order placed',
+            message: `Your order ${order._id} was placed successfully.`,
+            type: 'order',
+            refId: String(order._id),
+            refModel: 'Order',
+        })
+
+        notify({
+            userId: null,
+            role: 'admin',
+            title: 'New order',
+            message: `New order ${order._id} from ${req.user && req.user.name ? req.user.name : 'customer'}.`,
+            type: 'order',
+            refId: String(order._id),
+            refModel: 'Order',
+        })
 
         return res.status(200).json({ success: true, order })
     } catch (err) {
@@ -142,6 +164,16 @@ exports.updateOrder = async (req, res, next) => {
     order.orderStatus = req.body.status
     order.deliveredAt = Date.now()
     await order.save()
+
+    notify({
+        userId: order.user,
+        role: 'user',
+        title: 'Order updated',
+        message: `Your order ${order._id} is now ${order.orderStatus}.`,
+        type: 'order',
+        refId: String(order._id),
+        refModel: 'Order',
+    })
     res.status(200).json({
         success: true,
     })

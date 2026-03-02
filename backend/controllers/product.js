@@ -1,6 +1,7 @@
 const Product = require('../models/product')
 const Order = require('../models/order')
 const APIFeatures = require('../utils/apiFeatures')
+const { notify } = require('../utils/notification')
 
 // ==========================
 // CREATE NEW PRODUCT
@@ -447,6 +448,26 @@ exports.createProductReview = async (req, res) => {
     
     console.log('[createProductReview] Review saved successfully')
 
+    notify({
+      userId: req.user._id,
+      role: 'user',
+      title: 'Review submitted',
+      message: `Thanks for reviewing ${product.name}.`,
+      type: 'review',
+      refId: String(product._id),
+      refModel: 'Product',
+    })
+
+    notify({
+      userId: null,
+      role: 'admin',
+      title: 'New review',
+      message: `${req.user.name} left a ${numericRating}/5 on ${product.name}.`,
+      type: 'review',
+      refId: String(product._id),
+      refModel: 'Product',
+    })
+
     res.status(200).json({ 
       success: true,
       message: 'Review added successfully'
@@ -510,6 +531,8 @@ exports.deleteReview = async (req, res) => {
       })
     }
 
+    const reviewToDelete = product.reviews.find(r => r._id.toString() === req.query.id)
+
     const reviews = product.reviews.filter(
       r => r._id.toString() !== req.query.id
     )
@@ -529,6 +552,18 @@ exports.deleteReview = async (req, res) => {
     )
 
     console.log('[deleteReview] Review deleted successfully')
+
+    if (reviewToDelete) {
+      notify({
+        userId: reviewToDelete.user,
+        role: 'user',
+        title: 'Review removed',
+        message: `Your review on ${product.name} was removed by admin.`,
+        type: 'review',
+        refId: String(product._id),
+        refModel: 'Product',
+      })
+    }
 
     res.status(200).json({ 
       success: true,

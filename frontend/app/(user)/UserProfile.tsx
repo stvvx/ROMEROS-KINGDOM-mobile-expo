@@ -187,6 +187,13 @@ export default function UserProfile() {
 
           <ThemedText type="title">{user?.name || 'No name'}</ThemedText>
           <ThemedText style={styles.email}>{user?.email}</ThemedText>
+
+          <TouchableOpacity
+            style={styles.notificationBtn}
+            onPress={() => router.push('/(user)/notifications')}
+          >
+            <ThemedText style={styles.notificationText}>View notifications →</ThemedText>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.formRow}>
@@ -258,7 +265,19 @@ const styles = StyleSheet.create({
   avatarInitials: { fontSize: 36 },
 
   email: { color: '#666', marginTop: 4 },
-
+  notificationBtn: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#00C2C7',
+    alignItems: 'center',
+  },
+  notificationText: {
+    color: '#00C2C7',
+    fontWeight: '700',
+  },
   formRow: { gap: 12 },
 
   label: { fontSize: 14, fontWeight: '600' },

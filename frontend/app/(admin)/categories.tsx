@@ -44,7 +44,8 @@ const NAV_ITEMS = [
   { label: 'Products',  path: '/(admin)/products'  },
   { label: 'Categories',path: '/(admin)/categories'},
   { label: 'Users',     path: '/(admin)/users'     },
-  { label: 'Reviews',   path: '/(admin)/review'    },
+  { label: 'Reviews', path: '/(admin)/review' },
+  { label: 'Notifications', path: '/(admin)/notifications' },
 ]
 
 const AdminHeader: React.FC = () => {
