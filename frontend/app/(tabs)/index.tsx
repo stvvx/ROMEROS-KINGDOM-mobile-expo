@@ -19,6 +19,7 @@ import {
   StatusBar,
   useWindowDimensions,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { getItem, removeItem } from '@/utils/storage';
@@ -454,7 +455,9 @@ export default function Home() {
   const [filteredCount, setFilteredCount] = useState(0);
   const [resPerPage, setResPerPage] = useState(8);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
 
   const [price, setPrice] = useState<[number, number]>([1, 10000]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -475,10 +478,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [routeKw, price, activeCategory]);
-
-  useEffect(() => {
     Animated.timing(filterH, {
       toValue: filterOpen ? 1 : 0,
       duration: 260,
@@ -490,9 +489,6 @@ export default function Home() {
     inputRange: [0, 1],
     outputRange: [0, 140],
   });
-
-  const count = routeKw ? filteredCount : productsCount;
-  const totalPages = Math.max(1, Math.ceil(count / resPerPage));
 
   /* ── Fetch categories from your API ── */
   const fetchCategories = useCallback(async () => {
@@ -515,14 +511,25 @@ export default function Home() {
     }
   }, []);
 
-  /* ── Fetch products ── */
-  const fetchProducts = useCallback(async () => {
+  /* ── Reset pagination when filters change ── */
+  useEffect(() => {
+    setCurrentPage(1);
+    setProducts([]);
+    setHasMore(true);
+  }, [routeKw, price, activeCategory]);
+
+  /* ── Fetch products with pagination ── */
+  const fetchProducts = useCallback(async (page: number, isLoadMore = false) => {
     try {
-      setLoading(true);
+      if (isLoadMore) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       const params = new URLSearchParams({
-        page: currentPage.toString(),
+        page: page.toString(),
         'price[gte]': price[0].toString(),
         'price[lte]': price[1].toString(),
       });
@@ -535,10 +542,17 @@ export default function Home() {
       });
 
       const fetched: IProduct[] = res.data.products ?? [];
-      setProducts(fetched);
+      
+      // Update products based on whether we're loading more or starting fresh
+      setProducts(prev => isLoadMore ? [...prev, ...fetched] : fetched);
       setProductsCount(res.data.productsCount ?? 0);
       setFilteredCount(res.data.filteredProductsCount ?? 0);
       setResPerPage(res.data.resPerPage ?? 8);
+      
+      // Check if there are more products to load
+      const totalCount = routeKw ? (res.data.filteredProductsCount ?? 0) : (res.data.productsCount ?? 0);
+      const hasMoreProducts = fetched.length > 0 && (page * (res.data.resPerPage ?? 8)) < totalCount;
+      setHasMore(hasMoreProducts);
 
       // Derive categories from products if API has no dedicated endpoint
       if (categories.length <= 1 && fetched.length > 0) {
@@ -556,11 +570,31 @@ export default function Home() {
           err?.message ||
           'Failed to fetch products'
       );
-      setProducts([]);
+      if (!isLoadMore) {
+        setProducts([]);
+      }
     } finally {
-      setLoading(false);
+      if (isLoadMore) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
-  }, [routeKw, currentPage, price, activeCategory]);
+  }, [routeKw, price, activeCategory]);
+
+  /* ── Initial fetch and page changes ── */
+  useEffect(() => {
+    fetchProducts(1, false);
+  }, [fetchProducts]);
+
+  /* ── Load more function for infinite scroll ── */
+  const loadMoreProducts = useCallback(() => {
+    if (!loadingMore && hasMore && !loading) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchProducts(nextPage, true);
+    }
+  }, [loadingMore, hasMore, loading, currentPage, fetchProducts]);
 
   /* ── Fetch notification count ── */
   const fetchNotificationCount = useCallback(async () => {
@@ -587,10 +621,6 @@ export default function Home() {
   useEffect(() => {
     fetchCategories();
   }, []);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
 
   const handleSearch = () => {
     const q = searchQuery.trim();
@@ -1006,7 +1036,7 @@ export default function Home() {
                 <Text style={s.errorMsg}>{error}</Text>
                 <TouchableOpacity
                   style={s.retryBtn}
-                  onPress={fetchProducts}
+                  onPress={() => fetchProducts(1, false)}
                 >
                   <Text style={s.retryTxt}>RETRY</Text>
                 </TouchableOpacity>
@@ -1045,7 +1075,7 @@ export default function Home() {
               ListHeaderComponent={
                 <View style={s.resultsBar}>
                   <Text style={s.resultsCount}>
-                    {count.toLocaleString()} PRODUCTS
+                    {products.length.toLocaleString()} PRODUCTS
                   </Text>
                   {routeKw ? (
                     <Text style={s.resultsKw}>for "{routeKw}"</Text>
@@ -1056,54 +1086,27 @@ export default function Home() {
                 </View>
               }
               ListFooterComponent={
-                resPerPage < count ? (
-                  <View style={s.pagination}>
-                    <TouchableOpacity
-                      disabled={currentPage === 1}
-                      onPress={() => setCurrentPage((p) => p - 1)}
-                      style={[
-                        s.pageBtn,
-                        currentPage === 1 && s.pageBtnOff,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          s.pageBtnTxt,
-                          currentPage === 1 && s.pageBtnTxtOff,
-                        ]}
-                      >
-                        ← PREV
-                      </Text>
-                    </TouchableOpacity>
-
-                    <View style={s.pageCenter}>
-                      <Text style={s.pageNum}>{currentPage}</Text>
-                      <Text style={s.pageSep}>/</Text>
-                      <Text style={s.pageTotal}>{totalPages}</Text>
+                <View style={s.footer}>
+                  {loadingMore && (
+                    <View style={s.loadingMoreContainer}>
+                      <ActivityIndicator size="small" color={C.accent} />
+                      <Text style={s.loadingMoreText}>Loading more...</Text>
                     </View>
-
-                    <TouchableOpacity
-                      disabled={currentPage === totalPages}
-                      onPress={() => setCurrentPage((p) => p + 1)}
-                      style={[
-                        s.pageBtn,
-                        currentPage === totalPages && s.pageBtnOff,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          s.pageBtnTxt,
-                          currentPage === totalPages && s.pageBtnTxtOff,
-                        ]}
-                      >
-                        NEXT →
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={{ height: 40 }} />
-                )
+                  )}
+                  {!hasMore && products.length > 0 && (
+                    <View style={s.endOfListContainer}>
+                      <Text style={s.endOfListText}>✨ You've seen all products ✨</Text>
+                    </View>
+                  )}
+                </View>
               }
+              onEndReached={loadMoreProducts}
+              onEndReachedThreshold={0.3}
+              refreshing={loading}
+              onRefresh={() => {
+                setCurrentPage(1);
+                fetchProducts(1, false);
+              }}
             />
           )}
         </View>
@@ -1113,7 +1116,7 @@ export default function Home() {
       {__DEV__ && (
         <View style={s.debugBar}>
           <Text style={s.debugTxt}>
-            [{numCols}col] {API_URL}
+            [{numCols}col] Page: {currentPage} | Has More: {hasMore.toString()}
             {error ? ` | ERR: ${error}` : ''}
           </Text>
         </View>
@@ -1643,6 +1646,34 @@ const s = StyleSheet.create({
   retryTxt: { color: C.white, fontWeight: '700', fontSize: 12, letterSpacing: 2 },
   emptyTitle: { color: C.textSub, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
   emptyMsg: { color: C.textDim, fontSize: 13 },
+
+  /* ── Footer and Loading More ── */
+  footer: {
+    paddingVertical: 20,
+  },
+  loadingMoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 16,
+  },
+  loadingMoreText: {
+    color: C.accent,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  endOfListContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  endOfListText: {
+    color: C.textDim,
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 1,
+  },
 
   /* ── Pagination ── */
   pagination: {
