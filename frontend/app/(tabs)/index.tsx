@@ -340,6 +340,50 @@ const ProductCard = React.memo(
 );
 
 /* ─────────────────────────────────────────
+   Category icon map
+───────────────────────────────────────── */
+const CATEGORY_ICONS: Record<string, string> = {
+  all:         '◈',
+  electronics: '⚡',
+  phones:      '📱',
+  laptops:     '💻',
+  computers:   '🖥',
+  accessories: '🎧',
+  clothing:    '👕',
+  shoes:       '👟',
+  bags:        '👜',
+  watches:     '⌚',
+  jewelry:     '💎',
+  food:        '🍔',
+  drinks:      '🥤',
+  grocery:     '🛒',
+  beauty:      '💄',
+  health:      '💊',
+  sports:      '⚽',
+  toys:        '🎮',
+  books:       '📚',
+  furniture:   '🪑',
+  home:        '🏠',
+  tools:       '🔧',
+  automotive:  '🚗',
+  garden:      '🌱',
+  pets:        '🐾',
+  art:         '🎨',
+  music:       '🎵',
+  games:       '🎲',
+  babies:      '👶',
+  stationery:  '✏️',
+};
+
+function getCatIcon(label: string): string {
+  const key = label.toLowerCase().replace(/\s+/g, '');
+  for (const [k, v] of Object.entries(CATEGORY_ICONS)) {
+    if (key.includes(k)) return v;
+  }
+  return '•';
+}
+
+/* ─────────────────────────────────────────
    Category Chip
 ───────────────────────────────────────── */
 const Chip = ({
@@ -350,17 +394,32 @@ const Chip = ({
   label: string;
   active: boolean;
   onPress: () => void;
-}) => (
-  <TouchableOpacity
-    onPress={onPress}
-    activeOpacity={0.75}
-    style={[s.chip, active && s.chipActive]}
-  >
-    <Text style={[s.chipText, active && s.chipTextActive]}>
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
+}) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const pressIn  = () => Animated.spring(scale, { toValue: 0.92, useNativeDriver: true }).start();
+  const pressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true }).start();
+
+  const icon = getCatIcon(label);
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        activeOpacity={1}
+        style={[s.chip, active && s.chipActive]}
+      >
+        <Text style={s.chipIcon}>{icon}</Text>
+        <Text style={[s.chipText, active && s.chipTextActive]}>
+          {label.toUpperCase()}
+        </Text>
+        {active && <View style={s.chipActiveDot} />}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
 /* ─────────────────────────────────────────
    Home Screen
@@ -550,20 +609,25 @@ export default function Home() {
       setResPerPage(res.data.resPerPage ?? 8);
       
       // Check if there are more products to load
-      const totalCount = routeKw ? (res.data.filteredProductsCount ?? 0) : (res.data.productsCount ?? 0);
+      // Always use filteredProductsCount — backend now returns it correctly for all filter combos
+      const totalCount = res.data.filteredProductsCount ?? res.data.productsCount ?? 0;
       const hasMoreProducts = fetched.length > 0 && (page * (res.data.resPerPage ?? 8)) < totalCount;
       setHasMore(hasMoreProducts);
 
       // Derive categories from products if API has no dedicated endpoint
-      if (categories.length <= 1 && fetched.length > 0) {
-        const derived = [
-          'All',
-          ...Array.from(
-            new Set(fetched.map((p) => p.category).filter(Boolean) as string[])
-          ),
-        ];
-        setCategories(derived);
-      }
+      // Use functional update to avoid stale closure on `categories`
+      setCategories((prev) => {
+        if (prev.length <= 1 && fetched.length > 0) {
+          const derived = [
+            'All',
+            ...Array.from(
+              new Set(fetched.map((p) => p.category).filter(Boolean) as string[])
+            ),
+          ];
+          return derived;
+        }
+        return prev;
+      });
     } catch (err: any) {
       setError(
         err?.response?.data?.message ||
@@ -985,12 +1049,12 @@ export default function Home() {
                       activeCategory === cat && s.sidebarCatRowActive,
                     ]}
                   >
-                    <View
-                      style={[
-                        s.sidebarDot,
-                        activeCategory === cat && s.sidebarDotActive,
-                      ]}
-                    />
+                    <Text style={[
+                      s.sidebarCatIcon,
+                      activeCategory === cat && { color: C.accent },
+                    ]}>
+                      {getCatIcon(cat)}
+                    </Text>
                     <Text
                       style={[
                         s.sidebarCatTxt,
@@ -999,6 +1063,11 @@ export default function Home() {
                     >
                       {cat}
                     </Text>
+                    {activeCategory === cat && (
+                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                        <View style={s.sidebarActiveLine} />
+                      </View>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -1378,27 +1447,50 @@ const s = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     gap: 8,
-    paddingBottom: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 22,
     backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.border,
   },
   chipActive: {
-    backgroundColor: C.accentGlow,
+    backgroundColor: 'rgba(0,194,199,0.18)',
     borderColor: C.accent,
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  chipIcon: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  chipActiveDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: C.accent,
+    marginLeft: 2,
   },
   chipText: {
     color: C.textSub,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    letterSpacing: 0.2,
+    letterSpacing: 0.8,
   },
-  chipTextActive: { color: C.accentText },
+  chipTextActive: {
+    color: C.accentText,
+    fontWeight: '700',
+  },
 
   /* ── Body Layout ── */
   body: {
@@ -1452,12 +1544,20 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 10,
     borderRadius: 8,
   },
   sidebarCatRowActive: {
-    backgroundColor: C.accentGlow,
+    backgroundColor: 'rgba(0,194,199,0.16)',
+    borderLeftWidth: 2,
+    borderLeftColor: C.accent,
+  },
+  sidebarCatIcon: {
+    fontSize: 14,
+    color: C.textSub,
+    width: 18,
+    textAlign: 'center',
   },
   sidebarDot: {
     width: 6,
@@ -1468,10 +1568,17 @@ const s = StyleSheet.create({
   sidebarDotActive: {
     backgroundColor: C.accent,
   },
+  sidebarActiveLine: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: C.accent,
+  },
   sidebarCatTxt: {
     color: C.textSub,
     fontSize: 13,
     fontWeight: '500',
+    flex: 1,
   },
   sidebarCatTxtActive: {
     color: C.accentText,

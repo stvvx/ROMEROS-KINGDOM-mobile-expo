@@ -73,7 +73,8 @@ export default function ProductDetails() {
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [hasPurchased, setHasPurchased] = useState(false);
+  const [hasPurchased, setHasPurchased] = useState(false); // ordered AND delivered
+  const [hasOrdered, setHasOrdered] = useState(false);    // ordered but not yet delivered
 
   useEffect(() => {
     (async () => {
@@ -132,6 +133,7 @@ export default function ProductDetails() {
     try {
       if (!authToken) {
         setHasPurchased(false);
+        setHasOrdered(false);
         return;
       }
 
@@ -139,15 +141,30 @@ export default function ProductDetails() {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
-      const orders = res.data.orders || [];
-      const purchased = orders.some((order: any) =>
+      const orders: any[] = res.data.orders || [];
+
+      // Check if any order contains this product
+      const orderedMatch = orders.find((order) =>
         order.orderItems?.some((item: any) => String(item.product) === String(productId))
       );
 
-      setHasPurchased(purchased);
+      if (!orderedMatch) {
+        setHasOrdered(false);
+        setHasPurchased(false);
+        return;
+      }
+
+      setHasOrdered(true);
+
+      // Only allow review when the ORDER that contains this product is Delivered
+      const isDelivered =
+        orderedMatch.orderStatus?.toLowerCase() === 'delivered';
+
+      setHasPurchased(isDelivered);
     } catch (err) {
       console.error('Failed to check purchase status:', err);
       setHasPurchased(false);
+      setHasOrdered(false);
     }
   };
 
@@ -383,7 +400,7 @@ export default function ProductDetails() {
           <Text style={styles.reviewsTitle}>Reviews</Text>
 
           {/* Write Review */}
-          {hasPurchased && (
+          {hasPurchased ? (
             <View style={styles.writeReviewContainer}>
               <Text style={styles.writeReviewLabel}>Your Review</Text>
               <View style={styles.ratingInput}>
@@ -414,7 +431,15 @@ export default function ProductDetails() {
                 )}
               </TouchableOpacity>
             </View>
-          )}
+          ) : hasOrdered ? (
+            <View style={styles.pendingReviewBox}>
+              <Text style={styles.pendingReviewIcon}>🚚</Text>
+              <Text style={styles.pendingReviewTitle}>Order in progress</Text>
+              <Text style={styles.pendingReviewText}>
+                You'll be able to leave a review once your order is delivered.
+              </Text>
+            </View>
+          ) : null}
 
           {/* Existing Reviews */}
           {product.reviews && product.reviews.length > 0 && (
@@ -501,6 +526,10 @@ const styles = StyleSheet.create({
   commentInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 6, padding: 10, height: 100, marginBottom: 12, fontSize: 14, color: '#000', textAlignVertical: 'top' },
   submitReviewBtn: { backgroundColor: '#27ae60', paddingVertical: 12, borderRadius: 6 },
   submitReviewText: { color: '#fff', fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
+  pendingReviewBox: { backgroundColor: '#fffbea', borderWidth: 1, borderColor: '#f0c040', borderRadius: 10, padding: 16, marginBottom: 16, alignItems: 'center', gap: 6 },
+  pendingReviewIcon: { fontSize: 28 },
+  pendingReviewTitle: { color: '#7a5c00', fontSize: 14, fontWeight: '700' },
+  pendingReviewText: { color: '#9a7a1a', fontSize: 13, textAlign: 'center', lineHeight: 18 },
   existingReviews: { marginTop: 16 },
   existingReviewsTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 12, color: '#000' },
   reviewItem: { backgroundColor: '#f9f9f9', padding: 12, borderRadius: 6, marginBottom: 12 },

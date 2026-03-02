@@ -316,6 +316,9 @@ exports.getProducts = async (req, res) => {
       req.query
     ).search().filter()
 
+    // Count filtered results before pagination
+    const filteredProductsCount = await apiFeatures.query.clone().countDocuments()
+
     apiFeatures.pagination(resPerPage)
 
     const products = await apiFeatures.query
@@ -325,7 +328,7 @@ exports.getProducts = async (req, res) => {
     res.status(200).json({
       success: true,
       products,
-      filteredProductsCount: products.length,
+      filteredProductsCount,
       resPerPage,
       productsCount,
     })
@@ -402,6 +405,21 @@ exports.createProductReview = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Please provide rating (1-5), comment and productId'
+      })
+    }
+
+    // ── Verify the user has a DELIVERED order containing this product ──
+    const Order = require('../models/order')
+    const deliveredOrder = await Order.findOne({
+      user: req.user._id,
+      orderStatus: { $regex: /^delivered$/i },
+      'orderItems.product': productId,
+    })
+
+    if (!deliveredOrder) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only review products from delivered orders.',
       })
     }
 

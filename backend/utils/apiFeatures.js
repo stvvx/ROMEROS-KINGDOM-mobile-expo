@@ -47,7 +47,8 @@ class APIFeatures {
 
         console.log(queryCopy);
 
-        this.query = this.query.find(priceFilter);
+        // Apply remaining filters (e.g. category) along with the price filter
+        this.query = this.query.find({ ...queryCopy, ...priceFilter });
         return this;
     }
 
