@@ -32,6 +32,7 @@ if (debuggerHost && debuggerHost !== 'localhost') {
 // Shared admin nav
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/(admin)/dashboard' },
+  { label: 'Orders', path: '/(admin)/orders' },
   { label: 'Products', path: '/(admin)/products' },
   { label: 'Categories', path: '/(admin)/categories' },
   { label: 'Users', path: '/(admin)/users' },
