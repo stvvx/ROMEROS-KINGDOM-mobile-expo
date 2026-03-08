@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -7,18 +7,16 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
-  Alert,
   FlatList,
   ScrollView,
   Modal,
   Pressable,
-  Animated,
 } from 'react-native'
-import { useRouter, usePathname } from 'expo-router'
 import axios from 'axios'
 import Constants from 'expo-constants'
 import { getItem } from '@/utils/storage'
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
+import AdminHeader from '@/components/adminHeader'
 
 // ─── API CONFIG ───────────────────────────────────────────────
 let API_URL =
@@ -37,71 +35,6 @@ if (debuggerHost && debuggerHost !== 'localhost') {
 } else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
   API_URL = API_URL.replace('localhost', '10.0.2.2')
 }
-
-// ─── NAV ─────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/(admin)/dashboard' },
-  { label: 'Orders', path: '/(admin)/orders' },
-  { label: 'Products',  path: '/(admin)/products'  },
-  { label: 'Categories',path: '/(admin)/categories'},
-  { label: 'Users',     path: '/(admin)/users'     },
-  { label: 'Reviews', path: '/(admin)/review' },
-  { label: 'Notifications', path: '/(admin)/notifications' },
-]
-
-const AdminHeader: React.FC = () => {
-  const router   = useRouter()
-  const pathname = usePathname()
-
-  return (
-    <View style={hdr.wrapper}>
-      <MaterialCommunityIcons name="folder-multiple" size={18} color="#fff" style={{ marginRight: 8 }} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={hdr.navRow}
-      >
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.path
-          return (
-            <TouchableOpacity
-              key={item.path}
-              style={[hdr.navBtn, isActive && hdr.activeBtn]}
-              onPress={() => router.push(item.path as any)}
-              activeOpacity={0.8}
-            >
-              <Text style={[hdr.navLabel, isActive && hdr.activeLabel]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          )
-        })}
-      </ScrollView>
-    </View>
-  )
-}
-
-const hdr = StyleSheet.create({
-  wrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  navRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  navBtn: {
-    backgroundColor: '#2280b0',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-  activeBtn:   { backgroundColor: '#4caf50' },
-  navLabel:    { color: '#fff', fontSize: 13, fontWeight: '600' },
-  activeLabel: { fontWeight: '800' },
-})
 
 // ─── THEMED ALERT MODAL ───────────────────────────────────────
 interface ThemedAlertProps {
@@ -299,8 +232,8 @@ const al = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
   },
-  iconSuccess: { backgroundColor: 'rgba(76,175,80,0.12)', borderWidth: 1, borderColor: 'rgba(76,175,80,0.3)'  },
-  iconError:   { backgroundColor: 'rgba(255,107,107,0.12)',borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)'},
+  iconSuccess: { backgroundColor: 'rgba(76,175,80,0.12)', borderWidth: 1, borderColor: 'rgba(76,175,80,0.3)' },
+  iconError:   { backgroundColor: 'rgba(255,107,107,0.12)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)' },
   title:   { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' },
   message: { fontSize: 13, color: 'rgba(160,174,192,0.8)', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
   divider: { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 20 },
@@ -319,18 +252,12 @@ const al = StyleSheet.create({
   btnText:    { color: '#fff', fontSize: 15, fontWeight: '700' },
 })
 
-// ─────────────────────────────────────────────────────────────
-// CATEGORIES SCREEN
-// ─────────────────────────────────────────────────────────────
-
 // ─── TYPES ────────────────────────────────────────────────────
 interface Category {
   _id: string
   name: string
   description?: string
-  image?: {
-    url: string
-  }
+  image?: { url: string }
   createdAt: string
 }
 
@@ -349,13 +276,11 @@ export default function AdminCategories() {
     description: '',
   })
 
-  // Themed alert state
   const [alertVisible, setAlertVisible] = useState(false)
   const [alertType, setAlertType] = useState<'success' | 'error'>('success')
   const [alertTitle, setAlertTitle] = useState('')
   const [alertMessage, setAlertMessage] = useState('')
 
-  // Delete confirmation state
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -392,10 +317,7 @@ export default function AdminCategories() {
   const openCategoryModal = (category?: Category) => {
     if (category) {
       setSelectedCategory(category)
-      setFormData({
-        name: category.name,
-        description: category.description || '',
-      })
+      setFormData({ name: category.name, description: category.description || '' })
     } else {
       setSelectedCategory(null)
       setFormData({ name: '', description: '' })
@@ -417,21 +339,12 @@ export default function AdminCategories() {
 
     try {
       setUpdating(true)
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(await getAuthHeader()),
-      }
+      const headers = { 'Content-Type': 'application/json', ...(await getAuthHeader()) }
 
       if (selectedCategory) {
-        // Update
-        await axios.put(
-          `${API_URL}/admin/category/${selectedCategory._id}`,
-          formData,
-          { headers }
-        )
+        await axios.put(`${API_URL}/admin/category/${selectedCategory._id}`, formData, { headers })
         showAlert('success', 'Updated', 'Category has been updated successfully')
       } else {
-        // Create
         await axios.post(`${API_URL}/admin/category/new`, formData, { headers })
         showAlert('success', 'Created', 'Category has been created successfully')
       }
@@ -473,19 +386,19 @@ export default function AdminCategories() {
 
   if (loading && categories.length === 0) {
     return (
-      <>
-        <AdminHeader />
+      <View style={s.root}>
+        <AdminHeader title="Categories" icon="folder-multiple" />
         <View style={s.loader}>
           <ActivityIndicator size="large" color="#2280b0" />
           <Text style={s.loaderText}>Loading categories...</Text>
         </View>
-      </>
+      </View>
     )
   }
 
   return (
-    <>
-      <AdminHeader />
+    <View style={s.root}>
+      <AdminHeader title="Categories" icon="folder-multiple" />
 
       {/* Themed Alert */}
       <ThemedAlert
@@ -511,209 +424,201 @@ export default function AdminCategories() {
         isLoading={isDeleting}
       />
 
-      <View style={s.root}>
+      {/* ── Page Header ── */}
+      <View style={s.pageHeader}>
+        <View>
+          <Text style={s.pageTitle}>Categories</Text>
+          <Text style={s.pageSubtitle}>Manage product categories</Text>
+        </View>
+        <TouchableOpacity style={s.refreshBtn} onPress={fetchCategories}>
+          <Feather name="refresh-cw" size={15} color="#2280b0" />
+        </TouchableOpacity>
+      </View>
 
-        {/* ── Page Header ── */}
-        <View style={s.pageHeader}>
-          <View>
-            <Text style={s.pageTitle}>Categories</Text>
-            <Text style={s.pageSubtitle}>Manage product categories</Text>
-          </View>
-          <TouchableOpacity style={s.refreshBtn} onPress={fetchCategories}>
-            <Feather name="refresh-cw" size={15} color="#2280b0" />
+      {/* ── Stats Row ── */}
+      <View style={s.statsRow}>
+        <View style={s.statCard}>
+          <MaterialCommunityIcons name="folder-multiple" size={20} color="#2280b0" />
+          <Text style={s.statNum}>{categories.length}</Text>
+          <Text style={s.statLabel}>Total</Text>
+        </View>
+        <View style={s.statCard}>
+          <Feather name="plus-circle" size={20} color="#4caf50" />
+          <Text style={s.statNum}>{filteredCategories.length}</Text>
+          <Text style={s.statLabel}>Found</Text>
+        </View>
+      </View>
+
+      {/* ── Search ── */}
+      <View style={[s.searchWrap, searchFocused && s.searchWrapFocused]}>
+        <Feather name="search" size={16} color="rgba(160,174,192,0.6)" style={{ marginRight: 10 }} />
+        <TextInput
+          placeholder="Search categories..."
+          style={s.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="rgba(160,174,192,0.35)"
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
+        />
+        {!!searchQuery && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="x" size={15} color="rgba(160,174,192,0.5)" />
           </TouchableOpacity>
-        </View>
-
-        {/* ── Stats Row ── */}
-        <View style={s.statsRow}>
-          <View style={s.statCard}>
-            <MaterialCommunityIcons name="folder-multiple" size={20} color="#2280b0" />
-            <Text style={s.statNum}>{categories.length}</Text>
-            <Text style={s.statLabel}>Total</Text>
-          </View>
-          <View style={s.statCard}>
-            <Feather name="plus-circle" size={20} color="#4caf50" />
-            <Text style={s.statNum}>{filteredCategories.length}</Text>
-            <Text style={s.statLabel}>Found</Text>
-          </View>
-        </View>
-
-        {/* ── Search ── */}
-        <View style={[s.searchWrap, searchFocused && s.searchWrapFocused]}>
-          <Feather name="search" size={16} color="rgba(160,174,192,0.6)" style={{ marginRight: 10 }} />
-          <TextInput
-            placeholder="Search categories..."
-            style={s.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="rgba(160,174,192,0.35)"
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-          />
-          {!!searchQuery && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={15} color="rgba(160,174,192,0.5)" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Results count & Create button ── */}
-        <View style={s.actionBar}>
-          <Text style={s.resultsCount}>
-            {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
-          </Text>
-          <TouchableOpacity
-            style={s.createBtn}
-            onPress={() => openCategoryModal()}
-            activeOpacity={0.8}
-          >
-            <Feather name="plus" size={14} color="#fff" style={{ marginRight: 6 }} />
-            <Text style={s.createBtnText}>New</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── List ── */}
-        {filteredCategories.length === 0 ? (
-          <View style={s.emptyState}>
-            <View style={s.emptyIconWrap}>
-              <MaterialCommunityIcons name="folder-open-outline" size={36} color="rgba(160,174,192,0.4)" />
-            </View>
-            <Text style={s.emptyTitle}>No categories found</Text>
-            <Text style={s.emptySubtitle}>
-              {searchQuery ? 'Try a different search' : 'Create your first category'}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredCategories}
-            keyExtractor={(item) => item._id}
-            onRefresh={fetchCategories}
-            refreshing={loading}
-            contentContainerStyle={{ paddingBottom: 24 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={s.card}
-                onPress={() => openCategoryModal(item)}
-                activeOpacity={0.75}
-              >
-                <View style={s.cardIcon}>
-                  <MaterialCommunityIcons name="folder" size={20} color="#2280b0" />
-                </View>
-
-                <View style={s.cardInfo}>
-                  <Text style={s.cardName}>{item.name}</Text>
-                  {item.description && (
-                    <Text style={s.cardDesc} numberOfLines={1}>{item.description}</Text>
-                  )}
-                  <Text style={s.cardDate}>
-                    {new Date(item.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-
-                <View style={s.cardActions}>
-                  <TouchableOpacity
-                    style={s.actionIcon}
-                    onPress={() => openCategoryModal(item)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Feather name="edit-2" size={14} color="#2280b0" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={s.actionIcon}
-                    onPress={() => handleDeleteCategory(item._id)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    activeOpacity={0.7}
-                  >
-                    <Feather name="trash-2" size={14} color="#ff6b6b" />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
         )}
+      </View>
 
-        {/* ── Edit Modal ── */}
-        <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
-          <View style={s.modalOverlay}>
-            <Pressable style={s.modalBackdrop} onPress={closeModal} />
-            <View style={s.modalSheet}>
+      {/* ── Results count & Create button ── */}
+      <View style={s.actionBar}>
+        <Text style={s.resultsCount}>
+          {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
+        </Text>
+        <TouchableOpacity
+          style={s.createBtn}
+          onPress={() => openCategoryModal()}
+          activeOpacity={0.8}
+        >
+          <Feather name="plus" size={14} color="#fff" style={{ marginRight: 6 }} />
+          <Text style={s.createBtnText}>New</Text>
+        </TouchableOpacity>
+      </View>
 
-              {/* Handle */}
-              <View style={s.modalHandle} />
-
-              {/* Modal Header */}
-              <View style={s.modalHeader}>
-                <View>
-                  <Text style={s.modalTitle}>
-                    {selectedCategory ? 'Edit Category' : 'New Category'}
-                  </Text>
-                  <Text style={s.modalSubtitle}>
-                    {selectedCategory ? 'Update category details' : 'Create a new product category'}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={closeModal} style={s.modalCloseBtn}>
-                  <Feather name="x" size={18} color="rgba(160,174,192,0.7)" />
-                </TouchableOpacity>
+      {/* ── List ── */}
+      {filteredCategories.length === 0 ? (
+        <View style={s.emptyState}>
+          <View style={s.emptyIconWrap}>
+            <MaterialCommunityIcons name="folder-open-outline" size={36} color="rgba(160,174,192,0.4)" />
+          </View>
+          <Text style={s.emptyTitle}>No categories found</Text>
+          <Text style={s.emptySubtitle}>
+            {searchQuery ? 'Try a different search' : 'Create your first category'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredCategories}
+          keyExtractor={(item) => item._id}
+          onRefresh={fetchCategories}
+          refreshing={loading}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={s.card}
+              onPress={() => openCategoryModal(item)}
+              activeOpacity={0.75}
+            >
+              <View style={s.cardIcon}>
+                <MaterialCommunityIcons name="folder" size={20} color="#2280b0" />
               </View>
 
-              <View style={s.modalDivider} />
+              <View style={s.cardInfo}>
+                <Text style={s.cardName}>{item.name}</Text>
+                {item.description && (
+                  <Text style={s.cardDesc} numberOfLines={1}>{item.description}</Text>
+                )}
+                <Text style={s.cardDate}>
+                  {new Date(item.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                {/* Name */}
-                <Text style={s.sectionLabel}>Category Name</Text>
-                <TextInput
-                  style={s.input}
-                  placeholder="Enter category name"
-                  placeholderTextColor="rgba(160,174,192,0.35)"
-                  value={formData.name}
-                  onChangeText={(text) => setFormData({ ...formData, name: text })}
-                  editable={!updating}
-                />
-
-                {/* Description */}
-                <Text style={s.sectionLabel}>Description</Text>
-                <TextInput
-                  style={[s.input, s.multilineInput]}
-                  placeholder="Enter category description (optional)"
-                  placeholderTextColor="rgba(160,174,192,0.35)"
-                  value={formData.description}
-                  onChangeText={(text) => setFormData({ ...formData, description: text })}
-                  multiline
-                  numberOfLines={4}
-                  editable={!updating}
-                  textAlignVertical="top"
-                />
-              </ScrollView>
-
-              {/* Actions */}
-              <View style={s.modalActions}>
-                <TouchableOpacity style={s.cancelBtn} onPress={closeModal} disabled={updating}>
-                  <Text style={s.cancelBtnText}>Cancel</Text>
+              <View style={s.cardActions}>
+                <TouchableOpacity
+                  style={s.actionIcon}
+                  onPress={() => openCategoryModal(item)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="edit-2" size={14} color="#2280b0" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[s.saveBtn, updating && s.saveBtnDisabled]}
-                  onPress={handleSaveCategory}
-                  disabled={updating}
+                  style={s.actionIcon}
+                  onPress={() => handleDeleteCategory(item._id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  activeOpacity={0.7}
                 >
-                  {updating ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <>
-                      <Feather name="save" size={15} color="#fff" />
-                      <Text style={s.saveBtnText}>
-                        {selectedCategory ? ' Update' : ' Create'}
-                      </Text>
-                    </>
-                  )}
+                  <Feather name="trash-2" size={14} color="#ff6b6b" />
                 </TouchableOpacity>
               </View>
+            </TouchableOpacity>
+          )}
+        />
+      )}
 
+      {/* ── Edit Modal ── */}
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
+        <View style={s.modalOverlay}>
+          <Pressable style={s.modalBackdrop} onPress={closeModal} />
+          <View style={s.modalSheet}>
+
+            <View style={s.modalHandle} />
+
+            <View style={s.modalHeader}>
+              <View>
+                <Text style={s.modalTitle}>
+                  {selectedCategory ? 'Edit Category' : 'New Category'}
+                </Text>
+                <Text style={s.modalSubtitle}>
+                  {selectedCategory ? 'Update category details' : 'Create a new product category'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closeModal} style={s.modalCloseBtn}>
+                <Feather name="x" size={18} color="rgba(160,174,192,0.7)" />
+              </TouchableOpacity>
             </View>
-          </View>
-        </Modal>
 
-      </View>
-    </>
+            <View style={s.modalDivider} />
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 20 }}>
+              <Text style={s.sectionLabel}>Category Name</Text>
+              <TextInput
+                style={s.input}
+                placeholder="Enter category name"
+                placeholderTextColor="rgba(160,174,192,0.35)"
+                value={formData.name}
+                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                editable={!updating}
+              />
+
+              <Text style={s.sectionLabel}>Description</Text>
+              <TextInput
+                style={[s.input, s.multilineInput]}
+                placeholder="Enter category description (optional)"
+                placeholderTextColor="rgba(160,174,192,0.35)"
+                value={formData.description}
+                onChangeText={(text) => setFormData({ ...formData, description: text })}
+                multiline
+                numberOfLines={4}
+                editable={!updating}
+                textAlignVertical="top"
+              />
+            </ScrollView>
+
+            <View style={s.modalActions}>
+              <TouchableOpacity style={s.cancelBtn} onPress={closeModal} disabled={updating}>
+                <Text style={s.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.saveBtn, updating && s.saveBtnDisabled]}
+                onPress={handleSaveCategory}
+                disabled={updating}
+              >
+                {updating ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Feather name="save" size={15} color="#fff" />
+                    <Text style={s.saveBtnText}>
+                      {selectedCategory ? ' Update' : ' Create'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
+
+    </View>
   )
 }
 
@@ -727,7 +632,6 @@ const s = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
     gap: 12,
   },
   loaderText: {
@@ -957,7 +861,6 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
 
-  // Inputs
   input: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
@@ -975,7 +878,6 @@ const s = StyleSheet.create({
     paddingTop: 13,
   },
 
-  // Modal actions
   modalActions: {
     flexDirection: 'row',
     gap: 12,
