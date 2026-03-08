@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import {
   ScrollView,
   View,
@@ -8,12 +8,17 @@ import {
   ActivityIndicator,
   Platform,
   TouchableOpacity,
+  Animated,
+  Image,
+  Alert,
 } from 'react-native'
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit'
 import { useRouter, usePathname } from 'expo-router'
 import axios from 'axios'
 import Constants from 'expo-constants'
-import { getItem } from '@/utils/storage'
+import { getItem, removeItem } from '@/utils/storage'
+import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons'
+import AdminHeader from '@/components/adminHeader'
 
 // ─────────────────────────────────────────────────────────────
 // API CONFIG
@@ -38,111 +43,55 @@ if (debuggerHost && debuggerHost !== 'localhost') {
 }
 
 // ─────────────────────────────────────────────────────────────
+// DESIGN TOKENS
+// ─────────────────────────────────────────────────────────────
+const C = {
+  bg:         '#0E1117',
+  bgLayer:    '#12151F',
+  surface:    '#1A1E2E',
+  border:     '#262D42',
+  accent:     '#00C2C7',
+  accentDim:  '#007F84',
+  accentGlow: 'rgba(0,194,199,0.12)',
+  accentText: '#00E5EB',
+  mint:       '#3DFFC0',
+  text:       '#E8EDF5',
+  textSub:    '#7A859E',
+  textDim:    '#353D52',
+  danger:     '#FF5A6E',
+  dangerBg:   'rgba(255,90,110,0.10)',
+  white:      '#FFFFFF',
+}
 
 const screenWidth = Dimensions.get('window').width - 32
 
 const chartConfig = {
-  backgroundGradientFrom: '#ffffff',
-  backgroundGradientTo: '#ffffff',
+  backgroundGradientFrom: C.surface,
+  backgroundGradientTo: C.surface,
   decimalPlaces: 0,
-  color: (opacity = 1) => `rgba(34, 128, 176, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(0,0,0, ${opacity})`,
-  style: { borderRadius: 8 },
+  color: (opacity = 1) => `rgba(0, 194, 199, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(232, 237, 245, ${opacity})`,
+  style: { borderRadius: 12 },
 }
 
 // ─────────────────────────────────────────────────────────────
-// ADMIN HEADER
+// HELPERS
 // ─────────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/(admin)/dashboard' },
-  { label: 'Orders', path: '/(admin)/orders' },
-  { label: 'Products', path: '/(admin)/products' },
-  { label: 'Categories', path: '/(admin)/categories' },
-  { label: 'Users', path: '/(admin)/users' },
-  { label: 'Reviews', path: '/(admin)/review' },
-  { label: 'Notifications', path: '/(admin)/notifications' },
-]
-
-const AdminHeader: React.FC = () => {
-  const router = useRouter()
-  const pathname = usePathname()
-
-  return (
-    <View style={headerStyles.wrapper}>
-      <Text style={headerStyles.brand}>⚙️ Admin</Text>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={headerStyles.navRow}
-      >
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.path
-
-          return (
-            <TouchableOpacity
-              key={item.path}
-              style={[
-                headerStyles.navBtn,
-                isActive && headerStyles.activeBtn,
-              ]}
-              onPress={() => router.push(item.path)}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  headerStyles.navLabel,
-                  isActive && headerStyles.activeLabel,
-                ]}
-              >
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          )
-        })}
-      </ScrollView>
-    </View>
-  )
+const getOrderStatusStyle = (status: string) => {
+  switch (status) {
+    case 'Processing':
+      return { backgroundColor: 'rgba(255,202,40,0.12)', borderColor: 'rgba(255,202,40,0.25)' }
+    case 'Shipped':
+      return { backgroundColor: 'rgba(33,150,243,0.12)', borderColor: 'rgba(33,150,243,0.25)' }
+    case 'Delivered':
+      return { backgroundColor: 'rgba(76,175,80,0.12)', borderColor: 'rgba(76,175,80,0.25)' }
+    case 'Cancelled':
+      return { backgroundColor: 'rgba(255,107,107,0.12)', borderColor: 'rgba(255,107,107,0.25)' }
+    default:
+      return { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.07)' }
+  }
 }
-
-const headerStyles = StyleSheet.create({
-  wrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  brand: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-    marginRight: 10,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  navBtn: {
-    backgroundColor: '#2280b0',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-  activeBtn: {
-    backgroundColor: '#4caf50',
-  },
-  navLabel: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  activeLabel: {
-    fontWeight: '800',
-  },
-})
 
 // ─────────────────────────────────────────────────────────────
 // DASHBOARD SCREEN
@@ -170,11 +119,6 @@ const Dashboard: React.FC = () => {
     { orders: 0, sales: 0 }
   )
   const [recentOrders, setRecentOrders] = useState<any[]>([])
-
-  const formatCurrency = (value: number) => {
-    if (!Number.isFinite(value)) return '$0.00'
-    return `$${Number(value).toFixed(2)}`
-  }
 
   const getAuthHeader = async () => {
     const token = await getItem('authToken')
@@ -220,7 +164,7 @@ const Dashboard: React.FC = () => {
         setProductSales({
           labels: sales.map((p: any) => {
             const name = p?._id || p?.name || 'Product'
-            return name.length > 12 ? name.slice(0, 12) + '…' : name
+            return name
           }),
           data: sales.map((p: any) =>
             totalSales && p?.total
@@ -236,7 +180,7 @@ const Dashboard: React.FC = () => {
             name: c.userDetails?.name || `User ${i + 1}`,
             population: Number(c.total),
             color: ['#4caf50', '#ffca28', '#f44336', '#42a5f5', '#9c27b0'][i % 5],
-            legendFontColor: '#333',
+            legendFontColor: '#E8EDF5',
             legendFontSize: 12,
           }))
         )
@@ -276,199 +220,422 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <>
-        <AdminHeader />
-        <View style={styles.center}>
-          <ActivityIndicator size="large" />
+      <View style={styles.root}>
+        <AdminHeader title="Dashboard" icon="chart-timeline" />
+        <View style={styles.centerWrap}>
+          <ActivityIndicator size="large" color={C.accent} />
         </View>
-      </>
+      </View>
     )
   }
 
   return (
-    <>
-      <AdminHeader />
+    <View style={styles.root}>
+      <AdminHeader title="Dashboard" icon="chart-timeline" />
+
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Admin Dashboard</Text>
+        {/* Page Header */}
+        <View style={styles.pageHeader}>
+          <View>
+            <Text style={styles.pageTitle}>Dashboard</Text>
+            <Text style={styles.pageSubtitle}>Analytics & Performance Metrics</Text>
+          </View>
+        </View>
 
+        {/* KPI Cards */}
+        <View style={styles.kpiRow}>
+          <View style={styles.kpiCard}>
+            <View style={styles.kpiIconWrap}>
+              <MaterialCommunityIcons name="shopping-outline" size={24} color="#2196F3" />
+            </View>
+            <Text style={styles.kpiLabel}>Total Orders</Text>
+            <Text style={styles.kpiValue}>{totals.orders}</Text>
+          </View>
+          <View style={styles.kpiCard}>
+            <View style={styles.kpiIconWrap}>
+              <MaterialCommunityIcons name="cash-multiple" size={24} color="#4caf50" />
+            </View>
+            <Text style={styles.kpiLabel}>Total Sales</Text>
+            <Text style={styles.kpiValue}>₱{Number(totals.sales).toLocaleString('en-PH', { maximumFractionDigits: 0 })}</Text>
+          </View>
+        </View>
+
+        {/* Monthly Revenue Chart */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Monthly Revenue</Text>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.cardTitle}>Monthly Revenue</Text>
+              <Text style={styles.cardSub}>Sales trends over time</Text>
+            </View>
+            <MaterialCommunityIcons name="chart-line" size={20} color="#00C2C7" />
+          </View>
           {revenue.labels.length ? (
-            <LineChart
-              data={{
-                labels: revenue.labels,
-                datasets: [{ data: revenue.data }],
-              }}
-              width={screenWidth}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
-            />
+            <View style={styles.chartWrap}>
+              <LineChart
+                data={{
+                  labels: revenue.labels,
+                  datasets: [{ data: revenue.data }],
+                }}
+                width={screenWidth - 32}
+                height={200}
+                chartConfig={chartConfig}
+                bezier
+                style={styles.chart}
+              />
+            </View>
           ) : (
-            <Text>No data</Text>
+            <Text style={styles.noData}>No revenue data available</Text>
           )}
         </View>
 
+        {/* Top Product Sales Chart */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Top Product Sales (%)</Text>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.cardTitle}>Top Product Sales</Text>
+              <Text style={styles.cardSub}>Performance by product</Text>
+            </View>
+            <MaterialCommunityIcons name="chart-bar" size={20} color="#00C2C7" />
+          </View>
           {productSales.labels.length ? (
-            <BarChart
-              data={{
-                labels: productSales.labels,
-                datasets: [{ data: productSales.data }],
-              }}
-              width={screenWidth}
-              height={240}
-              chartConfig={chartConfig}
-              fromZero
-              showValuesOnTopOfBars
-              style={styles.chart}
-            />
+            <View style={styles.chartWrap}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <BarChart
+                  data={{
+                    labels: productSales.labels.map(l => l.length > 12 ? l.substring(0, 12) + '...' : l),
+                    datasets: [{ data: productSales.data }],
+                  }}
+                  width={Math.max(screenWidth, productSales.labels.length * 80)}
+                  height={300}
+                  chartConfig={{
+                    ...chartConfig,
+                    labelColor: (opacity = 1) => `rgba(232, 237, 245, ${opacity})`,
+                  }}
+                  fromZero
+                  showValuesOnTopOfBars
+                  yAxisLabel=""
+                  yAxisSuffix="%"
+                  style={styles.chart}
+                />
+              </ScrollView>
+              <Text style={styles.chartNote}>← Swipe to view more products →</Text>
+            </View>
           ) : (
-            <Text>No data</Text>
+            <Text style={styles.noData}>No product sales data available</Text>
           )}
         </View>
 
+        {/* Top Customers */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Top Customers</Text>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.cardTitle}>Top Customers</Text>
+              <Text style={styles.cardSub}>Best performing customers</Text>
+            </View>
+            <MaterialCommunityIcons name="account-multiple" size={20} color="#00C2C7" />
+          </View>
           {pieData.length ? (
-            <PieChart
-              data={pieData}
-              width={screenWidth}
-              height={220}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              absolute
-              chartConfig={chartConfig}
-            />
+            <View style={styles.chartWrap}>
+              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <PieChart
+                  data={pieData}
+                  width={screenWidth - 48}
+                  height={180}
+                  accessor="population"
+                  backgroundColor="transparent"
+                  paddingLeft="0"
+                  absolute
+                  chartConfig={chartConfig}
+                />
+              </View>
+              <View style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 10,
+                paddingTop: 8,
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(255,255,255,0.06)'
+              }}>
+                {pieData.map((item, idx) => (
+                  <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+                    <Text style={{ fontSize: 11, color: '#E8EDF5', fontWeight: '500' }}>
+                      {item.name}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
           ) : (
-            <Text>No data</Text>
+            <Text style={styles.noData}>No customer data available</Text>
           )}
         </View>
 
+        {/* Recent Orders */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Orders Summary</Text>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryBox}>
-              <Text style={styles.summaryLabel}>Total Orders</Text>
-              <Text style={styles.summaryValue}>{totals.orders}</Text>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.cardTitle}>Recent Orders</Text>
+              <Text style={styles.cardSub}>Latest transactions</Text>
             </View>
-            <View style={styles.summaryBox}>
-              <Text style={styles.summaryLabel}>Total Sales</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(totals.sales)}</Text>
-            </View>
+            <MaterialCommunityIcons name="package-variant" size={20} color="#00C2C7" />
           </View>
 
-          <Text style={styles.subheading}>Recent Orders</Text>
           {recentOrders.length ? (
-            recentOrders.map((o) => (
-              <View key={o._id} style={styles.orderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.orderId}>#{String(o._id).slice(-6)}</Text>
-                  <Text style={styles.orderMeta}>
-                    {new Date(o.createdAt || o.paidAt || Date.now()).toLocaleDateString()}
-                  </Text>
-                </View>
-                <Text style={styles.orderMeta}>{formatCurrency(o.totalPrice)}</Text>
-                <View style={styles.statusPill}>
-                  <Text style={styles.statusText}>{o.orderStatus || 'Pending'}</Text>
-                </View>
-              </View>
-            ))
+            <View>
+              {recentOrders.map((o) => (
+                <TouchableOpacity key={o._id} style={styles.orderCard} activeOpacity={0.7}>
+                  <View style={styles.orderIconWrap}>
+                    <MaterialCommunityIcons name="package-variant" size={16} color="#2280b0" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.orderId}>Order #{String(o._id).slice(-6).toUpperCase()}</Text>
+                    <Text style={styles.orderDate}>
+                      {new Date(o.createdAt || o.paidAt || Date.now()).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.orderPrice}>₱{Number(o.totalPrice).toLocaleString('en-PH', { maximumFractionDigits: 2 })}</Text>
+                    <View style={[styles.orderStatusBadge, getOrderStatusStyle(o.orderStatus)]}>
+                      <Text style={styles.orderStatusText}>{o.orderStatus || 'Pending'}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
           ) : (
-            <Text style={styles.orderMeta}>No orders yet</Text>
+            <Text style={styles.noData}>No orders found</Text>
           )}
         </View>
 
+        {/* Categories */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            Categories ({categories.length})
-          </Text>
-          <View style={styles.catWrap}>
-            {categories.map((c) => (
-              <View key={c.category} style={styles.catBadge}>
-                <Text>
-                  {c.category} ({c.count})
-                </Text>
-              </View>
-            ))}
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.cardTitle}>Categories</Text>
+              <Text style={styles.cardSub}>{categories.length} categories available</Text>
+            </View>
+            <MaterialCommunityIcons name="folder-multiple" size={20} color="#00C2C7" />
           </View>
+          {categories.length ? (
+            <View style={styles.categoryGrid}>
+              {categories.map((c) => (
+                <View key={c.category} style={styles.categoryBadge}>
+                  <Text style={styles.categoryName}>{c.category}</Text>
+                  <Text style={styles.categoryCount}>{c.count}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.noData}>No categories found</Text>
+          )}
         </View>
       </ScrollView>
-    </>
+    </View>
   )
 }
 
 // ─────────────────────────────────────────────────────────────
+// STYLES
+// ─────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  center: {
+  root: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+  },
+  centerWrap: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#1a1a2e',
   },
   container: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 40,
+    backgroundColor: '#1a1a2e',
   },
-  title: {
-    fontSize: 20,
+
+  // Page Header
+  pageHeader: {
+    paddingBottom: 16,
+    marginBottom: 8,
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.3,
+    marginBottom: 4,
+  },
+  pageSubtitle: {
+    fontSize: 12,
+    color: 'rgba(160,174,192,0.6)',
+  },
+
+  // KPI Cards
+  kpiRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  kpiCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  kpiIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  kpiLabel: {
+    fontSize: 11,
+    color: 'rgba(160,174,192,0.6)',
     fontWeight: '600',
-    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
+  kpiValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#00C2C7',
+  },
+
+  // Card
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    elevation: 2,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 4,
   },
-  summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  summaryBox: {
-    flex: 1,
-    backgroundColor: '#f7f9fc',
-    borderRadius: 8,
-    padding: 10,
+  cardSub: {
+    fontSize: 12,
+    color: 'rgba(160,174,192,0.5)',
   },
-  summaryLabel: { color: '#455a64', fontWeight: '600', marginBottom: 4 },
-  summaryValue: { fontSize: 18, fontWeight: '800', color: '#0d47a1' },
-  subheading: { fontWeight: '700', marginBottom: 8, marginTop: 4 },
-  orderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+
+  // Chart
+  chartWrap: {
+    backgroundColor: '#16213e',
+    borderRadius: 12,
+    padding: 8,
+    marginBottom: 12,
   },
-  orderId: { fontWeight: '700', color: '#222' },
-  orderMeta: { color: '#546e7a' },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: '#e3f2fd',
+  chart: {
     borderRadius: 12,
   },
-  statusText: { color: '#1565c0', fontWeight: '700' },
-  chart: {
-    borderRadius: 8,
+  chartNote: {
+    fontSize: 10,
+    color: 'rgba(160,174,192,0.4)',
+    textAlign: 'center',
+    marginTop: 8,
   },
-  catWrap: {
+  noData: {
+    color: 'rgba(160,174,192,0.5)',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+
+  // Order Card
+  orderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#16213e',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  orderIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(34,128,176,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  orderId: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  orderDate: {
+    fontSize: 11,
+    color: 'rgba(160,174,192,0.5)',
+    marginTop: 2,
+  },
+  orderPrice: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#00C2C7',
+    marginBottom: 6,
+  },
+  orderStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  orderStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(160,174,192,0.7)',
+  },
+
+  // Category
+  categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
-  catBadge: {
-    backgroundColor: '#f2f2f2',
-    padding: 8,
-    borderRadius: 6,
+  categoryBadge: {
+    backgroundColor: '#16213e',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    gap: 4,
+  },
+  categoryName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  categoryCount: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#00C2C7',
+    textAlign: 'center',
   },
 })
 
