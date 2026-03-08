@@ -16,9 +16,9 @@ import {
 import axios from 'axios'
 import Constants from 'expo-constants'
 import * as ImagePicker from 'expo-image-picker'
-import { usePathname, useRouter } from 'expo-router'
 import { getItem } from '@/utils/storage'
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
+import AdminHeader from '@/components/adminHeader'
 
 // ==================== API URL ====================
 let API_URL =
@@ -62,71 +62,6 @@ interface Category {
   category: string
   count: number
 }
-
-// ==================== NAV ====================
-const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/(admin)/dashboard' },
-  { label: 'Orders', path: '/(admin)/orders' },
-  { label: 'Products', path: '/(admin)/products' },
-  { label: 'Categories', path: '/(admin)/categories' },
-  { label: 'Users', path: '/(admin)/users' },
-  { label: 'Reviews', path: '/(admin)/review' },
-  { label: 'Notifications', path: '/(admin)/notifications' },
-]
-
-const AdminHeader = () => {
-  const router = useRouter()
-  const pathname = usePathname()
-
-  return (
-    <View style={hdr.wrapper}>
-      <MaterialCommunityIcons name="package-variant" size={18} color="#fff" style={{ marginRight: 8 }} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={hdr.navRow}
-      >
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.path
-          return (
-            <TouchableOpacity
-              key={item.path}
-              style={[hdr.navBtn, isActive && hdr.activeBtn]}
-              onPress={() => router.push(item.path as any)}
-              activeOpacity={0.8}
-            >
-              <Text style={[hdr.navLabel, isActive && hdr.activeLabel]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          )
-        })}
-      </ScrollView>
-    </View>
-  )
-}
-
-const hdr = StyleSheet.create({
-  wrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  navRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  navBtn: {
-    backgroundColor: '#2280b0',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-  activeBtn: { backgroundColor: '#4caf50' },
-  navLabel: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  activeLabel: { fontWeight: '800' },
-})
 
 // ==================== THEMED ALERT MODAL ====================
 interface ThemedAlertProps {
@@ -475,12 +410,10 @@ export default function AdminProducts() {
 
       try {
         if (Platform.OS === 'web') {
-          // On web, convert blob URL to File
           const response = await fetch(img.uri)
           const blob = await response.blob()
           formData.append('file', blob, img.name)
         } else {
-          // On native platforms
           formData.append('file', {
             uri: img.uri,
             type: img.type,
@@ -633,19 +566,19 @@ export default function AdminProducts() {
   // ==================== RENDER ====================
   if (loading && products.length === 0) {
     return (
-      <>
-        <AdminHeader />
+      <View style={s.root}>
+        <AdminHeader title="Products" icon="package-variant-closed" />
         <View style={s.loader}>
           <ActivityIndicator size="large" color="#2280b0" />
           <Text style={s.loaderText}>Loading products...</Text>
         </View>
-      </>
+      </View>
     )
   }
 
   return (
-    <>
-      <AdminHeader />
+    <View style={s.root}>
+      <AdminHeader title="Products" icon="package-variant-closed" />
 
       {/* Themed Alert */}
       <ThemedAlert
@@ -668,28 +601,26 @@ export default function AdminProducts() {
         isLoading={isDeleting}
       />
 
-      <View style={s.root}>
-        {/* Page Header */}
-        <View style={s.pageHeader}>
-          <View>
-            <Text style={s.pageTitle}>Products</Text>
-            <Text style={s.pageSubtitle}>Manage product inventory</Text>
-          </View>
-          <TouchableOpacity
-            style={s.createBtn}
-            onPress={() => {
-              resetForm()
-              setModalVisible(true)
-            }}
-            activeOpacity={0.8}
-          >
-            <Feather name="plus" size={14} color="#fff" style={{ marginRight: 6 }} />
-            <Text style={s.createBtnText}>New</Text>
-          </TouchableOpacity>
+      {/* Page Header */}
+      <View style={s.pageHeader}>
+        <View>
+          <Text style={s.pageTitle}>Products</Text>
+          <Text style={s.pageSubtitle}>Manage product inventory</Text>
         </View>
+        <TouchableOpacity
+          style={s.createBtn}
+          onPress={() => {
+            resetForm()
+            setModalVisible(true)
+          }}
+          activeOpacity={0.8}
+        >
+          <Feather name="plus" size={14} color="#fff" style={{ marginRight: 6 }} />
+          <Text style={s.createBtnText}>New</Text>
+        </TouchableOpacity>
+      </View>
 
-        <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
-
+      <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
         {/* Products List */}
         {products.length === 0 ? (
           <View style={s.emptyState}>
@@ -749,7 +680,6 @@ export default function AdminProducts() {
           ))
         )}
       </ScrollView>
-      </View>
 
       {/* Product Form Modal - Bottom Sheet */}
       <Modal
@@ -761,100 +691,102 @@ export default function AdminProducts() {
         <View style={s.modalOverlay}>
           <Pressable style={s.modalBackdrop} onPress={resetForm} />
           <View style={s.modalSheet}>
-          {/* Handle */}
-          <View style={s.modalHandle} />
+            {/* Handle */}
+            <View style={s.modalHandle} />
 
-          {/* Modal Header */}
-          <View style={s.modalHeader}>
-            <View>
-              <Text style={s.modalTitle}>
-                {editingId ? 'Edit Product' : 'New Product'}
-              </Text>
-              <Text style={s.modalSubtitle}>
-                {editingId ? 'Update product details' : 'Create a new product'}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={resetForm} style={s.modalCloseBtn}>
-              <Feather name="x" size={18} color="rgba(160,174,192,0.7)" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={s.modalDivider} />
-          <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 20 }}>
-            <Text style={s.sectionLabel}>Product Name *</Text>
-            <TextInput
-              placeholder="Enter product name"
-              placeholderTextColor="rgba(160,174,192,0.35)"
-              style={s.input}
-              value={form.name}
-              onChangeText={(t) => setForm({ ...form, name: t })}
-            />
-
-            <View style={s.formRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.sectionLabel}>Price *</Text>
-                <TextInput
-                  placeholder="0.00"
-                  placeholderTextColor="rgba(160,174,192,0.35)"
-                  keyboardType="decimal-pad"
-                  style={s.input}
-                  value={form.price}
-                  onChangeText={(t) => setForm({ ...form, price: t })}
-                />
+            {/* Modal Header */}
+            <View style={s.modalHeader}>
+              <View>
+                <Text style={s.modalTitle}>
+                  {editingId ? 'Edit Product' : 'New Product'}
+                </Text>
+                <Text style={s.modalSubtitle}>
+                  {editingId ? 'Update product details' : 'Create a new product'}
+                </Text>
               </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={s.sectionLabel}>Stock *</Text>
-                <TextInput
-                  placeholder="0"
-                  placeholderTextColor="rgba(160,174,192,0.35)"
-                  keyboardType="numeric"
-                  style={s.input}
-                  value={form.stock}
-                  onChangeText={(t) => setForm({ ...form, stock: t })}
-                />
-              </View>
+              <TouchableOpacity onPress={resetForm} style={s.modalCloseBtn}>
+                <Feather name="x" size={18} color="rgba(160,174,192,0.7)" />
+              </TouchableOpacity>
             </View>
 
-            <Text style={s.sectionLabel}>Category *</Text>
-            {categories.length ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.categoryContainer}
-              >
-                {categories.map((c) => {
-                  const active = form.category === c.category
-                  return (
-                    <TouchableOpacity
-                      key={c.category}
-                      style={[s.categoryChip, active && s.categoryChipActive]}
-                      onPress={() => setForm({ ...form, category: c.category })}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[s.categoryChipText, active && s.categoryChipTextActive]}>
-                        {c.category}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                })}
-              </ScrollView>
-            ) : (
-              <Text style={s.helperText}>No categories available</Text>
-            )}
+            <View style={s.modalDivider} />
 
-            <Text style={s.sectionLabel}>Description</Text>
-            <TextInput
-              placeholder="Enter product description"
-              placeholderTextColor="rgba(160,174,192,0.35)"
-              style={[s.input, s.multilineInput]}
-              multiline
-              numberOfLines={4}
-              value={form.description}
-              onChangeText={(t) => setForm({ ...form, description: t })}
-              textAlignVertical="top"
-            />
-            <Text style={s.sectionLabel}>Images *</Text>
-            <View style={s.imageButtonGroup}>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: 20 }}>
+              <Text style={s.sectionLabel}>Product Name *</Text>
+              <TextInput
+                placeholder="Enter product name"
+                placeholderTextColor="rgba(160,174,192,0.35)"
+                style={s.input}
+                value={form.name}
+                onChangeText={(t) => setForm({ ...form, name: t })}
+              />
+
+              <View style={s.formRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.sectionLabel}>Price *</Text>
+                  <TextInput
+                    placeholder="0.00"
+                    placeholderTextColor="rgba(160,174,192,0.35)"
+                    keyboardType="decimal-pad"
+                    style={s.input}
+                    value={form.price}
+                    onChangeText={(t) => setForm({ ...form, price: t })}
+                  />
+                </View>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={s.sectionLabel}>Stock *</Text>
+                  <TextInput
+                    placeholder="0"
+                    placeholderTextColor="rgba(160,174,192,0.35)"
+                    keyboardType="numeric"
+                    style={s.input}
+                    value={form.stock}
+                    onChangeText={(t) => setForm({ ...form, stock: t })}
+                  />
+                </View>
+              </View>
+
+              <Text style={s.sectionLabel}>Category *</Text>
+              {categories.length ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.categoryContainer}
+                >
+                  {categories.map((c) => {
+                    const active = form.category === c.category
+                    return (
+                      <TouchableOpacity
+                        key={c.category}
+                        style={[s.categoryChip, active && s.categoryChipActive]}
+                        onPress={() => setForm({ ...form, category: c.category })}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[s.categoryChipText, active && s.categoryChipTextActive]}>
+                          {c.category}
+                        </Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </ScrollView>
+              ) : (
+                <Text style={s.helperText}>No categories available</Text>
+              )}
+
+              <Text style={s.sectionLabel}>Description</Text>
+              <TextInput
+                placeholder="Enter product description"
+                placeholderTextColor="rgba(160,174,192,0.35)"
+                style={[s.input, s.multilineInput]}
+                multiline
+                numberOfLines={4}
+                value={form.description}
+                onChangeText={(t) => setForm({ ...form, description: t })}
+                textAlignVertical="top"
+              />
+
+              <Text style={s.sectionLabel}>Images *</Text>
+              <View style={s.imageButtonGroup}>
                 <TouchableOpacity
                   style={[s.imageBtn, s.imageBtnGallery]}
                   onPress={pickImage}
@@ -873,78 +805,77 @@ export default function AdminProducts() {
                 </TouchableOpacity>
               </View>
 
-            {(remoteImages.length > 0 || pickedImages.length > 0) && (
-              <View style={{ marginBottom: 20 }}>
-                <Text style={s.sectionLabel}>
-                  Selected Images ({remoteImages.length + pickedImages.length}/3)
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={s.imagePreviewContainer}
-                >
-                  {remoteImages.map((img, idx) => (
-                    <View key={img.public_id} style={s.previewWrapper}>
-                      <Image source={{ uri: img.url }} style={s.previewImage} />
-                      <TouchableOpacity
-                        style={s.removeImageBtn}
-                        onPress={() =>
-                          setRemoteImages(remoteImages.filter((_, i) => i !== idx))
-                        }
-                      >
-                        <Feather name="x" size={14} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  {pickedImages.map((img, idx) => (
-                    <View key={img.uri} style={s.previewWrapper}>
-                      <Image source={{ uri: img.uri }} style={s.previewImage} />
-                      <TouchableOpacity
-                        style={s.removeImageBtn}
-                        onPress={() =>
-                          setPickedImages(pickedImages.filter((_, i) => i !== idx))
-                        }
-                      >
-                        <Feather name="x" size={14} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-          </ScrollView>
-
-          {/* Modal Actions */}
-          <View style={s.modalActions}>
-            <TouchableOpacity
-              style={s.cancelBtn}
-              onPress={resetForm}
-              disabled={submitting}
-            >
-              <Text style={s.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.saveBtn, submitting && s.saveBtnDisabled]}
-              onPress={submitProduct}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Feather name="check" size={15} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={s.saveBtnText}>
-                    {editingId ? 'Update' : 'Create'}
+              {(remoteImages.length > 0 || pickedImages.length > 0) && (
+                <View style={{ marginBottom: 20 }}>
+                  <Text style={s.sectionLabel}>
+                    Selected Images ({remoteImages.length + pickedImages.length}/3)
                   </Text>
-                </>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={s.imagePreviewContainer}
+                  >
+                    {remoteImages.map((img, idx) => (
+                      <View key={img.public_id} style={s.previewWrapper}>
+                        <Image source={{ uri: img.url }} style={s.previewImage} />
+                        <TouchableOpacity
+                          style={s.removeImageBtn}
+                          onPress={() =>
+                            setRemoteImages(remoteImages.filter((_, i) => i !== idx))
+                          }
+                        >
+                          <Feather name="x" size={14} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    {pickedImages.map((img, idx) => (
+                      <View key={img.uri} style={s.previewWrapper}>
+                        <Image source={{ uri: img.uri }} style={s.previewImage} />
+                        <TouchableOpacity
+                          style={s.removeImageBtn}
+                          onPress={() =>
+                            setPickedImages(pickedImages.filter((_, i) => i !== idx))
+                          }
+                        >
+                          <Feather name="x" size={14} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
               )}
-            </TouchableOpacity>
-          </View>
+            </ScrollView>
 
+            {/* Modal Actions */}
+            <View style={s.modalActions}>
+              <TouchableOpacity
+                style={s.cancelBtn}
+                onPress={resetForm}
+                disabled={submitting}
+              >
+                <Text style={s.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.saveBtn, submitting && s.saveBtnDisabled]}
+                onPress={submitProduct}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Feather name="check" size={15} color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={s.saveBtnText}>
+                      {editingId ? 'Update' : 'Create'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
-    </>
+    </View>
   )
 }
 
@@ -957,9 +888,9 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1a1a2e', paddingHorizontal: 18 },
   loader: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 12,
   },
   loaderText: { color: 'rgba(160,174,192,0.6)', marginTop: 12, fontSize: 14 },
 
@@ -1024,7 +955,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.04)',
-    marginHorizontal: 0,
     marginBottom: 10,
     borderRadius: 16,
     padding: 14,
@@ -1044,7 +974,7 @@ const s = StyleSheet.create({
   cardInfo: { flex: 1 },
   cardName: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 3 },
   cardDesc: { fontSize: 12, color: 'rgba(160,174,192,0.55)', marginBottom: 6 },
- badgeRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  badgeRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
