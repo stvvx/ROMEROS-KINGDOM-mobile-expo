@@ -148,22 +148,36 @@ exports.deleteOrder = async (req, res, next) => {
 }
 
 exports.updateOrder = async (req, res, next) => {
-    const order = await Order.findById(req.params.id)
-    console.log(req.body.order)
-    if (order.orderStatus === 'Delivered') {
-        return res.status(400).json({
-            message: 'You have already delivered this order',
-
-        })
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+        return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    order.orderItems.forEach(async item => {
-        await updateStock(item.product, item.quantity)
-    })
+    const newStatus = req.body.status;
+    // only updateDeliveredAt when transitioning to Delivered
+    if (newStatus === 'Delivered' && order.orderStatus !== 'Delivered') {
+        order.deliveredAt = Date.now();
+    }
 
-    order.orderStatus = req.body.status
-    order.deliveredAt = Date.now()
-    await order.save()
+    // update stock only when the status moves from Processing to Shipped/Delivered
+    const shouldAdjustStock =
+        ['Shipped', 'Delivered'].includes(newStatus) &&
+        !['Shipped', 'Delivered'].includes(order.orderStatus);
+
+    if (shouldAdjustStock) {
+        for (const item of order.orderItems) {
+            // await inside loop so errors propagate
+            await updateStock(item.product, item.quantity);
+        }
+    }
+
+    order.orderStatus = newStatus;
+    // if status is changed away from Delivered you might want to clear deliveredAt
+    if (newStatus !== 'Delivered' && order.deliveredAt) {
+        order.deliveredAt = undefined;
+    }
+
+    await order.save();
 
     notify({
         userId: order.user,
@@ -173,10 +187,11 @@ exports.updateOrder = async (req, res, next) => {
         type: 'order',
         refId: String(order._id),
         refModel: 'Order',
-    })
+    });
     res.status(200).json({
         success: true,
-    })
+        order,
+    });
 }
 
 async function updateStock(id, quantity) {
