@@ -17,7 +17,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
-import { getItem, setItem } from '@/utils/storage';
+import { getItem } from '@/utils/storage';
+import { initCartDb, getCartItemsSync, saveCartItemsSync, CartItem as DbCartItem } from '@/utils/cartDb';
 import Constants from 'expo-constants';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -216,18 +217,18 @@ export default function ProductDetails() {
   const handleIncreaseQty = () => { if (product && quantity < product.stock!) setQuantity(quantity + 1); };
   const handleDecreaseQty = () => { if (quantity > 1) setQuantity(quantity - 1); };
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = () => {
     if (!product) return;
     try {
-      const cartData = await getItem('cartItems');
-      let cartItems = cartData ? JSON.parse(cartData) : [];
-      const existingItemIndex = cartItems.findIndex((item: any) => item._id === product._id || item.product === product._id);
-      if (existingItemIndex > -1) {
-        cartItems[existingItemIndex].quantity += quantity;
+      initCartDb();
+      const cartItems: DbCartItem[] = getCartItemsSync();
+      const existingIndex = cartItems.findIndex(item => item._id === product._id);
+      if (existingIndex > -1) {
+        cartItems[existingIndex].quantity += quantity;
       } else {
         cartItems.push({ _id: product._id, name: product.name, price: product.price, quantity, images: product.images || [] });
       }
-      await setItem('cartItems', JSON.stringify(cartItems));
+      saveCartItemsSync(cartItems);
       showAlert('success', 'Added to Cart', `${quantity} item(s) added to your cart.`);
       setQuantity(1);
     } catch (err) {

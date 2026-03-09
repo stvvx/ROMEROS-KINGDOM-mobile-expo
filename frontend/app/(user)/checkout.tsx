@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { getItem, removeItem } from '@/utils/storage';
+import { getItem } from '@/utils/storage';
+import { loadCartAsync, saveCartItemsSync } from '@/utils/cartDb';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const API_URL =
@@ -106,8 +107,7 @@ export default function Checkout() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await getItem('cartItems');
-        const items = data ? JSON.parse(data) : [];
+        const items = await loadCartAsync();
         setCartItems(items);
         const sub      = items.reduce((s: number, it: any) => s + it.price * it.quantity, 0);
         const tax      = parseFloat((sub * 0.1).toFixed(2));
@@ -183,7 +183,7 @@ export default function Checkout() {
       if (res.data.success) {
         showAlert('success', 'Order Placed!', 'Your order was placed successfully (Cash on Delivery).', async () => {
           setAlertVisible(false);
-          await removeItem('cartItems');
+          saveCartItemsSync([]);
           router.replace('/(tabs)');
         });
       } else {

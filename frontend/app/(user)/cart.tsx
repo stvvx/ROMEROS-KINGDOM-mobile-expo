@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
-import { getItem, setItem } from '@/utils/storage';
+import { saveCartItemsSync, loadCartAsync } from '@/utils/cartDb';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const API_URL =
@@ -104,18 +104,17 @@ export default function Cart() {
 
   const loadCart = async () => {
     try {
-      const cartData = await getItem('cartItems');
-      setCartItems(cartData ? JSON.parse(cartData) : []);
+      setCartItems(await loadCartAsync());
     } catch (err) {
       console.error('Error loading cart:', err);
       setCartItems([]);
     }
   };
 
-  const saveCart = async (items: CartItem[]) => {
+  const saveCart = (items: CartItem[]) => {
     setCartItems(items);
     try {
-      await setItem('cartItems', JSON.stringify(items));
+      saveCartItemsSync(items);
     } catch (err) {
       console.error('Error saving cart:', err);
     }

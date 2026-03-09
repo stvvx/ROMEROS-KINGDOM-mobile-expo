@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { getItem, removeItem } from '@/utils/storage';
+import { loadCartAsync } from '@/utils/cartDb';
 import Slider from '@react-native-community/slider';
 import axios from 'axios';
 import Constants from 'expo-constants';
@@ -333,13 +334,11 @@ export default function Home() {
     useCallback(() => {
       let mounted = true;
       (async () => {
+        // ── Auth token (isolated — must never be affected by cart/DB errors) ──
         try {
           const token = await getItem('authToken');
           if (!mounted) return;
           setIsLoggedIn(!!token);
-          const cartData = await getItem('cartItems');
-          const items = cartData ? JSON.parse(cartData) : [];
-          setCartCount(items.reduce((sum: number, i: any) => sum + i.quantity, 0));
           const rawUser = await getItem('user');
           if (mounted && rawUser) {
             try {
@@ -347,8 +346,17 @@ export default function Home() {
               setProfile({ name: u.name, avatar: u.avatar?.url || u.avatar || undefined });
             } catch { setProfile({ name: rawUser }); }
           }
-          await fetchNotificationCount();
         } catch { setIsLoggedIn(false); }
+
+        // ── Cart count (isolated — errors here must not affect login state) ──
+        try {
+          const items = await loadCartAsync();
+          if (mounted) setCartCount(items.reduce((sum: number, i: any) => sum + i.quantity, 0));
+        } catch (err) {
+          console.warn('[home] cart load error', err);
+        }
+
+        await fetchNotificationCount();
       })();
       return () => { mounted = false; };
     }, [])
@@ -357,13 +365,11 @@ export default function Home() {
   useEffect(() => {
     let mounted = true;
     (async () => {
+      // ── Auth token ──
       try {
         const token = await getItem('authToken');
         if (!mounted) return;
         setIsLoggedIn(!!token);
-        const cartData = await getItem('cartItems');
-        const items = cartData ? JSON.parse(cartData) : [];
-        setCartCount(items.reduce((sum: number, i: any) => sum + i.quantity, 0));
         const rawUser = await getItem('user');
         if (mounted && rawUser) {
           try {
@@ -371,8 +377,17 @@ export default function Home() {
             setProfile({ name: u.name, avatar: u.avatar?.url || u.avatar || undefined });
           } catch { setProfile({ name: rawUser }); }
         }
-        await fetchNotificationCount();
-      } catch {}
+      } catch { setIsLoggedIn(false); }
+
+      // ── Cart count ──
+      try {
+        const items = await loadCartAsync();
+        if (mounted) setCartCount(items.reduce((sum: number, i: any) => sum + i.quantity, 0));
+      } catch (err) {
+        console.warn('[home] cart load error', err);
+      }
+
+      await fetchNotificationCount();
     })();
     return () => { mounted = false; };
   }, []);
@@ -541,7 +556,6 @@ export default function Home() {
     try {
       await removeItem('authToken');
       await removeItem('user');
-      await removeItem('cartItems');
       setIsLoggedIn(false);
       setCartCount(0);
       setNotifCount(0);
