@@ -30,6 +30,7 @@ import Slider from '@react-native-community/slider';
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import IndexHeader from '@/components/indexHeader';
 
 /* ─────────────────────────────────────────
    API URL Resolution
@@ -114,7 +115,7 @@ function useGrid() {
 }
 
 /* ─────────────────────────────────────────
-   Star Rating — MCI icons, no emoji
+   Star Rating
 ───────────────────────────────────────── */
 const StarRating = ({ rating = 0, size = 10 }: { rating?: number; size?: number }) => (
   <View style={{ flexDirection: 'row', gap: 1 }}>
@@ -204,7 +205,6 @@ const ProductCard = React.memo(({ item, index, cardWidth, isWeb }: {
               <Image source={{ uri: imgUrl }} style={s.cardImg} resizeMode="cover" />
             ) : (
               <View style={s.cardImgPlaceholder}>
-                {/* replaced 📦 emoji */}
                 <MaterialCommunityIcons name="package-variant" size={isWeb ? 42 : 34} color={C.textDim} />
               </View>
             )}
@@ -229,7 +229,6 @@ const ProductCard = React.memo(({ item, index, cardWidth, isWeb }: {
                 <Text style={s.priceTag}>PRICE</Text>
                 <Text style={[s.cardPrice, isWeb && s.cardPriceWeb]}>₱{item.price.toLocaleString()}</Text>
               </View>
-              {/* replaced + text with icon */}
               <TouchableOpacity style={s.addBtn} activeOpacity={0.75}>
                 <Feather name="plus" size={16} color={C.accent} />
               </TouchableOpacity>
@@ -245,7 +244,7 @@ const ProductCard = React.memo(({ item, index, cardWidth, isWeb }: {
 });
 
 /* ─────────────────────────────────────────
-   Category icon map — vector icons, no emoji
+   Category icon map
 ───────────────────────────────────────── */
 type IconLib = 'feather' | 'mci' | 'ion';
 interface CatIconCfg { lib: IconLib; name: string }
@@ -300,7 +299,7 @@ const CatIconComponent = ({ label, size, color }: { label: string; size: number;
 /* ─────────────────────────────────────────
    Category Chip
 ───────────────────────────────────────── */
-const Chip = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => {
+export const Chip = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => {
   const scale = useRef(new Animated.Value(1)).current;
   const pressIn  = () => Animated.spring(scale, { toValue: 0.92, useNativeDriver: true }).start();
   const pressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true }).start();
@@ -348,7 +347,6 @@ export default function Home() {
     useCallback(() => {
       let mounted = true;
       (async () => {
-        // ── Auth token (isolated — must never be affected by cart/DB errors) ──
         try {
           const token = await getItem('authToken');
           if (!mounted) return;
@@ -366,7 +364,6 @@ export default function Home() {
           }
         } catch { setIsLoggedIn(false); }
 
-        // ── Cart count (isolated — errors here must not affect login state) ──
         try {
           const items = await loadCartAsync();
           if (mounted) setCartCount(items.reduce((sum: number, i: any) => sum + i.quantity, 0));
@@ -383,7 +380,6 @@ export default function Home() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      // ── Auth token ──
       try {
         const token = await getItem('authToken');
         if (!mounted) return;
@@ -401,7 +397,6 @@ export default function Home() {
         }
       } catch { setIsLoggedIn(false); }
 
-      // ── Cart count ──
       try {
         const items = await loadCartAsync();
         if (mounted) setCartCount(items.reduce((sum: number, i: any) => sum + i.quantity, 0));
@@ -415,17 +410,14 @@ export default function Home() {
   }, []);
 
   /* Product / filter state */
-  const [categories,    setCategories]    = useState<string[]>(['All']);
-
+  const [categories,     setCategories]     = useState<string[]>(['All']);
   const [price,          setPrice]          = useState<[number, number]>([1, 10000]);
   const [currentPage,    setCurrentPage]    = useState(1);
   const [activeCategory, setActiveCategory] = useState('All');
   const [filterOpen,     setFilterOpen]     = useState(false);
   const [menuOpen,       setMenuOpen]       = useState(false);
 
-  // ── Live Search ──────────────────────────────────────────────────────────
-  // searchQuery  → what the TextInput shows (every keystroke)
-  // activeKeyword → debounced value sent to the API (updates 400ms after typing stops)
+  /* Live Search */
   const [searchQuery,   setSearchQuery]   = useState(routeKw ?? '');
   const [activeKeyword, setActiveKeyword] = useState(routeKw ?? '');
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -449,7 +441,6 @@ export default function Home() {
     router.push('/');
   };
 
-  // Pressing Enter searches immediately without waiting for debounce
   const handleSearchSubmit = () => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     const q = searchQuery.trim();
@@ -458,7 +449,6 @@ export default function Home() {
     dispatch(resetProducts());
     router.push(q ? { pathname: '/', params: { keyword: q } } : '/');
   };
-  // ─────────────────────────────────────────────────────────────────────────
 
   /* Animations */
   const headerFade         = useRef(new Animated.Value(0)).current;
@@ -469,9 +459,11 @@ export default function Home() {
   useEffect(() => {
     Animated.timing(headerFade, { toValue: 1, duration: 500, useNativeDriver: true }).start();
   }, []);
+
   useEffect(() => {
     Animated.timing(filterH, { toValue: filterOpen ? 1 : 0, duration: 260, useNativeDriver: false }).start();
   }, [filterOpen]);
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(menuSlide,          { toValue: menuOpen ? 0 : -300, duration: 280, useNativeDriver: true }),
@@ -492,13 +484,11 @@ export default function Home() {
     } catch {}
   }, []);
 
-  // Reset pagination when activeKeyword (or other filters) change
   useEffect(() => {
     setCurrentPage(1);
     dispatch(resetProducts());
   }, [activeKeyword, price, activeCategory]);
 
-  // fetchProducts now uses activeKeyword instead of routeKw
   const fetchProducts = useCallback(async (page: number, isLoadMore = false) => {
     const res = await dispatch(fetchProductsAction({
       page,
@@ -555,7 +545,7 @@ export default function Home() {
     } catch { Alert.alert('Error', 'Failed to logout. Please try again.'); }
   };
 
-  const handleLoginPress  = () => router.push('/(auth)/login');
+  const handleLoginPress = () => router.push('/(auth)/login');
 
   const handleCartPress = () => {
     if (isLoggedIn) { router.push('/(user)/cart'); }
@@ -589,7 +579,6 @@ export default function Home() {
         <View style={s.webNav}>
           <View style={[s.webNavInner, { maxWidth: maxContentWidth }]}>
             <View style={s.webNavBrand}>
-              {/* replaced ◈ emoji */}
               <MaterialCommunityIcons name="storefront-outline" size={22} color={C.accent} />
               <Text style={s.webNavTitle}>ROMEROS</Text>
             </View>
@@ -598,7 +587,7 @@ export default function Home() {
               <Feather name="search" size={16} color={C.accent} />
               <TextInput
                 style={s.webSearchInput}
-                placeholder="Search products…"
+                placeholder="Search products..."
                 placeholderTextColor={C.textDim}
                 value={searchQuery}
                 onChangeText={handleSearchChange}
@@ -616,20 +605,17 @@ export default function Home() {
             <View style={s.webNavRight}>
               {!isLoggedIn ? (
                 <TouchableOpacity style={s.webNavBtn} onPress={handleLoginPress}>
-                  {/* replaced 🔐 */}
                   <Feather name="lock" size={13} color={C.text} />
                   <Text style={s.webNavBtnTxt}>Sign In</Text>
                 </TouchableOpacity>
               ) : (
                 <>
                   <TouchableOpacity style={s.webNavBtn} onPress={handleCartPress}>
-                    {/* replaced 🛒 */}
                     <Feather name="shopping-cart" size={13} color={C.text} />
                     <Text style={s.webNavBtnTxt}>Cart</Text>
                     {cartCount > 0 && <View style={s.badge}><Text style={s.badgeTxt}>{cartCount}</Text></View>}
                   </TouchableOpacity>
                   <TouchableOpacity style={s.webNavBtn} onPress={handleNotificationPress}>
-                    {/* replaced 🔔 */}
                     <Feather name="bell" size={13} color={C.text} />
                     <Text style={s.webNavBtnTxt}>Notify</Text>
                     {notifCount > 0 && <View style={s.badge}><Text style={s.badgeTxt}>{notifCount}</Text></View>}
@@ -638,7 +624,6 @@ export default function Home() {
                     {profile?.avatar ? (
                       <Image source={{ uri: profile.avatar }} style={s.webAvatar} />
                     ) : (
-                      /* replaced 👤 */
                       <Feather name="user" size={15} color={C.text} />
                     )}
                     <Text style={s.webNavName}>{profile?.name ?? 'Profile'}</Text>
@@ -654,76 +639,26 @@ export default function Home() {
         </View>
       )}
 
-      {/* ══ MOBILE: Header ══ */}
+      {/* ══ MOBILE: Header (extracted component) ══ */}
       {!isWeb && (
-        <Animated.View style={[s.mobileHeader, { opacity: headerFade }]}>
-          <View style={s.mobileHeaderTop}>
-            <View>
-              <Text style={s.eyebrow}>ROMEROS</Text>
-              <Text style={s.mobileTitle}>KINGDOM</Text>
-            </View>
-            <View style={s.mobileHeaderRight}>
-              <TouchableOpacity
-                style={[s.iconBtn, filterOpen && s.iconBtnOn]}
-                onPress={() => setFilterOpen((v) => !v)}
-              >
-                {/* replaced ⚙ emoji */}
-                <Feather name="sliders" size={18} color={C.text} />
-              </TouchableOpacity>
-              <TouchableOpacity style={s.iconBtn} onPress={() => setMenuOpen(true)}>
-                <View style={s.hamburgerLines}>
-                  <View style={s.hamburgerLine} />
-                  <View style={[s.hamburgerLine, { width: 18 }]} />
-                  <View style={s.hamburgerLine} />
-                </View>
-                {(cartCount > 0 || notifCount > 0) && (
-                  <View style={s.badge}><Text style={s.badgeTxt}>{cartCount + notifCount}</Text></View>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Mobile Live Search */}
-          <View style={s.mobileSearchRow}>
-            <View style={s.mobileSearchBox}>
-              <Feather name="search" size={16} color={C.accent} />
-              <TextInput
-                style={s.mobileSearchInput}
-                placeholder="Search products…"
-                placeholderTextColor={C.textDim}
-                value={searchQuery}
-                onChangeText={handleSearchChange}
-                onSubmitEditing={handleSearchSubmit}
-                returnKeyType="search"
-                selectionColor={C.accent}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={handleSearchClear}>
-                  <Feather name="x" size={14} color={C.textSub} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {/* Mobile Filter Panel */}
-          <Animated.View style={[s.filterPanel, { height: animatedFilterH, overflow: 'hidden' }]}>
-            <Text style={s.filterLabel}>PRICE RANGE</Text>
-            <Text style={s.filterValue}>₱{price[0].toLocaleString()} — ₱{price[1].toLocaleString()}</Text>
-            <Slider
-              minimumValue={1} maximumValue={10000} step={50} value={price[1]}
-              onValueChange={(v) => setPrice([price[0], Math.max(price[0] + 50, v)])}
-              minimumTrackTintColor={C.accent} maximumTrackTintColor={C.border}
-              thumbTintColor={C.accent} style={{ height: 36, marginTop: 4 }}
-            />
-          </Animated.View>
-
-          {/* Mobile Category Chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
-            {categories.map((cat) => (
-              <Chip key={cat} label={cat} active={activeCategory === cat} onPress={() => setActiveCategory(cat)} />
-            ))}
-          </ScrollView>
-        </Animated.View>
+        <IndexHeader
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
+          onSearchSubmit={handleSearchSubmit}
+          onSearchClear={handleSearchClear}
+          filterOpen={filterOpen}
+          onToggleFilter={() => setFilterOpen((v) => !v)}
+          animatedFilterH={animatedFilterH}
+          price={price}
+          onPriceChange={(val) => setPrice([price[0], val])}
+          categories={categories}
+          activeCategory={activeCategory}
+          onCategoryChange={setActiveCategory}
+          onMenuOpen={() => setMenuOpen(true)}
+          cartCount={cartCount}
+          notifCount={notifCount}
+          headerFade={headerFade}
+        />
       )}
 
       {/* ══ BODY ══ */}
@@ -781,7 +716,6 @@ export default function Home() {
           ) : error ? (
             <View style={s.centerWrap}>
               <View style={s.errorBox}>
-                {/* replaced ⚠ emoji */}
                 <Feather name="alert-triangle" size={36} color={C.danger} />
                 <Text style={s.errorTitle}>Connection Error</Text>
                 <Text style={s.errorMsg}>{error}</Text>
@@ -792,7 +726,6 @@ export default function Home() {
             </View>
           ) : products.length === 0 ? (
             <View style={s.centerWrap}>
-              {/* replaced ◈ emoji */}
               <MaterialCommunityIcons name="package-variant-closed" size={52} color={C.textDim} />
               <Text style={s.emptyTitle}>No Products Found</Text>
               <Text style={s.emptyMsg}>Try adjusting your filters or search</Text>
@@ -826,7 +759,6 @@ export default function Home() {
                   )}
                   {!hasMore && products.length > 0 && (
                     <View style={s.endOfListContainer}>
-                      {/* replaced ✨ emoji */}
                       <MaterialCommunityIcons name="check-circle-outline" size={16} color={C.textDim} style={{ marginBottom: 4 }} />
                       <Text style={s.endOfListText}>You've seen all products</Text>
                     </View>
@@ -865,7 +797,6 @@ export default function Home() {
                 <Text style={s.drawerTitle}>MENU</Text>
               </View>
               <TouchableOpacity style={s.drawerCloseBtn} onPress={() => setMenuOpen(false)}>
-                {/* replaced ✕ emoji */}
                 <Feather name="x" size={18} color={C.textSub} />
               </TouchableOpacity>
             </View>
@@ -879,7 +810,6 @@ export default function Home() {
                   {profile?.avatar ? (
                     <Image source={{ uri: profile.avatar }} style={s.drawerAvatar} />
                   ) : (
-                    /* replaced 👤 emoji */
                     <Feather name="user" size={26} color={C.textSub} />
                   )}
                 </View>
@@ -934,7 +864,6 @@ export default function Home() {
                 <View style={s.drawerDivider} />
 
                 <TouchableOpacity style={[s.drawerItem, s.drawerItemDanger]} onPress={() => { setMenuOpen(false); handleLogout(); }}>
-                  {/* replaced ⇦ emoji */}
                   <Feather name="log-out" size={20} color={C.danger} style={s.drawerIconStyle} />
                   <Text style={[s.drawerItemLabel, { color: C.danger }]}>Logout</Text>
                 </TouchableOpacity>
@@ -984,64 +913,17 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
     borderWidth: 1, borderColor: C.border, backgroundColor: C.surface,
   },
-  webNavBtnTxt: { color: C.text, fontSize: 13, fontWeight: '600' },
+  webNavBtnTxt:  { color: C.text, fontSize: 13, fontWeight: '600' },
   webNavProfile: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
   },
-  webAvatar: { width: 32, height: 32, borderRadius: 16 },
+  webAvatar:  { width: 32, height: 32, borderRadius: 16 },
   webNavName: { color: C.text, fontSize: 13, fontWeight: '700' },
 
-  mobileHeader: {
-    backgroundColor: C.bgLayer, paddingTop: Platform.OS === 'ios' ? 56 : 38,
-    paddingHorizontal: SIDE_PAD, paddingBottom: 10,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  mobileHeaderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  eyebrow:     { color: C.accent, fontSize: 10, letterSpacing: 4, fontWeight: '700', marginBottom: 2 },
-  mobileTitle: { color: C.text, fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
-  mobileHeaderRight: { flexDirection: 'row', gap: 8, paddingTop: 4 },
-  iconBtn: {
-    width: 42, height: 42, borderRadius: 12, backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center',
-  },
-  iconBtnOn: { borderColor: C.accent, backgroundColor: C.accentGlow },
-
-  badge: {
-    position: 'absolute', top: -4, right: -4, width: 16, height: 16,
-    borderRadius: 8, backgroundColor: C.accent, justifyContent: 'center', alignItems: 'center',
-  },
+  badge:    { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, backgroundColor: C.accent, justifyContent: 'center', alignItems: 'center' },
   badgeTxt: { color: C.bg, fontSize: 8, fontWeight: '800' },
-
-  mobileSearchRow: { marginBottom: 12 },
-  mobileSearchBox: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface,
-    borderRadius: 12, borderWidth: 1, borderColor: C.border,
-    paddingHorizontal: 12, height: 48, gap: 8,
-  },
-  mobileSearchInput: { flex: 1, color: C.text, fontSize: 14, paddingVertical: 0 },
-
-  filterPanel: {
-    backgroundColor: C.surface, borderRadius: 12, paddingHorizontal: 14,
-    paddingTop: 12, borderWidth: 1, borderColor: C.border, marginBottom: 10,
-  },
-  filterLabel: { color: C.accent, fontSize: 9, letterSpacing: 3, fontWeight: '700' },
-  filterValue: { color: C.text, fontSize: 13, fontWeight: '600', marginTop: 3 },
-
-  chipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingHorizontal: 2 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 13, paddingVertical: 8, borderRadius: 22,
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
-  },
-  chipActive: {
-    backgroundColor: 'rgba(0,194,199,0.18)', borderColor: C.accent,
-    shadowColor: C.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 4,
-  },
-  chipActiveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.accent, marginLeft: 2 },
-  chipText:       { color: C.textSub,   fontSize: 11, fontWeight: '600', letterSpacing: 0.8 },
-  chipTextActive: { color: C.accentText, fontWeight: '700' },
 
   body:    { flex: 1 },
   bodyWeb: { flexDirection: 'row', justifyContent: 'center' },
@@ -1053,63 +935,53 @@ const s = StyleSheet.create({
       ? ({ position: 'sticky', top: 73, alignSelf: 'flex-start', height: '100vh' } as any)
       : {}),
   },
-  sidebarTitle:   { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700', marginBottom: 20 },
-  sidebarSection: { marginBottom: 24, borderBottomWidth: 1, borderBottomColor: C.border, paddingBottom: 20 },
-  sidebarLabel:   { color: C.textSub, fontSize: 9, letterSpacing: 2, fontWeight: '700', marginBottom: 10 },
-  sidebarValue:   { color: C.text, fontSize: 13, fontWeight: '600' },
-  sidebarCats:    { gap: 4, marginTop: 4 },
-  sidebarCatRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 8 },
+  sidebarTitle:        { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700', marginBottom: 20 },
+  sidebarSection:      { marginBottom: 24, borderBottomWidth: 1, borderBottomColor: C.border, paddingBottom: 20 },
+  sidebarLabel:        { color: C.textSub, fontSize: 9, letterSpacing: 2, fontWeight: '700', marginBottom: 10 },
+  sidebarValue:        { color: C.text, fontSize: 13, fontWeight: '600' },
+  sidebarCats:         { gap: 4, marginTop: 4 },
+  sidebarCatRow:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 8 },
   sidebarCatRowActive: { backgroundColor: 'rgba(0,194,199,0.16)', borderLeftWidth: 2, borderLeftColor: C.accent },
   sidebarActiveLine:   { width: 3, height: 3, borderRadius: 2, backgroundColor: C.accent },
-  sidebarCatTxt:       { color: C.textSub,   fontSize: 13, fontWeight: '500', flex: 1 },
+  sidebarCatTxt:       { color: C.textSub,    fontSize: 13, fontWeight: '500', flex: 1 },
   sidebarCatTxtActive: { color: C.accentText, fontWeight: '700' },
 
   main:    { flex: 1 },
   mainWeb: { maxWidth: 1220, width: '100%' },
 
-  resultsBar: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 14, marginTop: 16 },
-  resultsCount: { color: C.accent,    fontSize: 10, fontWeight: '700', letterSpacing: 2 },
-  resultsKw:    { color: C.textSub,   fontSize: 12 },
+  resultsBar:   { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 14, marginTop: 16 },
+  resultsCount: { color: C.accent,     fontSize: 10, fontWeight: '700', letterSpacing: 2 },
+  resultsKw:    { color: C.textSub,    fontSize: 12 },
   resultsCat:   { color: C.accentText, fontSize: 12, fontWeight: '600' },
 
   grid:    { paddingHorizontal: SIDE_PAD, paddingBottom: 80 },
   gridWeb: { paddingHorizontal: SIDE_PAD * 2, paddingTop: 4 },
   gridRow: { justifyContent: 'space-between' },
 
-  card: { backgroundColor: C.surface, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
-  cardImgWrap: { width: '100%', backgroundColor: C.bgLayer, overflow: 'hidden' },
-  cardImg: { width: '100%', height: '100%' },
+  card:             { backgroundColor: C.surface, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
+  cardImgWrap:      { width: '100%', backgroundColor: C.bgLayer, overflow: 'hidden' },
+  cardImg:          { width: '100%', height: '100%' },
   cardImgPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bgLayer },
-  scanLine: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, backgroundColor: C.accent, opacity: 0.28 },
-  catBadge: {
-    position: 'absolute', top: 8, left: 8,
-    backgroundColor: 'rgba(0,0,0,0.62)', borderWidth: 1, borderColor: C.accentDim,
-    borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
-  },
-  catBadgeText: { color: C.accent, fontSize: 7, fontWeight: '700', letterSpacing: 1.5 },
-  cardBody:     { padding: 10, gap: 4 },
-  cardBodyWeb:  { padding: 12, gap: 5 },
-  cardName:     { color: C.text, fontSize: 12, fontWeight: '600', lineHeight: 17 },
-  cardNameWeb:  { fontSize: 13 },
-  cardRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardReviews:   { color: C.textDim, fontSize: 9 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 },
-  priceTag:   { color: C.textDim, fontSize: 8, letterSpacing: 1.5, fontWeight: '600' },
-  cardPrice:  { color: C.mint, fontSize: 15, fontWeight: '800', letterSpacing: -0.3 },
-  cardPriceWeb: { fontSize: 16 },
-  addBtn: {
-    width: 30, height: 30, borderRadius: 8, backgroundColor: C.accentGlow,
-    borderWidth: 1, borderColor: C.accent, justifyContent: 'center', alignItems: 'center',
-  },
-  corner:   { position: 'absolute', backgroundColor: C.accent, opacity: 0.4 },
-  cornerTL: { top: 0,    left: 0,  width: 16, height: 1.5 },
-  cornerBR: { bottom: 0, right: 0, width: 16, height: 1.5 },
+  scanLine:         { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, backgroundColor: C.accent, opacity: 0.28 },
+  catBadge:         { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.62)', borderWidth: 1, borderColor: C.accentDim, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  catBadgeText:     { color: C.accent, fontSize: 7, fontWeight: '700', letterSpacing: 1.5 },
+  cardBody:         { padding: 10, gap: 4 },
+  cardBodyWeb:      { padding: 12, gap: 5 },
+  cardName:         { color: C.text, fontSize: 12, fontWeight: '600', lineHeight: 17 },
+  cardNameWeb:      { fontSize: 13 },
+  cardRatingRow:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cardReviews:      { color: C.textDim, fontSize: 9 },
+  cardFooter:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4 },
+  priceTag:         { color: C.textDim, fontSize: 8, letterSpacing: 1.5, fontWeight: '600' },
+  cardPrice:        { color: C.mint, fontSize: 15, fontWeight: '800', letterSpacing: -0.3 },
+  cardPriceWeb:     { fontSize: 16 },
+  addBtn:           { width: 30, height: 30, borderRadius: 8, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.accent, justifyContent: 'center', alignItems: 'center' },
+  corner:           { position: 'absolute', backgroundColor: C.accent, opacity: 0.4 },
+  cornerTL:         { top: 0,    left: 0,  width: 16, height: 1.5 },
+  cornerBR:         { bottom: 0, right: 0, width: 16, height: 1.5 },
 
   centerWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: SIDE_PAD, gap: 10, minHeight: 300 },
-  errorBox: {
-    backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.danger,
-    borderRadius: 16, padding: 26, alignItems: 'center', width: '100%', maxWidth: 320, gap: 8,
-  },
+  errorBox:   { backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.danger, borderRadius: 16, padding: 26, alignItems: 'center', width: '100%', maxWidth: 320, gap: 8 },
   errorTitle: { color: C.danger,  fontSize: 14, fontWeight: '700', letterSpacing: 1 },
   errorMsg:   { color: C.textSub, fontSize: 12, textAlign: 'center', lineHeight: 18 },
   retryBtn:   { marginTop: 8, paddingHorizontal: 28, paddingVertical: 11, borderRadius: 10, backgroundColor: C.danger },
@@ -1117,60 +989,38 @@ const s = StyleSheet.create({
   emptyTitle: { color: C.textSub, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
   emptyMsg:   { color: C.textDim, fontSize: 13 },
 
-  footer: { paddingVertical: 20 },
+  footer:               { paddingVertical: 20 },
   loadingMoreContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, paddingVertical: 16 },
   loadingMoreText:      { color: C.accent, fontSize: 12, fontWeight: '600', letterSpacing: 1 },
   endOfListContainer:   { paddingVertical: 24, alignItems: 'center', gap: 4 },
   endOfListText:        { color: C.textDim, fontSize: 13, fontWeight: '500', letterSpacing: 1 },
 
-  debugBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.9)', paddingVertical: 4, paddingHorizontal: 10,
-  },
-  debugTxt: { color: C.accent, fontSize: 9, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  debugBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.9)', paddingVertical: 4, paddingHorizontal: 10 },
+  debugTxt:  { color: C.accent, fontSize: 9, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
 
-  hamburgerLines: { gap: 4, alignItems: 'flex-end' },
-  hamburgerLine:  { width: 22, height: 2.5, borderRadius: 2, backgroundColor: C.text },
+  chipRow:       { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingHorizontal: 2 },
+  chip:          { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 22, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  chipActive:    { backgroundColor: 'rgba(0,194,199,0.18)', borderColor: C.accent, shadowColor: C.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 4 },
+  chipActiveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.accent, marginLeft: 2 },
+  chipText:      { color: C.textSub,    fontSize: 11, fontWeight: '600', letterSpacing: 0.8 },
+  chipTextActive:{ color: C.accentText, fontWeight: '700' },
 
-  drawerBackdrop: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 200,
-  },
-  drawerPanel: {
-    position: 'absolute', top: 0, left: 0, bottom: 0, width: 280,
-    backgroundColor: C.bgLayer, borderRightWidth: 1, borderRightColor: C.border,
-    zIndex: 201, paddingTop: Platform.OS === 'ios' ? 56 : 40, paddingBottom: 40,
-  },
-  drawerHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingBottom: 20,
-  },
-  drawerEyebrow: { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700', marginBottom: 2 },
-  drawerTitle:   { color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: 2 },
-  drawerCloseBtn: {
-    width: 38, height: 38, borderRadius: 10, backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center',
-  },
-  drawerProfile: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginHorizontal: 16, marginBottom: 16, padding: 14,
-    backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border,
-  },
-  drawerAvatarWrap: {
-    width: 48, height: 48, borderRadius: 14, backgroundColor: C.bgLayer,
-    borderWidth: 1, borderColor: C.accentDim, justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
-  },
+  drawerBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 200 },
+  drawerPanel:    { position: 'absolute', top: 0, left: 0, bottom: 0, width: 280, backgroundColor: C.bgLayer, borderRightWidth: 1, borderRightColor: C.border, zIndex: 201, paddingTop: Platform.OS === 'ios' ? 56 : 40, paddingBottom: 40 },
+  drawerHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 20 },
+  drawerEyebrow:  { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700', marginBottom: 2 },
+  drawerTitle:    { color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: 2 },
+  drawerCloseBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
+  drawerProfile:  { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 16, marginBottom: 16, padding: 14, backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border },
+  drawerAvatarWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: C.bgLayer, borderWidth: 1, borderColor: C.accentDim, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   drawerAvatar:      { width: 48, height: 48, borderRadius: 14 },
-  drawerProfileName: { color: C.text, fontSize: 14, fontWeight: '700' },
+  drawerProfileName: { color: C.text,   fontSize: 14, fontWeight: '700' },
   drawerProfileSub:  { color: C.accent, fontSize: 11, marginTop: 2 },
   drawerDivider:     { height: 1, backgroundColor: C.border, marginHorizontal: 16, marginVertical: 10 },
   drawerItem:        { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 22, paddingVertical: 14 },
   drawerItemDanger:  { marginTop: 4 },
   drawerIconStyle:   { width: 28, textAlign: 'center' } as any,
   drawerItemLabel:   { flex: 1, color: C.text, fontSize: 15, fontWeight: '600', letterSpacing: 0.3 },
-  drawerBadge: {
-    minWidth: 22, height: 22, borderRadius: 11, backgroundColor: C.accent,
-    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5,
-  },
-  drawerBadgeTxt: { color: C.bg, fontSize: 10, fontWeight: '800' },
+  drawerBadge:       { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: C.accent, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5 },
+  drawerBadgeTxt:    { color: C.bg, fontSize: 10, fontWeight: '800' },
 });
