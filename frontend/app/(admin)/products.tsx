@@ -16,9 +16,16 @@ import {
 import axios from 'axios'
 import Constants from 'expo-constants'
 import * as ImagePicker from 'expo-image-picker'
-import { getItem } from '@/utils/storage'
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import AdminHeader from '@/components/adminHeader'
+import AdminToast from '@/components/admin-toast'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import {
+  deleteAdminProduct,
+  fetchAdminProducts,
+  fetchProductCategories,
+  upsertAdminProduct,
+} from '@/store/slices/adminProductSlice'
 
 // ==================== API URL ====================
 let API_URL =
@@ -63,84 +70,6 @@ interface Category {
   count: number
 }
 
-// ==================== THEMED ALERT MODAL ====================
-interface ThemedAlertProps {
-  visible: boolean
-  type: 'success' | 'error'
-  title: string
-  message: string
-  onClose: () => void
-}
-
-const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message, onClose }) => {
-  const isSuccess = type === 'success'
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={al.overlay} onPress={onClose}>
-        <Pressable style={al.card} onPress={() => {}}>
-          <View style={[al.iconWrap, isSuccess ? al.iconSuccess : al.iconError]}>
-            <Ionicons
-              name={isSuccess ? 'checkmark-circle' : 'alert-circle'}
-              size={32}
-              color={isSuccess ? '#4caf50' : '#ff6b6b'}
-            />
-          </View>
-          <Text style={al.title}>{title}</Text>
-          <Text style={al.message}>{message}</Text>
-          <View style={al.divider} />
-          <TouchableOpacity
-            style={[al.btn, isSuccess ? al.btnSuccess : al.btnError]}
-            onPress={onClose}
-            activeOpacity={0.85}
-          >
-            <Text style={al.btnText}>{isSuccess ? 'Great!' : 'Got it'}</Text>
-          </TouchableOpacity>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  )
-}
-
-const al = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 28,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#16213e',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  iconSuccess: { backgroundColor: 'rgba(76,175,80,0.12)', borderWidth: 1, borderColor: 'rgba(76,175,80,0.3)' },
-  iconError: { backgroundColor: 'rgba(255,107,107,0.12)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)' },
-  title: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' },
-  message: { fontSize: 13, color: 'rgba(160,174,192,0.75)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  divider: { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 20 },
-  btn: { width: '100%', borderRadius: 13, paddingVertical: 14, alignItems: 'center' },
-  btnSuccess: { backgroundColor: '#4caf50' },
-  btnError: { backgroundColor: '#ff6b6b' },
-  btnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-})
 
 // ==================== CONFIRM DIALOG ====================
 interface ConfirmDialogProps {
@@ -272,11 +201,8 @@ const cd = StyleSheet.create({
 
 // ==================== MAIN ====================
 export default function AdminProducts() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const dispatch = useAppDispatch()
+  const { products, categories, loading, refreshing, deleting, submitting } = useAppSelector((state) => state.adminProduct)
 
   const [modalVisible, setModalVisible] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -300,19 +226,12 @@ export default function AdminProducts() {
   // Delete confirmation state
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   const showAlert = (type: 'success' | 'error', title: string, message: string) => {
     setAlertType(type)
     setAlertTitle(title)
     setAlertMessage(message)
     setAlertVisible(true)
-  }
-
-  // ==================== AUTH ====================
-  const getAuthHeader = async () => {
-    const token = await getItem('authToken')
-    return token ? { Authorization: `Bearer ${token}` } : {}
   }
 
   // ==================== LOAD ====================
@@ -323,21 +242,15 @@ export default function AdminProducts() {
 
   const fetchProducts = async (opts?: { silent?: boolean }) => {
     try {
-      opts?.silent ? setRefreshing(true) : setLoading(true)
-      const headers = await getAuthHeader()
-      const res = await axios.get(`${API_URL}/admin/products`, { headers })
-      setProducts(res.data.products || [])
+      await dispatch(fetchAdminProducts(opts)).unwrap()
     } catch {
       showAlert('error', 'Failed to Load', 'Could not fetch products. Please try again.')
-    } finally {
-      opts?.silent ? setRefreshing(false) : setLoading(false)
     }
   }
 
   const fetchCategories = async () => {
     try {
-      const res = await axios.get(`${API_URL}/products/categories`)
-      setCategories(res.data.categories || [])
+      await dispatch(fetchProductCategories()).unwrap()
     } catch {
       showAlert('error', 'Failed to Load', 'Could not fetch categories.')
     }
@@ -471,8 +384,6 @@ export default function AdminProducts() {
     }
 
     try {
-      setSubmitting(true)
-
       let images = [...remoteImages]
       if (pickedImages.length) {
         try {
@@ -496,26 +407,14 @@ export default function AdminProducts() {
         images,
       }
 
-      const headers = await getAuthHeader()
-      const url = editingId
-        ? `${API_URL}/admin/product/${editingId}`
-        : `${API_URL}/admin/product/new`
-
-      await axios({
-        method: editingId ? 'put' : 'post',
-        url,
-        data: payload,
-        headers,
-      })
+      await dispatch(upsertAdminProduct({ editingId, payload })).unwrap()
 
       showAlert('success', 'Success', editingId ? 'Product updated successfully!' : 'Product created successfully!')
       resetForm()
       fetchProducts({ silent: true })
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err.message || 'Failed to save product'
+      const msg = err || 'Failed to save product'
       showAlert('error', 'Operation Failed', msg)
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -549,17 +448,12 @@ export default function AdminProducts() {
   const confirmDelete = async () => {
     if (!deleteTargetId) return
     try {
-      setIsDeleting(true)
-      const headers = await getAuthHeader()
-      await axios.delete(`${API_URL}/admin/product/${deleteTargetId}`, { headers })
+      await dispatch(deleteAdminProduct(deleteTargetId)).unwrap()
       setDeleteConfirmVisible(false)
       setDeleteTargetId(null)
       showAlert('success', 'Deleted', 'Product has been deleted successfully')
-      fetchProducts({ silent: true })
     } catch (error: any) {
-      showAlert('error', 'Delete Failed', error.response?.data?.message || 'Failed to delete product')
-    } finally {
-      setIsDeleting(false)
+      showAlert('error', 'Delete Failed', error || 'Failed to delete product')
     }
   }
 
@@ -581,7 +475,7 @@ export default function AdminProducts() {
       <AdminHeader title="Products" icon="package-variant-closed" />
 
       {/* Themed Alert */}
-      <ThemedAlert
+      <AdminToast
         visible={alertVisible}
         type={alertType}
         title={alertTitle}
@@ -598,7 +492,7 @@ export default function AdminProducts() {
         cancelText="Cancel"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteConfirmVisible(false)}
-        isLoading={isDeleting}
+        isLoading={deleting}
       />
 
       {/* Page Header */}

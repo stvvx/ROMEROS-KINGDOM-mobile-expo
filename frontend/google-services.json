@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "724001311783",
+    "project_id": "romeros-kingdom",
+    "storage_bucket": "romeros-kingdom.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:724001311783:android:f9b4bb36a3cc700c89d202",
+        "android_client_info": {
+          "package_name": "romeroskingdom.ph"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "724001311783-6g9ph4863lh788uptne069n7hce08cau.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWJ9Bq4Lo3h1scJXs4gOUxMonyLet2AwU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "724001311783-2m99581nl58ega4h2hus7n98pju8b78r.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

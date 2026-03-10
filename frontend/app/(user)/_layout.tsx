@@ -24,6 +24,10 @@ export default function UserLayout() {
         options={{ headerShown: false }} 
       />
       <Stack.Screen
+        name="vouchers"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="UserProfile"
         options={{ headerShown: false }}
       />

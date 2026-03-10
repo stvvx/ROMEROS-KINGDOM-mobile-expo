@@ -11,25 +11,9 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
-import axios from 'axios';
 import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
-import { getItem } from '@/utils/storage';
-
-// Resolve API URL for device/emulator/web
-let API_URL =
-  process.env.NGROK_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:4000/api/v1';
-
-const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig;
-const debuggerHost = manifest?.debuggerHost?.split(':')[0];
-
-if (debuggerHost && debuggerHost !== 'localhost') {
-  API_URL = API_URL.replace('localhost', debuggerHost);
-} else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
-  API_URL = API_URL.replace('localhost', '10.0.2.2');
-}
+import { fetchMyReviews } from '@/store/slices/reviewSlice';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 
 interface Review {
   _id: string;
@@ -94,39 +78,12 @@ const ReviewCard = ({ review, onPress }: { review: Review; onPress: () => void }
 
 export default function UserReview() {
   const router = useRouter();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [needsAuth, setNeedsAuth] = useState(false);
+  const dispatch = useAppDispatch();
+  const { reviews, loading, refreshing, error, needsAuth } = useAppSelector((state) => state.review);
 
   useEffect(() => {
-    fetchMyReviews();
+    dispatch(fetchMyReviews());
   }, []);
-
-  const fetchMyReviews = async (opts?: { silent?: boolean }) => {
-    try {
-      opts?.silent ? setRefreshing(true) : setLoading(true);
-      setError(null);
-      const token = await getItem('authToken');
-      if (!token) {
-        setNeedsAuth(true);
-        setReviews([]);
-        return;
-      }
-      setNeedsAuth(false);
-      const res = await axios.get(`${API_URL}/reviews/my`, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000,
-      });
-      setReviews(res.data.reviews || []);
-    } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to load reviews';
-      setError(message);
-    } finally {
-      opts?.silent ? setRefreshing(false) : setLoading(false);
-    }
-  };
 
   const stats = useMemo(() => {
     if (!reviews.length) return { avg: 0, count: 0 };
@@ -178,7 +135,7 @@ export default function UserReview() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => fetchMyReviews({ silent: true })}
+            onRefresh={() => dispatch(fetchMyReviews({ silent: true }))}
             tintColor="#00C2C7"
           />
         }

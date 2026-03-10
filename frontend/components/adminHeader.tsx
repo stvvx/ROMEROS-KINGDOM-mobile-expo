@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { label: 'Orders',        path: '/(admin)/orders',        icon: 'package-variant-closed' },
   { label: 'Products',      path: '/(admin)/products',      icon: 'package-variant' },
   { label: 'Categories',    path: '/(admin)/categories',    icon: 'folder-multiple' },
+  { label: 'Vouchers',      path: '/(admin)/vouchers',      icon: 'ticket-percent' },
   { label: 'Users',         path: '/(admin)/users',         icon: 'account-group' },
   { label: 'Reviews',       path: '/(admin)/review',        icon: 'star' },
   { label: 'Notifications', path: '/(admin)/notifications', icon: 'bell' },

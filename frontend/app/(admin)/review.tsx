@@ -10,27 +10,12 @@ import {
   Modal,
   Pressable,
 } from 'react-native'
-import axios from 'axios'
-import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
-import { getItem } from '@/utils/storage'
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import AdminHeader from '@/components/adminHeader'
-
-// ─── API CONFIG ───────────────────────────────────────────────
-let API_URL =
-  process.env.NGROK_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:4000/api/v1'
-
-const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig
-const debuggerHost = manifest?.debuggerHost?.split(':')[0]
-
-if (debuggerHost && debuggerHost !== 'localhost') {
-  API_URL = API_URL.replace('localhost', debuggerHost)
-} else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
-  API_URL = API_URL.replace('localhost', '10.0.2.2')
-}
+import AdminToast from '@/components/admin-toast'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { deleteAdminReview, fetchAdminReviews } from '@/store/slices/adminReviewSlice'
 
 // ─── TYPES ────────────────────────────────────────────────────
 interface AdminReviewItem {
@@ -46,93 +31,6 @@ interface AdminReviewItem {
   createdAt: string
 }
 
-// ─── THEMED ALERT MODAL ──────────────────────────────────────
-interface ThemedAlertProps {
-  visible: boolean
-  type: 'success' | 'error'
-  title: string
-  message: string
-  onClose: () => void
-}
-
-const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message, onClose }) => {
-  const isSuccess = type === 'success'
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={al.overlay} onPress={onClose}>
-        <Pressable style={al.card} onPress={() => {}}>
-          <View style={[al.iconWrap, isSuccess ? al.iconSuccess : al.iconError]}>
-            <Ionicons
-              name={isSuccess ? 'checkmark-circle' : 'alert-circle'}
-              size={32}
-              color={isSuccess ? '#4caf50' : '#ff6b6b'}
-            />
-          </View>
-          <Text style={al.title}>{title}</Text>
-          <Text style={al.message}>{message}</Text>
-          <View style={al.divider} />
-          <TouchableOpacity
-            style={[al.btn, isSuccess ? al.btnSuccess : al.btnError]}
-            onPress={onClose}
-            activeOpacity={0.85}
-          >
-            <Text style={al.btnText}>{isSuccess ? 'Great!' : 'Got it'}</Text>
-          </TouchableOpacity>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  )
-}
-
-const al = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 28,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#16213e',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  iconSuccess: { backgroundColor: 'rgba(76,175,80,0.12)', borderWidth: 1, borderColor: 'rgba(76,175,80,0.3)' },
-  iconError:   { backgroundColor: 'rgba(255,107,107,0.12)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)' },
-  title:   { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' },
-  message: { fontSize: 13, color: 'rgba(160,174,192,0.8)', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
-  divider: { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 20 },
-  btn: {
-    width: '100%',
-    borderRadius: 13,
-    paddingVertical: 14,
-    alignItems: 'center',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  btnSuccess: { backgroundColor: '#4caf50', shadowColor: '#4caf50' },
-  btnError:   { backgroundColor: '#ff6b6b', shadowColor: '#ff6b6b' },
-  btnText:    { color: '#fff', fontSize: 15, fontWeight: '700' },
-})
 
 // ─── CONFIRM DIALOG ───────────────────────────────────────────
 interface ConfirmDialogProps {
@@ -263,11 +161,9 @@ const StarRow = ({ rating }: { rating: number }) => (
 // ─── MAIN SCREEN ─────────────────────────────────────────────
 export default function AdminReview() {
   const router = useRouter()
-  const [reviews, setReviews] = useState<AdminReviewItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const dispatch = useAppDispatch()
+  const { reviews, loading, refreshing, deletingId } = useAppSelector((state) => state.adminReview)
   const [ratingFilter, setRatingFilter] = useState<number | null>(null)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Confirm dialog state
@@ -293,23 +189,10 @@ export default function AdminReview() {
 
   const fetchReviews = async (opts?: { silent?: boolean }) => {
     try {
-      opts?.silent ? setRefreshing(true) : setLoading(true)
       setError(null)
-      const token = await getItem('authToken')
-      if (!token) {
-        setError('You must be signed in as admin to manage reviews.')
-        return
-      }
-      const res = await axios.get(`${API_URL}/admin/reviews`, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 12000,
-      })
-      setReviews(res.data.reviews || [])
+      await dispatch(fetchAdminReviews(opts)).unwrap()
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Failed to load reviews'
-      setError(message)
-    } finally {
-      opts?.silent ? setRefreshing(false) : setLoading(false)
+      setError(err || 'Failed to load reviews')
     }
   }
 
@@ -322,21 +205,13 @@ export default function AdminReview() {
   const confirmDelete = async () => {
     if (!pendingDelete) return
     try {
-      setDeleteId(pendingDelete.reviewId)
       setConfirmVisible(false)
-      const token = await getItem('authToken')
-      await axios.delete(`${API_URL}/reviews`, {
-        params: { id: pendingDelete.reviewId, productId: pendingDelete.productId },
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000,
-      })
-      setReviews((prev) => prev.filter((r) => r.reviewId !== pendingDelete.reviewId))
+      await dispatch(deleteAdminReview({ reviewId: pendingDelete.reviewId, productId: pendingDelete.productId })).unwrap()
       showAlert('success', 'Deleted', 'Review has been removed successfully.')
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Failed to delete review'
+      const msg = err || 'Failed to delete review'
       showAlert('error', 'Delete Failed', msg)
     } finally {
-      setDeleteId(null)
       setPendingDelete(null)
     }
   }
@@ -372,7 +247,7 @@ export default function AdminReview() {
       <AdminHeader title="Reviews" icon="star-outline" />
 
       {/* Themed Alert */}
-      <ThemedAlert
+      <AdminToast
         visible={alertVisible}
         type={alertType}
         title={alertTitle}
@@ -390,7 +265,7 @@ export default function AdminReview() {
           setConfirmVisible(false)
           setPendingDelete(null)
         }}
-        isLoading={!!deleteId}
+        isLoading={!!deletingId}
       />
 
       {/* ── Page Header ── */}
@@ -399,7 +274,7 @@ export default function AdminReview() {
           <Text style={s.pageTitle}>Reviews</Text>
           <Text style={s.pageSubtitle}>Monitor and manage product reviews</Text>
         </View>
-        <TouchableOpacity style={s.refreshBtn} onPress={fetchReviews}>
+        <TouchableOpacity style={s.refreshBtn} onPress={() => fetchReviews()}>
           <Feather name="refresh-cw" size={15} color="#2280b0" />
         </TouchableOpacity>
       </View>
@@ -526,12 +401,12 @@ export default function AdminReview() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[s.deleteBtn, deleteId === item.reviewId && s.deleteBtnBusy]}
+                style={[s.deleteBtn, deletingId === item.reviewId && s.deleteBtnBusy]}
                 onPress={() => handleDelete(item)}
-                disabled={deleteId === item.reviewId}
+                disabled={deletingId === item.reviewId}
                 activeOpacity={0.8}
               >
-                {deleteId === item.reviewId ? (
+                {deletingId === item.reviewId ? (
                   <ActivityIndicator size="small" color="#ff6b6b" />
                 ) : (
                   <>

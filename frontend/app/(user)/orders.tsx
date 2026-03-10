@@ -13,23 +13,8 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import axios from 'axios';
-import Constants from 'expo-constants';
-import { getItem } from '@/utils/storage';
-
-/* ─── API URL ─── */
-let API_URL =
-  process.env.NGROK_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:4000/api/v1';
-
-const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig;
-const debuggerHost = manifest?.debuggerHost?.split(':')[0];
-if (debuggerHost && debuggerHost !== 'localhost') {
-  API_URL = API_URL.replace('localhost', debuggerHost);
-} else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
-  API_URL = API_URL.replace('localhost', '10.0.2.2');
-}
+import { fetchMyOrders } from '@/store/slices/orderSlice';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 
 /* ─── Types ─── */
 interface OrderItem {
@@ -335,12 +320,9 @@ const OrderDetail = ({
 /* ─── Main Screen ─── */
 export default function Orders() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { orderId: deepLinkOrderId } = useLocalSearchParams<{ orderId?: string }>();
-  const [orders, setOrders]       = useState<Order[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError]         = useState<string | null>(null);
-  const [needsAuth, setNeedsAuth] = useState(false);
+  const { orders, loading, refreshing, error, needsAuth } = useAppSelector((state) => state.order);
   const [selected, setSelected]   = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState<'orders' | 'reviews'>('orders');
 
@@ -350,34 +332,16 @@ export default function Orders() {
     Animated.timing(headerFade, { toValue: 1, duration: 450, useNativeDriver: true }).start();
   }, []);
 
-  const fetchOrders = useCallback(async (silent = false) => {
-    try {
-      silent ? setRefreshing(true) : setLoading(true);
-      setError(null);
-      const token = await getItem('authToken');
-      if (!token) { setNeedsAuth(true); return; }
-      setNeedsAuth(false);
-      const res = await axios.get(`${API_URL}/orders/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000,
-      });
-      const list: Order[] = res.data.orders ?? res.data ?? [];
-      // newest first
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setOrders(list);
-      // Auto-open a specific order when navigated from a notification
-      if (deepLinkOrderId) {
-        const target = list.find(o => o._id === deepLinkOrderId);
-        if (target) setSelected(target);
-      }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to load orders');
-    } finally {
-      silent ? setRefreshing(false) : setLoading(false);
-    }
+  useEffect(() => {
+    dispatch(fetchMyOrders());
   }, []);
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => {
+    if (deepLinkOrderId) {
+      const target = orders.find((order) => order._id === deepLinkOrderId);
+      if (target) setSelected(target);
+    }
+  }, [orders, deepLinkOrderId]);
 
   /* Stats */
   const stats = {
@@ -468,7 +432,7 @@ export default function Orders() {
       {error ? (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => fetchOrders()}>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => dispatch(fetchMyOrders())}>
             <Text style={styles.retryTxt}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -481,7 +445,7 @@ export default function Orders() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => fetchOrders(true)}
+              onRefresh={() => dispatch(fetchMyOrders({ silent: true }))}
               tintColor={C.accent}
               colors={[C.accent]}
             />

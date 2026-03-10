@@ -9,6 +9,7 @@ const auth = require('./routes/auth');
 const order = require('./routes/order');
 const categories = require('./routes/category');
 const notifications = require('./routes/notification');
+const vouchers = require('./routes/voucher');
 
 app.use(express.json({limit:'50mb'}));
 app.use(express.urlencoded({limit: "50mb", extended: true }));
@@ -23,6 +24,7 @@ app.use('/api/v1', auth);
 app.use('/api/v1', order);
 app.use('/api/v1', categories);
 app.use('/api/v1', notifications);
+app.use('/api/v1', vouchers);
 
 // Generic error handler — return JSON instead of HTML stack traces
 app.use((err, req, res, next) => {

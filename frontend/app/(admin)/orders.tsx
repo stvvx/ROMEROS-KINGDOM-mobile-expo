@@ -11,108 +11,11 @@ import {
   Modal,
   Pressable,
 } from 'react-native'
-import axios from 'axios'
-import Constants from 'expo-constants'
-import { getItem } from '@/utils/storage'
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import AdminHeader from '@/components/adminHeader'
-
-// ─── API CONFIG ───────────────────────────────────────────────
-let API_URL =
-  process.env.NGROK_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:4000/api/v1'
-
-const manifest: any =
-  (Constants as any).manifest || (Constants as any).expoConfig
-const debuggerHost = manifest?.debuggerHost
-  ? manifest.debuggerHost.split(':')[0]
-  : null
-
-if (debuggerHost && debuggerHost !== 'localhost') {
-  API_URL = API_URL.replace('localhost', debuggerHost)
-} else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
-  API_URL = API_URL.replace('localhost', '10.0.2.2')
-}
-
-// ─── THEMED ALERT MODAL ──────────────────────────────────────
-interface ThemedAlertProps {
-  visible: boolean
-  type: 'success' | 'error'
-  title: string
-  message: string
-  onClose: () => void
-}
-
-const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message, onClose }) => {
-  const isSuccess = type === 'success'
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={al.overlay} onPress={onClose}>
-        <Pressable style={al.card} onPress={() => {}}>
-          <View style={[al.iconWrap, isSuccess ? al.iconSuccess : al.iconError]}>
-            <Ionicons
-              name={isSuccess ? 'checkmark-circle' : 'alert-circle'}
-              size={32}
-              color={isSuccess ? '#4caf50' : '#ff6b6b'}
-            />
-          </View>
-          <Text style={al.title}>{title}</Text>
-          <Text style={al.message}>{message}</Text>
-          <View style={al.divider} />
-          <TouchableOpacity
-            style={[al.btn, isSuccess ? al.btnSuccess : al.btnError]}
-            onPress={onClose}
-            activeOpacity={0.85}
-          >
-            <Text style={al.btnText}>{isSuccess ? 'Great!' : 'Got it'}</Text>
-          </TouchableOpacity>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  )
-}
-
-const al = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 28,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#16213e',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  iconSuccess: { backgroundColor: 'rgba(76,175,80,0.12)', borderWidth: 1, borderColor: 'rgba(76,175,80,0.3)' },
-  iconError: { backgroundColor: 'rgba(255,107,107,0.12)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)' },
-  title: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' },
-  message: { fontSize: 13, color: 'rgba(160,174,192,0.75)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  divider: { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 20 },
-  btn: { width: '100%', borderRadius: 13, paddingVertical: 14, alignItems: 'center' },
-  btnSuccess: { backgroundColor: '#4caf50' },
-  btnError: { backgroundColor: '#ff6b6b' },
-  btnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-})
+import AdminToast from '@/components/admin-toast'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { fetchAdminOrders, updateAdminOrderStatus } from '@/store/slices/adminOrderSlice'
 
 // ─── STATUS OPTIONS ────────────────────────────────────────────
 const STATUS_OPTIONS = ['Processing', 'Shipped', 'Delivered', 'Cancelled']
@@ -134,11 +37,10 @@ const getStatusColor = (status: string) => {
 
 // ─── MAIN SCREEN ──────────────────────────────────────────────
 export default function OrderManagement() {
-  const [loading, setLoading] = useState(true)
-  const [orders, setOrders] = useState<any[]>([])
+  const dispatch = useAppDispatch()
+  const { orders, loading, refreshing, updating } = useAppSelector((state) => state.adminOrder)
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
   const [modalVisible, setModalVisible] = useState(false)
-  const [updating, setUpdating] = useState(false)
   const [alertVisible, setAlertVisible] = useState(false)
   const [alertType, setAlertType] = useState<'success' | 'error'>('success')
   const [alertTitle, setAlertTitle] = useState('')
@@ -151,23 +53,7 @@ export default function OrderManagement() {
     setAlertVisible(true)
   }
 
-  const getAuthHeader = async () => {
-    const token = await getItem('authToken')
-    return token ? { Authorization: `Bearer ${token}` } : {}
-  }
-
-  const fetchOrders = async () => {
-    try {
-      setLoading(true)
-      const headers = await getAuthHeader()
-      const res = await axios.get(`${API_URL}/admin/orders`, { headers })
-      setOrders(res.data.orders || [])
-    } catch {
-      showAlert('error', 'Failed to Load', 'Could not fetch orders. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const fetchOrders = (opts?: { silent?: boolean }) => dispatch(fetchAdminOrders(opts))
 
   useEffect(() => {
     fetchOrders()
@@ -186,20 +72,12 @@ export default function OrderManagement() {
   const updateStatus = async (status: string) => {
     if (!selectedOrder) return
     try {
-      setUpdating(true)
-      const headers = { 'Content-Type': 'application/json', ...(await getAuthHeader()) }
-      await axios.put(
-        `${API_URL}/admin/order/${selectedOrder._id}`,
-        { status },
-        { headers }
-      )
+      await dispatch(updateAdminOrderStatus({ orderId: selectedOrder._id, status })).unwrap()
       closeModal()
-      fetchOrders()
+      fetchOrders({ silent: true })
       showAlert('success', 'Status Updated', `Order status has been updated to ${status}.`)
     } catch (err: any) {
-      showAlert('error', 'Update Failed', err?.response?.data?.message || 'Something went wrong. Please try again.')
-    } finally {
-      setUpdating(false)
+      showAlert('error', 'Update Failed', err || 'Something went wrong. Please try again.')
     }
   }
 
@@ -225,7 +103,7 @@ export default function OrderManagement() {
       <AdminHeader title="Orders" icon="package-variant-closed" />
 
       {/* Themed Alert */}
-      <ThemedAlert
+      <AdminToast
         visible={alertVisible}
         type={alertType}
         title={alertTitle}
@@ -239,7 +117,7 @@ export default function OrderManagement() {
           <Text style={s.pageTitle}>Order Management</Text>
           <Text style={s.pageSubtitle}>Track and manage customer orders</Text>
         </View>
-        <TouchableOpacity style={s.refreshBtn} onPress={fetchOrders}>
+        <TouchableOpacity style={s.refreshBtn} onPress={() => fetchOrders()}>
           <Feather name="refresh-cw" size={15} color="#2280b0" />
         </TouchableOpacity>
       </View>
@@ -291,8 +169,8 @@ export default function OrderManagement() {
         <FlatList
           data={orders}
           keyExtractor={(item) => item._id}
-          onRefresh={fetchOrders}
-          refreshing={loading}
+          onRefresh={() => fetchOrders({ silent: true })}
+          refreshing={refreshing}
           contentContainerStyle={{ paddingBottom: 24 }}
           renderItem={({ item }) => {
             const statusColor = getStatusColor(item.orderStatus)

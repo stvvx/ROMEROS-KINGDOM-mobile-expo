@@ -1,5 +1,6 @@
 const Order = require('../models/order');
 const Product = require('../models/product');
+const Voucher = require('../models/voucher');
 const sendEmail = require('../utils/sendEmail');
 const { notify } = require('../utils/notification');
 
@@ -14,13 +15,37 @@ exports.newOrder = async (req, res, next) => {
         taxPrice,
         shippingPrice,
         totalPrice,
-        paymentInfo
+        paymentInfo,
+        voucherId
 
     } = req.body;
     try {
         // Ensure we have a usable model (workaround for require/circular issues)
         const mongoose = require('mongoose')
         const OrderModel = (Order && typeof Order.create === 'function') ? Order : (mongoose.models.Order || mongoose.model('Order'))
+
+        const userId = req.user && req.user._id
+
+        let appliedVoucher = null
+        if (voucherId) {
+            const voucher = await Voucher.findById(voucherId)
+
+            if (!voucher || voucher.isDeleted || !voucher.isActive) {
+                return res.status(400).json({ success: false, message: 'Selected voucher is no longer available' })
+            }
+
+            const hasClaimed = (voucher.claimedBy || []).some((id) => String(id) === String(userId))
+            if (!hasClaimed) {
+                return res.status(400).json({ success: false, message: 'You have not claimed this voucher' })
+            }
+
+            const alreadyUsed = (voucher.usedBy || []).some((id) => String(id) === String(userId))
+            if (alreadyUsed) {
+                return res.status(400).json({ success: false, message: 'This voucher has already been used' })
+            }
+
+            appliedVoucher = voucher
+        }
 
         const orderData = {
             orderItems,
@@ -31,7 +56,7 @@ exports.newOrder = async (req, res, next) => {
             totalPrice,
             paymentInfo,
             paidAt: Date.now(),
-            user: req.user && req.user._id
+            user: userId
         }
 
         let order
@@ -43,6 +68,12 @@ exports.newOrder = async (req, res, next) => {
             order = await doc.save()
         } else {
             throw new Error('Order model is not constructible')
+        }
+
+        if (appliedVoucher) {
+            appliedVoucher.usedBy = [...(appliedVoucher.usedBy || []), userId]
+            appliedVoucher.updatedAt = new Date()
+            await appliedVoucher.save()
         }
         // send order confirmation email (non-blocking for response)
         (async () => {

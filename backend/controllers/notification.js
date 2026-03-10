@@ -62,7 +62,7 @@ exports.markAllRead = async (req, res) => {
 // Save Expo push token on user
 exports.savePushToken = async (req, res) => {
   try {
-    const { expoPushToken } = req.body
+    const expoPushToken = req.body?.expoPushToken || req.body?.firebasePushToken
     if (!expoPushToken) return res.status(400).json({ success: false, message: 'expoPushToken required' })
 
     const user = await User.findByIdAndUpdate(

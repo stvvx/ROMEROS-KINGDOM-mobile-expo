@@ -9,10 +9,14 @@ import {
   FlatList,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { saveCartItemsSync, loadCartAsync } from '@/utils/cartDb';
+import { getItem } from '@/utils/storage';
+import axios from 'axios';
+import Constants from 'expo-constants';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const API_URL =
@@ -20,12 +24,38 @@ const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   'http://localhost:4000/api/v1';
 
+const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig;
+const debuggerHost = manifest?.debuggerHost?.split(':')[0];
+
+let resolvedApiUrl = API_URL;
+if (debuggerHost && debuggerHost !== 'localhost') {
+  resolvedApiUrl = resolvedApiUrl.replace('localhost', debuggerHost);
+} else if (Platform.OS === 'android' && resolvedApiUrl.includes('localhost')) {
+  resolvedApiUrl = resolvedApiUrl.replace('localhost', '10.0.2.2');
+}
+
+resolvedApiUrl = resolvedApiUrl.trim().replace(/\/+$/, '');
+if (!resolvedApiUrl.endsWith('/api/v1')) {
+  resolvedApiUrl = `${resolvedApiUrl}/api/v1`;
+}
+
 interface CartItem {
   _id: string;
   name: string;
   price: number;
   quantity: number;
   images?: { url: string }[];
+}
+
+type VoucherCategory = 'free-shipping' | 'minimum-spend' | 'monthly-voucher';
+
+interface VoucherItem {
+  _id: string;
+  code: string;
+  category: VoucherCategory;
+  label: string;
+  leftValue: string;
+  validText: string;
 }
 
 // ─── THEMED CONFIRM MODAL ─────────────────────────────────────
@@ -84,6 +114,8 @@ const cm = StyleSheet.create({
 export default function Cart() {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [claimedVouchers, setClaimedVouchers] = useState<VoucherItem[]>([]);
+  const [selectedVoucherId, setSelectedVoucherId] = useState<string | null>(null);
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({
@@ -99,7 +131,10 @@ export default function Cart() {
     setConfirmVisible(true);
   };
 
-  useFocusEffect(useCallback(() => { loadCart(); }, []));
+  useFocusEffect(useCallback(() => {
+    loadCart();
+    loadClaimedVouchers();
+  }, []));
   useEffect(() => { loadCart(); }, []);
 
   const loadCart = async () => {
@@ -119,6 +154,38 @@ export default function Cart() {
       console.error('Error saving cart:', err);
     }
   };
+
+  const loadClaimedVouchers = async () => {
+    try {
+      const token = await getItem('authToken');
+      if (!token) {
+        setClaimedVouchers([]);
+        setSelectedVoucherId(null);
+        return;
+      }
+
+      const headers = { Authorization: `Bearer ${token}` };
+      const [allVouchersRes, claimedRes] = await Promise.all([
+        axios.get(`${resolvedApiUrl}/vouchers`),
+        axios.get(`${resolvedApiUrl}/my/vouchers/claimed`, { headers }),
+      ]);
+
+      const claimedSet = new Set<string>((claimedRes.data?.voucherIds || []).map((id: string) => String(id)));
+      const claimed = (allVouchersRes.data?.vouchers || []).filter((v: VoucherItem) => claimedSet.has(String(v._id)));
+
+      setClaimedVouchers(claimed);
+      setSelectedVoucherId((prev) => {
+        if (prev && claimed.some((voucher: VoucherItem) => voucher._id === prev)) return prev;
+        return claimed.length ? claimed[0]._id : null;
+      });
+    } catch (err) {
+      console.error('Error loading claimed vouchers for cart:', err);
+      setClaimedVouchers([]);
+      setSelectedVoucherId(null);
+    }
+  };
+
+  const selectedVoucher = claimedVouchers.find((voucher) => voucher._id === selectedVoucherId) || null;
 
   const handleIncreaseQty = (id: string) =>
     saveCart(cartItems.map(item => item._id === id ? { ...item, quantity: item.quantity + 1 } : item));
@@ -147,11 +214,50 @@ export default function Cart() {
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax      = subtotal * 0.1;
   const shipping = cartItems.length > 0 ? 150 : 0;
-  const total    = subtotal + tax + shipping;
+
+  const computeVoucherDiscount = (voucher: VoucherItem | null) => {
+    if (!voucher) return 0;
+
+    if (voucher.category === 'free-shipping') {
+      return shipping;
+    }
+
+    const text = `${voucher.leftValue || ''} ${voucher.label || ''}`;
+    const percentMatch = text.match(/(\d+(?:\.\d+)?)\s*%/);
+    const amountMatch = text.match(/(\d+(?:\.\d+)?)/);
+
+    if (percentMatch) {
+      const percent = Number(percentMatch[1]);
+      if (!Number.isNaN(percent)) {
+        return (subtotal + tax + shipping) * (percent / 100);
+      }
+    }
+
+    if (amountMatch) {
+      const amount = Number(amountMatch[1]);
+      if (!Number.isNaN(amount)) {
+        return amount;
+      }
+    }
+
+    return 0;
+  };
+
+  const voucherDiscountRaw = computeVoucherDiscount(selectedVoucher);
+  const voucherDiscount = Math.min(voucherDiscountRaw, subtotal + tax + shipping);
+  const total = Math.max(0, subtotal + tax + shipping - voucherDiscount);
 
   const handleCheckout = () => {
     if (cartItems.length === 0) return;
-    router.push({ pathname: '/(user)/checkout', params: { cartTotal: total.toString() } });
+    router.push({
+      pathname: '/(user)/checkout',
+      params: {
+        cartTotal: total.toString(),
+        voucherId: selectedVoucher?._id || '',
+        voucherCode: selectedVoucher?.code || '',
+        voucherDiscount: voucherDiscount.toFixed(2),
+      },
+    });
   };
 
   // ── Empty State ──
@@ -233,6 +339,42 @@ export default function Cart() {
           )}
         />
 
+        {/* ── Claimed Vouchers ── */}
+        <View style={s.voucherCard}>
+          <View style={s.summaryCardHeader}>
+            <View style={s.summaryIconWrap}>
+              <MaterialCommunityIcons name="ticket-percent-outline" size={16} color="#2280b0" />
+            </View>
+            <Text style={s.summaryCardTitle}>Your Claimed Vouchers</Text>
+          </View>
+
+          <View style={s.summaryDivider} />
+
+          {!claimedVouchers.length ? (
+            <Text style={s.voucherEmptyText}>No claimed vouchers yet. Claim one in the Vouchers page.</Text>
+          ) : (
+            <View style={s.voucherListWrap}>
+              {claimedVouchers.map((voucher) => {
+                const active = voucher._id === selectedVoucherId;
+                return (
+                  <TouchableOpacity
+                    key={voucher._id}
+                    style={[s.voucherChip, active && s.voucherChipActive]}
+                    onPress={() => setSelectedVoucherId(voucher._id)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.voucherCode, active && s.voucherCodeActive]}>{voucher.code}</Text>
+                      <Text style={s.voucherMeta}>{voucher.leftValue} • {voucher.validText}</Text>
+                    </View>
+                    <Text style={[s.voucherApply, active && s.voucherApplyActive]}>{active ? 'Applied' : 'Apply'}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
         {/* ── Order Summary ── */}
         <View style={s.summaryCard}>
           <View style={s.summaryCardHeader}>
@@ -261,6 +403,13 @@ export default function Cart() {
             </View>
             <Text style={s.summaryValue}>₱{shipping.toFixed(2)}</Text>
           </View>
+
+          {voucherDiscount > 0 && (
+            <View style={s.summaryRow}>
+              <Text style={s.discountLabel}>Voucher Discount{selectedVoucher ? ` (${selectedVoucher.code})` : ''}</Text>
+              <Text style={s.discountValue}>-₱{voucherDiscount.toFixed(2)}</Text>
+            </View>
+          )}
 
           <View style={s.summaryDivider} />
 
@@ -385,6 +534,16 @@ const s = StyleSheet.create({
   removeBtn:           { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,107,107,0.1)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.25)', alignItems: 'center', justifyContent: 'center' },
 
   // ── Order Summary ──
+  voucherCard:       { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 18, padding: 18, marginBottom: 14, marginTop: 4 },
+  voucherListWrap:   { gap: 10 },
+  voucherChip:       { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.03)', paddingHorizontal: 12, paddingVertical: 11 },
+  voucherChipActive: { borderColor: 'rgba(34,128,176,0.45)', backgroundColor: 'rgba(34,128,176,0.10)' },
+  voucherCode:       { color: '#fff', fontSize: 13, fontWeight: '800' },
+  voucherCodeActive: { color: '#00C2C7' },
+  voucherMeta:       { marginTop: 3, color: 'rgba(160,174,192,0.62)', fontSize: 11 },
+  voucherApply:      { color: '#2280b0', fontSize: 12, fontWeight: '700' },
+  voucherApplyActive:{ color: '#00C2C7' },
+  voucherEmptyText:  { color: 'rgba(160,174,192,0.6)', fontSize: 12, lineHeight: 18 },
   summaryCard:       { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 18, padding: 18, marginBottom: 16, marginTop: 6 },
   summaryCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
   summaryIconWrap:   { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(34,128,176,0.15)', borderWidth: 1, borderColor: 'rgba(34,128,176,0.3)', alignItems: 'center', justifyContent: 'center' },
@@ -393,6 +552,8 @@ const s = StyleSheet.create({
   summaryRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   summaryLabel:      { fontSize: 13, color: 'rgba(160,174,192,0.6)' },
   summaryValue:      { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
+  discountLabel:     { fontSize: 13, color: '#3DFFC0', fontWeight: '700' },
+  discountValue:     { fontSize: 13, fontWeight: '800', color: '#3DFFC0' },
   shippingLabelRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   flatRateBadge:     { backgroundColor: 'rgba(34,128,176,0.12)', borderWidth: 1, borderColor: 'rgba(34,128,176,0.25)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   flatRateText:      { fontSize: 9, color: '#2280b0', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },

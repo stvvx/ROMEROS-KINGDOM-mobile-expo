@@ -10,7 +10,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { getItem } from '@/utils/storage';
 import { loadCartAsync, saveCartItemsSync } from '@/utils/cartDb';
@@ -71,6 +71,7 @@ const al = StyleSheet.create({
 // ─── MAIN SCREEN ─────────────────────────────────────────────
 export default function Checkout() {
   const router = useRouter();
+  const { voucherId, voucherCode, voucherDiscount } = useLocalSearchParams<{ voucherId?: string; voucherCode?: string; voucherDiscount?: string }>();
   const [loading, setLoading]             = useState(false);
   const [cartItems, setCartItems]         = useState<any[]>([]);
   const [itemsPrice, setItemsPrice]       = useState(0);
@@ -112,10 +113,13 @@ export default function Checkout() {
         const sub      = items.reduce((s: number, it: any) => s + it.price * it.quantity, 0);
         const tax      = parseFloat((sub * 0.1).toFixed(2));
         const shipping = items.length > 0 ? 150 : 0;
+        const parsedDiscount = parseFloat(String(voucherDiscount || '0')) || 0;
+        const preDiscountTotal = sub + tax + shipping;
+        const appliedDiscount = Math.min(parsedDiscount, preDiscountTotal);
         setItemsPrice(sub);
         setTaxPrice(tax);
         setShippingPrice(shipping);
-        setTotalPrice(parseFloat((sub + tax + shipping).toFixed(2)));
+        setTotalPrice(parseFloat((preDiscountTotal - appliedDiscount).toFixed(2)));
         try {
           const rawUser = await getItem('user');
           if (rawUser) {
@@ -173,6 +177,7 @@ export default function Checkout() {
         shippingPrice,
         totalPrice,
         paymentInfo: { id: 'COD', status: 'Cash On Delivery' },
+        voucherId: voucherId || undefined,
       };
 
       const res = await axios.post(`${API_URL}/order/new`, payload, {
@@ -263,6 +268,13 @@ export default function Checkout() {
             </View>
             <Text style={s.summaryValue}>₱{shippingPrice.toFixed(2)}</Text>
           </View>
+
+          {!!voucherDiscount && (parseFloat(String(voucherDiscount)) || 0) > 0 && (
+            <View style={s.summaryRow}>
+              <Text style={s.discountLabel}>Voucher Discount{voucherCode ? ` (${voucherCode})` : ''}</Text>
+              <Text style={s.discountValue}>-₱{(parseFloat(String(voucherDiscount)) || 0).toFixed(2)}</Text>
+            </View>
+          )}
 
           <View style={s.sectionDivider} />
 
@@ -438,6 +450,8 @@ const s = StyleSheet.create({
   summaryRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   summaryLabel:    { fontSize: 13, color: 'rgba(160,174,192,0.6)' },
   summaryValue:    { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
+  discountLabel:   { fontSize: 13, color: '#3DFFC0', fontWeight: '700' },
+  discountValue:   { fontSize: 13, fontWeight: '800', color: '#3DFFC0' },
   shippingLabelRow:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
   flatRateBadge:   { backgroundColor: 'rgba(34,128,176,0.12)', borderWidth: 1, borderColor: 'rgba(34,128,176,0.25)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   flatRateText:    { fontSize: 9, color: '#2280b0', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },

@@ -24,6 +24,8 @@ import {
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { getItem, removeItem } from '@/utils/storage';
 import { loadCartAsync } from '@/utils/cartDb';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchProducts as fetchProductsAction, resetProducts } from '@/store/slices/productSlice';
 import Slider from '@react-native-community/slider';
 import axios from 'axios';
 import Constants from 'expo-constants';
@@ -323,7 +325,19 @@ const Chip = ({ label, active, onPress }: { label: string; active: boolean; onPr
 export default function Home() {
   const { keyword: routeKw } = useLocalSearchParams<{ keyword?: string }>();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { numCols, cardWidth, maxContentWidth, isWeb } = useGrid();
+
+  const {
+    products,
+    productsCount,
+    filteredCount,
+    resPerPage,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+  } = useAppSelector((state) => state.product);
 
   const [isLoggedIn,  setIsLoggedIn]  = useState(false);
   const [cartCount,   setCartCount]   = useState(0);
@@ -343,6 +357,10 @@ export default function Home() {
           if (mounted && rawUser) {
             try {
               const u = JSON.parse(rawUser);
+              if (u?.role === 'admin') {
+                router.replace('/(admin)/dashboard');
+                return;
+              }
               setProfile({ name: u.name, avatar: u.avatar?.url || u.avatar || undefined });
             } catch { setProfile({ name: rawUser }); }
           }
@@ -374,6 +392,10 @@ export default function Home() {
         if (mounted && rawUser) {
           try {
             const u = JSON.parse(rawUser);
+            if (u?.role === 'admin') {
+              router.replace('/(admin)/dashboard');
+              return;
+            }
             setProfile({ name: u.name, avatar: u.avatar?.url || u.avatar || undefined });
           } catch { setProfile({ name: rawUser }); }
         }
@@ -393,15 +415,7 @@ export default function Home() {
   }, []);
 
   /* Product / filter state */
-  const [products,      setProducts]      = useState<IProduct[]>([]);
   const [categories,    setCategories]    = useState<string[]>(['All']);
-  const [productsCount, setProductsCount] = useState(0);
-  const [filteredCount, setFilteredCount] = useState(0);
-  const [resPerPage,    setResPerPage]    = useState(8);
-  const [loading,       setLoading]       = useState(true);
-  const [loadingMore,   setLoadingMore]   = useState(false);
-  const [error,         setError]         = useState<string | null>(null);
-  const [hasMore,       setHasMore]       = useState(true);
 
   const [price,          setPrice]          = useState<[number, number]>([1, 10000]);
   const [currentPage,    setCurrentPage]    = useState(1);
@@ -422,8 +436,7 @@ export default function Home() {
     searchDebounce.current = setTimeout(() => {
       setActiveKeyword(text.trim());
       setCurrentPage(1);
-      setProducts([]);
-      setHasMore(true);
+      dispatch(resetProducts());
     }, 400);
   };
 
@@ -432,8 +445,7 @@ export default function Home() {
     setSearchQuery('');
     setActiveKeyword('');
     setCurrentPage(1);
-    setProducts([]);
-    setHasMore(true);
+    dispatch(resetProducts());
     router.push('/');
   };
 
@@ -443,8 +455,7 @@ export default function Home() {
     const q = searchQuery.trim();
     setActiveKeyword(q);
     setCurrentPage(1);
-    setProducts([]);
-    setHasMore(true);
+    dispatch(resetProducts());
     router.push(q ? { pathname: '/', params: { keyword: q } } : '/');
   };
   // ─────────────────────────────────────────────────────────────────────────
@@ -484,47 +495,27 @@ export default function Home() {
   // Reset pagination when activeKeyword (or other filters) change
   useEffect(() => {
     setCurrentPage(1);
-    setProducts([]);
-    setHasMore(true);
+    dispatch(resetProducts());
   }, [activeKeyword, price, activeCategory]);
 
   // fetchProducts now uses activeKeyword instead of routeKw
   const fetchProducts = useCallback(async (page: number, isLoadMore = false) => {
-    try {
-      isLoadMore ? setLoadingMore(true) : setLoading(true);
-      setError(null);
+    const res = await dispatch(fetchProductsAction({
+      page,
+      isLoadMore,
+      price,
+      keyword: activeKeyword,
+      category: activeCategory,
+    }));
 
-      const params = new URLSearchParams({
-        page: page.toString(),
-        'price[gte]': price[0].toString(),
-        'price[lte]': price[1].toString(),
-      });
-
-      if (activeKeyword) params.append('keyword', activeKeyword);  // ← live search
-      if (activeCategory !== 'All') params.append('category', activeCategory);
-
-      const res = await axios.get(`${API_URL}/products?${params}`, { timeout: 10000 });
-      const fetched: IProduct[] = res.data.products ?? [];
-
-      setProducts(prev => isLoadMore ? [...prev, ...fetched] : fetched);
-      setProductsCount(res.data.productsCount ?? 0);
-      setFilteredCount(res.data.filteredProductsCount ?? 0);
-      setResPerPage(res.data.resPerPage ?? 8);
-
-      const totalCount = res.data.filteredProductsCount ?? res.data.productsCount ?? 0;
-      setHasMore(fetched.length > 0 && (page * (res.data.resPerPage ?? 8)) < totalCount);
-
+    if (fetchProductsAction.fulfilled.match(res)) {
+      const fetched: IProduct[] = res.payload.fetched ?? [];
       setCategories((prev) => {
         if (prev.length <= 1 && fetched.length > 0) {
           return ['All', ...Array.from(new Set(fetched.map((p) => p.category).filter(Boolean) as string[]))];
         }
         return prev;
       });
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to fetch products');
-      if (!isLoadMore) setProducts([]);
-    } finally {
-      isLoadMore ? setLoadingMore(false) : setLoading(false);
     }
   }, [activeKeyword, price, activeCategory]);
 
@@ -928,6 +919,11 @@ export default function Home() {
                 <TouchableOpacity style={s.drawerItem} onPress={() => { setMenuOpen(false); router.push('/(user)/orders'); }}>
                   <MaterialCommunityIcons name="package-variant-closed" size={20} color={C.textSub} style={s.drawerIconStyle} />
                   <Text style={s.drawerItemLabel}>My Orders</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={s.drawerItem} onPress={() => { setMenuOpen(false); router.push('/(user)/vouchers'); }}>
+                  <MaterialCommunityIcons name="ticket-percent-outline" size={20} color={C.textSub} style={s.drawerIconStyle} />
+                  <Text style={s.drawerItemLabel}>My Vouchers</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={s.drawerItem} onPress={() => { setMenuOpen(false); router.push('/(user)/review'); }}>

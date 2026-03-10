@@ -17,6 +17,7 @@ import {
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { setItem } from '@/utils/storage';
+import { registerFirebasePushToken } from '@/utils/notifications';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import Svg, { Path, Rect } from 'react-native-svg';
 
@@ -240,6 +241,7 @@ export default function Register() {
         try {
           await setItem('authToken', token);
           await setItem('user', JSON.stringify(user));
+          await registerFirebasePushToken(API_URL, token).catch(() => null);
         } catch (err) {
           console.error('Error storing token/user:', err);
         }
