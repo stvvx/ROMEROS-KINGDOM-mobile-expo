@@ -196,7 +196,7 @@ export default function VouchersAdminScreen() {
 
   return (
     <View style={styles.page}>
-      <AdminHeader title="Voucher Management" icon="ticket-percent" />
+      <AdminHeader title="Vouchers" icon="ticket-percent" />
 
       <AdminToast
         visible={alertVisible}

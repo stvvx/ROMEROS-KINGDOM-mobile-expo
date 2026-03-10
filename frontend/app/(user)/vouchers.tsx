@@ -1,16 +1,17 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-	ActivityIndicator,
-	Alert,
-	Pressable,
-	Platform,
-	RefreshControl,
-	SafeAreaView,
-	ScrollView,
-	StatusBar,
-	StyleSheet,
-	Text,
-	View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import axios from 'axios';
 import Constants from 'expo-constants';
@@ -18,374 +19,955 @@ import { useFocusEffect } from 'expo-router';
 
 import { getItem } from '@/utils/storage';
 
+/* ── Types ── */
 type VoucherCategory = 'free-shipping' | 'minimum-spend' | 'monthly-voucher';
+type TabKey = VoucherCategory | 'all' | 'used';
 
 interface VoucherItem {
-	_id: string;
-	code: string;
-	category: VoucherCategory;
-	badge: string;
-	label: string;
-	description: string;
-	validText: string;
-	leftValue: string;
-	rightTag?: string;
+  _id: string;
+  code: string;
+  category: VoucherCategory;
+  badge: string;
+  label: string;
+  description: string;
+  validText: string;
+  leftValue: string;
+  rightTag?: string;
+  month?: number;
 }
 
-const CATEGORY_LABEL: Record<VoucherCategory, string> = {
-	'free-shipping': 'Free Shipping',
-	'minimum-spend': 'Minimum Spend',
-	'monthly-voucher': 'Monthly Voucher',
+/* ── Design tokens ── */
+const C = {
+  bg:         '#0E1117',
+  bgLayer:    '#12151F',
+  surface:    '#1A1E2E',
+  border:     '#1F2540',
+  accent:     '#00C2C7',
+  accentText: '#00E5EB',
+  mint:       '#3DFFC0',
+  text:       '#E8EDF5',
+  textSub:    '#7A859E',
+  textDim:    '#2B3247',
+  danger:     '#FF5A6E',
+  dangerBg:   'rgba(255,90,110,0.10)',
+  warning:    '#FFB347',
+  warningBg:  'rgba(255,179,71,0.12)',
+  success:    '#3DFFC0',
+  successBg:  'rgba(61,255,192,0.10)',
+  info:       '#6EA8FE',
+  infoBg:     'rgba(110,168,254,0.12)',
+  purple:     '#A78BFA',
+  purpleBg:   'rgba(167,139,250,0.12)',
+} as const;
+
+/* ── Category config ── */
+const CATEGORY_CONFIG: Record<VoucherCategory, {
+  icon: string; color: string; bg: string; label: string;
+}> = {
+  'free-shipping':   { icon: '🚚', color: C.info,    bg: C.infoBg,    label: 'Free Shipping'    },
+  'minimum-spend':   { icon: '💰', color: C.warning, bg: C.warningBg, label: 'Minimum Spend'    },
+  'monthly-voucher': { icon: '🎁', color: C.mint,    bg: C.successBg, label: 'Monthly Vouchers' },
 };
 
-const colors = {
-	bg: '#F5F7FB',
-	card: '#FFFFFF',
-	border: '#D9E2F2',
-	text: '#172033',
-	sub: '#5E6B84',
-	accent: '#0A6DFF',
-};
+/* ── Months ── */
+const MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
 
+const CURRENT_MONTH           = new Date().getMonth() + 1; // 3 = March
+const CLAIMABLE_MONTHLY_MONTH = CURRENT_MONTH + 1;         // 4 = April
+
+function getMonthlyLockReason(month?: number | null): string | null {
+  if (month === undefined || month === null) return 'Not yet available';
+  if (month < CURRENT_MONTH)                return 'Expired';
+  if (month === CURRENT_MONTH)              return 'This month has passed';
+  if (month === CLAIMABLE_MONTHLY_MONTH)    return null; // claimable
+  return 'Not yet available';
+}
+
+/* ── API setup ── */
 let API_URL =
-	process.env.NGROK_URL ||
-	process.env.EXPO_PUBLIC_API_URL ||
-	'http://localhost:4000/api/v1';
+  process.env.NGROK_URL ||
+  process.env.EXPO_PUBLIC_API_URL ||
+  'http://localhost:4000/api/v1';
 
 const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig;
 const debuggerHost = manifest?.debuggerHost?.split(':')[0];
-
 if (debuggerHost && debuggerHost !== 'localhost') {
-	API_URL = API_URL.replace('localhost', debuggerHost);
+  API_URL = API_URL.replace('localhost', debuggerHost);
 } else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
-	API_URL = API_URL.replace('localhost', '10.0.2.2');
+  API_URL = API_URL.replace('localhost', '10.0.2.2');
 }
-
 API_URL = API_URL.trim().replace(/\/+$/, '');
-if (!API_URL.endsWith('/api/v1')) {
-	API_URL = `${API_URL}/api/v1`;
-}
+if (!API_URL.endsWith('/api/v1')) API_URL = `${API_URL}/api/v1`;
+
+/* ==============================================
+   USED VOUCHER CARD
+   Compact read-only card shown in the Used tab
+============================================== */
+const UsedVoucherCard = ({ voucher }: { voucher: VoucherItem }) => {
+  const catCfg = CATEGORY_CONFIG[voucher.category];
+  return (
+    <View style={styles.usedCard}>
+      {/* Left stamp panel */}
+      <View style={styles.usedCardLeft}>
+        {voucher.category === 'monthly-voucher' && voucher.month && (
+          <Text style={styles.monthLabel}>{MONTHS[voucher.month - 1]}</Text>
+        )}
+        <Text style={styles.usedLeftValue}>{voucher.leftValue}</Text>
+        <View style={styles.usedStamp}>
+          <Text style={styles.usedStampText}>USED</Text>
+        </View>
+      </View>
+
+      {/* Right content */}
+      <View style={styles.cardRight}>
+        <View style={styles.badgeRow}>
+          <View style={[styles.badgeChip, { backgroundColor: catCfg.bg, borderColor: catCfg.color }]}>
+            <Text style={[styles.badgeChipText, { color: catCfg.color }]}>{voucher.badge}</Text>
+          </View>
+          {!!voucher.label && (
+            <Text style={styles.rightTagInline} numberOfLines={1}>{voucher.label}</Text>
+          )}
+        </View>
+
+        <Text style={[styles.description, { color: C.textSub }]} numberOfLines={2}>
+          {voucher.description}
+        </Text>
+
+        <View style={styles.innerDivider} />
+
+        {/* Code — struck through feel via opacity */}
+        <Text style={styles.usedCodeValue}>{voucher.code}</Text>
+
+        {/* Status row */}
+        <View style={styles.cardBottom}>
+          <View style={styles.statusRow}>
+            <Text style={{ fontSize: 11 }}>✦</Text>
+            <Text style={[styles.statusLabel, { color: C.purple }]}>Fully Redeemed</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Purple corner accent */}
+      <View style={[styles.corner, styles.cornerTL, { backgroundColor: C.purple }]} />
+      <View style={[styles.corner, styles.cornerBR, { backgroundColor: C.purple }]} />
+    </View>
+  );
+};
+
+/* ==============================================
+   VOUCHER CARD (active/locked)
+============================================== */
+const VoucherCard = ({
+  voucher,
+  claimed,
+  redeemed,
+  isClaiming,
+  onClaim,
+}: {
+  voucher: VoucherItem;
+  claimed: boolean;
+  redeemed: boolean;
+  isClaiming: boolean;
+  onClaim: () => void;
+}) => {
+  const scale  = useRef(new Animated.Value(1)).current;
+  const catCfg = CATEGORY_CONFIG[voucher.category];
+
+  const pressIn  = () => Animated.spring(scale, { toValue: 0.977, useNativeDriver: true }).start();
+  const pressOut = () => Animated.spring(scale, { toValue: 1,     useNativeDriver: true }).start();
+
+  const monthlyLockReason =
+    voucher.category === 'monthly-voucher'
+      ? getMonthlyLockReason(voucher.month)
+      : null;
+  const isLocked    = !!monthlyLockReason;
+  const btnDisabled = claimed || redeemed || isClaiming || isLocked;
+
+  const statusColor = redeemed ? C.purple : claimed ? C.mint : isLocked ? C.textSub : C.warning;
+  const statusLabel = redeemed ? 'Redeemed' : claimed ? 'Claimed' : isLocked ? monthlyLockReason! : 'Not Claimed';
+  const statusIcon  = redeemed ? '✦' : claimed ? '✓' : isLocked ? '🔒' : '◌';
+  const btnLabel    = isClaiming ? '' : redeemed ? 'Redeemed' : claimed ? 'Claimed' : isLocked ? 'Locked' : 'Claim';
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        style={[styles.card, isLocked && styles.cardLocked]}
+        android_ripple={{ color: 'rgba(0,194,199,0.06)' }}
+      >
+        {/* Left value panel */}
+        <View style={[styles.cardLeft, { borderRightColor: C.border }]}>
+          {voucher.category === 'monthly-voucher' && voucher.month && (
+            <Text style={styles.monthLabel}>{MONTHS[voucher.month - 1]}</Text>
+          )}
+          <Text style={[styles.leftValue, isLocked && { color: C.textSub }]}>
+            {voucher.leftValue}
+          </Text>
+          {!!voucher.rightTag && (
+            <View style={styles.multiTag}>
+              <Text style={[styles.multiTagText, isLocked && { color: C.textSub }]}>
+                {voucher.rightTag}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Right content panel */}
+        <View style={styles.cardRight}>
+          <View style={styles.badgeRow}>
+            <View style={[styles.badgeChip, { backgroundColor: catCfg.bg, borderColor: catCfg.color }]}>
+              <Text style={[styles.badgeChipText, { color: catCfg.color }]}>{voucher.badge}</Text>
+            </View>
+            {!!voucher.label && (
+              <Text style={styles.rightTagInline} numberOfLines={1}>{voucher.label}</Text>
+            )}
+          </View>
+
+          <Text style={[styles.description, isLocked && { color: C.textDim }]} numberOfLines={2}>
+            {voucher.description}
+          </Text>
+
+          <Text style={styles.validity}>{voucher.validText}</Text>
+
+          <View style={styles.innerDivider} />
+
+          <Text style={[styles.codeValue, isLocked && { color: C.textSub }]}>
+            {voucher.code}
+          </Text>
+
+          <View style={styles.cardBottom}>
+            <View style={styles.statusRow}>
+              <Text style={{ fontSize: 11 }}>{statusIcon}</Text>
+              <Text style={[styles.statusLabel, { color: statusColor }]}>{statusLabel}</Text>
+            </View>
+            <Pressable
+              disabled={btnDisabled}
+              onPress={onClaim}
+              style={[styles.claimBtn, btnDisabled && styles.claimBtnDisabled]}
+              android_ripple={{ color: 'rgba(0,0,0,0.15)' }}
+            >
+              {isClaiming ? (
+                <ActivityIndicator size="small" color={C.bg} />
+              ) : (
+                <Text style={[styles.claimBtnText, btnDisabled && styles.claimBtnTextDisabled]}>
+                  {btnLabel}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+
+        {!isLocked && (
+          <>
+            <View style={[styles.corner, styles.cornerTL]} />
+            <View style={[styles.corner, styles.cornerBR]} />
+          </>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+};
+
+/* ==============================================
+   CATEGORY SECTION
+============================================== */
+const CategorySection = ({
+  category,
+  vouchers,
+  claimedIds,
+  redeemedIds,
+  claimingId,
+  onClaim,
+}: {
+  category: VoucherCategory;
+  vouchers: VoucherItem[];
+  claimedIds: Set<string>;
+  redeemedIds: Set<string>;
+  claimingId: string | null;
+  onClaim: (id: string) => void;
+}) => {
+  const cfg = CATEGORY_CONFIG[category];
+  const claimableCount = vouchers.filter(v => {
+    if (claimedIds.has(v._id) || redeemedIds.has(v._id)) return false;
+    if (v.category === 'monthly-voucher' && getMonthlyLockReason(v.month) !== null) return false;
+    return true;
+  }).length;
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderLeft}>
+          <Text style={{ fontSize: 16 }}>{cfg.icon}</Text>
+          <Text style={styles.sectionTitle}>{cfg.label}</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{vouchers.length}</Text>
+          </View>
+        </View>
+        {claimableCount > 0 && (
+          <View style={[styles.claimableTag, { backgroundColor: cfg.bg, borderColor: cfg.color }]}>
+            <Text style={[styles.claimableTagText, { color: cfg.color }]}>
+              {claimableCount} available
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {vouchers.map(v => (
+        <VoucherCard
+          key={v._id}
+          voucher={v}
+          claimed={claimedIds.has(v._id)}
+          redeemed={redeemedIds.has(v._id)}
+          isClaiming={claimingId === v._id}
+          onClaim={() => onClaim(v._id)}
+        />
+      ))}
+    </View>
+  );
+};
+
+/* ==============================================
+   USED TAB VIEW
+============================================== */
+const UsedTabView = ({
+  vouchers,
+  redeemedIds,
+}: {
+  vouchers: VoucherItem[];
+  redeemedIds: Set<string>;
+}) => {
+  const usedVouchers = vouchers.filter(v => redeemedIds.has(v._id));
+
+  if (usedVouchers.length === 0) {
+    return (
+      <View style={styles.emptyBox}>
+        <Text style={{ fontSize: 48, marginBottom: 12 }}>🎫</Text>
+        <Text style={styles.emptyTitle}>No used vouchers yet</Text>
+        <Text style={styles.emptyText}>
+          Vouchers you've redeemed at checkout will appear here.
+        </Text>
+      </View>
+    );
+  }
+
+  // Group used vouchers by category
+  const grouped: Partial<Record<VoucherCategory, VoucherItem[]>> = {};
+  for (const v of usedVouchers) {
+    if (!grouped[v.category]) grouped[v.category] = [];
+    grouped[v.category]!.push(v);
+  }
+
+  const categoryOrder: VoucherCategory[] = ['free-shipping', 'minimum-spend', 'monthly-voucher'];
+
+  return (
+    <>
+      {/* Summary banner */}
+      <View style={styles.usedBanner}>
+        <Text style={{ fontSize: 20 }}>✦</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.usedBannerTitle}>
+            {usedVouchers.length} voucher{usedVouchers.length !== 1 ? 's' : ''} used
+          </Text>
+          <Text style={styles.usedBannerSub}>
+            These vouchers have been fully redeemed and can no longer be used.
+          </Text>
+        </View>
+      </View>
+
+      {categoryOrder.map(cat => {
+        const items = grouped[cat];
+        if (!items?.length) return null;
+        const cfg = CATEGORY_CONFIG[cat];
+        return (
+          <View key={cat} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderLeft}>
+                <Text style={{ fontSize: 16 }}>{cfg.icon}</Text>
+                <Text style={styles.sectionTitle}>{cfg.label}</Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{items.length}</Text>
+                </View>
+              </View>
+            </View>
+            {items.map(v => (
+              <UsedVoucherCard key={v._id} voucher={v} />
+            ))}
+          </View>
+        );
+      })}
+    </>
+  );
+};
+
+/* ==============================================
+   MAIN SCREEN
+============================================== */
+const TABS: { key: TabKey; label: string; icon: string }[] = [
+  { key: 'all',             label: 'All',        icon: '🏷️' },
+  { key: 'free-shipping',   label: 'Shipping',   icon: '🚚' },
+  { key: 'minimum-spend',   label: 'Min. Spend', icon: '💰' },
+  { key: 'monthly-voucher', label: 'Monthly',    icon: '🎁' },
+  { key: 'used',            label: 'Used',       icon: '✦'  },
+];
 
 export default function UserVouchersScreen() {
-	const [vouchers, setVouchers] = useState<VoucherItem[]>([]);
-	const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
-	const [redeemedIds, setRedeemedIds] = useState<Set<string>>(new Set());
-	const [loading, setLoading] = useState(true);
-	const [refreshing, setRefreshing] = useState(false);
-	const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [vouchers,    setVouchers]    = useState<VoucherItem[]>([]);
+  const [claimedIds,  setClaimedIds]  = useState<Set<string>>(new Set());
+  const [redeemedIds, setRedeemedIds] = useState<Set<string>>(new Set());
+  const [loading,     setLoading]     = useState(true);
+  const [refreshing,  setRefreshing]  = useState(false);
+  const [claimingId,  setClaimingId]  = useState<string | null>(null);
+  const [activeTab,   setActiveTab]   = useState<TabKey>('all');
 
-	const loadClaimedVouchers = async (isPullToRefresh = false) => {
-		try {
-			if (isPullToRefresh) {
-				setRefreshing(true);
-			} else {
-				setLoading(true);
-			}
+  const headerFade = useRef(new Animated.Value(0)).current;
 
-			const [allVouchersRes, token] = await Promise.all([
-				axios.get(`${API_URL}/vouchers`),
-				getItem('authToken'),
-			]);
+  useEffect(() => {
+    Animated.timing(headerFade, { toValue: 1, duration: 450, useNativeDriver: true }).start();
+  }, []);
 
-			setVouchers(allVouchersRes.data?.vouchers || []);
+  const loadVouchers = async (isPullToRefresh = false) => {
+    try {
+      isPullToRefresh ? setRefreshing(true) : setLoading(true);
+      const [allRes, token] = await Promise.all([
+        axios.get(`${API_URL}/vouchers`),
+        getItem('authToken'),
+      ]);
+      setVouchers(allRes.data?.vouchers || []);
+      if (token) {
+        const headers = { Authorization: `Bearer ${token}` };
+        const claimedRes = await axios.get(`${API_URL}/my/vouchers/claimed`, { headers });
+        setClaimedIds(new Set((claimedRes.data?.voucherIds || []).map(String)));
+        setRedeemedIds(new Set((claimedRes.data?.redeemedVoucherIds || []).map(String)));
+      } else {
+        setClaimedIds(new Set());
+        setRedeemedIds(new Set());
+      }
+    } catch (e: any) {
+      Alert.alert('Could not load vouchers', e?.response?.data?.message || 'Please try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
-			if (token) {
-				const headers = { Authorization: `Bearer ${token}` };
-				const claimedRes = await axios.get(`${API_URL}/my/vouchers/claimed`, { headers });
-				const ids = new Set<string>((claimedRes.data?.voucherIds || []).map((id: string) => String(id)));
-				const redeemed = new Set<string>((claimedRes.data?.redeemedVoucherIds || []).map((id: string) => String(id)));
-				setClaimedIds(ids);
-				setRedeemedIds(redeemed);
-			} else {
-				setClaimedIds(new Set());
-				setRedeemedIds(new Set());
-			}
-		} catch (error: any) {
-			Alert.alert('Could not fetch your vouchers', error?.response?.data?.message || 'Please try again.');
-		} finally {
-			setLoading(false);
-			setRefreshing(false);
-		}
-	};
+  useFocusEffect(useCallback(() => { loadVouchers(); }, []));
 
-	useFocusEffect(
-		useCallback(() => {
-			loadClaimedVouchers();
-		}, [])
-	);
+  const claimVoucher = async (voucherId: string) => {
+    const token = await getItem('authToken');
+    if (!token) { Alert.alert('Login required', 'Please sign in to claim vouchers.'); return; }
+    try {
+      setClaimingId(voucherId);
+      const res = await axios.post(
+        `${API_URL}/voucher/${voucherId}/claim`, {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setClaimedIds(prev => { const n = new Set(prev); n.add(voucherId); return n; });
+      setRedeemedIds(prev => { const n = new Set(prev); n.delete(voucherId); return n; });
+      Alert.alert('Voucher claimed! 🎉', res.data?.message || 'Enjoy your discount.');
+    } catch (e: any) {
+      Alert.alert('Claim failed', e?.response?.data?.message || 'Could not claim voucher.');
+    } finally {
+      setClaimingId(null);
+    }
+  };
 
-	const voucherList = useMemo(() => vouchers, [vouchers]);
+  /* Grouped data for category tabs */
+  const grouped = useMemo(() => {
+    const base = activeTab === 'all' || activeTab === 'used'
+      ? vouchers
+      : vouchers.filter(v => v.category === activeTab);
+    const map: Partial<Record<VoucherCategory, VoucherItem[]>> = {};
+    for (const v of base) {
+      if (!map[v.category]) map[v.category] = [];
+      map[v.category]!.push(v);
+    }
+    if (map['monthly-voucher']) {
+      map['monthly-voucher'].sort((a, b) => (a.month ?? 0) - (b.month ?? 0));
+    }
+    return map;
+  }, [vouchers, activeTab]);
 
-	const claimVoucher = async (voucherId: string) => {
-		const token = await getItem('authToken');
+  const categoryOrder: VoucherCategory[] = ['free-shipping', 'minimum-spend', 'monthly-voucher'];
 
-		if (!token) {
-			Alert.alert('Login required', 'Please sign in before claiming vouchers.');
-			return;
-		}
+  const stats = {
+    total:    vouchers.length,
+    claimed:  claimedIds.size,
+    redeemed: redeemedIds.size,
+    available: vouchers.filter(v => {
+      if (claimedIds.has(v._id) || redeemedIds.has(v._id)) return false;
+      if (v.category === 'monthly-voucher' && getMonthlyLockReason(v.month) !== null) return false;
+      return true;
+    }).length,
+  };
 
-		try {
-			setClaimingId(voucherId);
-			const res = await axios.post(
-				`${API_URL}/voucher/${voucherId}/claim`,
-				{},
-				{ headers: { Authorization: `Bearer ${token}` } }
-			);
+  function tabCount(key: TabKey): number {
+    if (key === 'all')  return vouchers.length;
+    if (key === 'used') return redeemedIds.size;
+    return vouchers.filter(v => v.category === key).length;
+  }
 
-			setClaimedIds((prev) => {
-				const next = new Set(prev);
-				next.add(voucherId);
-				return next;
-			});
+  const showMonthlyNote =
+    (activeTab === 'all' || activeTab === 'monthly-voucher') &&
+    !!grouped['monthly-voucher']?.length;
 
-			setRedeemedIds((prev) => {
-				const next = new Set(prev);
-				next.delete(voucherId);
-				return next;
-			});
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
-			Alert.alert('Voucher claimed', res.data?.message || 'Voucher claimed successfully.');
-		} catch (error: any) {
-			Alert.alert('Claim failed', error?.response?.data?.message || 'Could not claim voucher right now.');
-		} finally {
-			setClaimingId(null);
-		}
-	};
+      {/* HEADER */}
+      <Animated.View style={[styles.header, { opacity: headerFade }]}>
+        <Text style={styles.eyebrow}>ROMEROS</Text>
+        <Text style={styles.title}>My Vouchers</Text>
+        <Text style={styles.subtitle}>Claim exclusive deals and save on your next order.</Text>
 
-	return (
-		<SafeAreaView style={styles.safe}>
-			<StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+        {/* Summary pills */}
+        {!loading && (
+          <View style={styles.pillRow}>
+            {[
+              { label: 'Available', value: stats.available, accent: true },
+              { label: 'Claimed',   value: stats.claimed   },
+              { label: 'Used',      value: stats.redeemed, purple: true },
+              { label: 'Total',     value: stats.total     },
+            ].map(p => (
+              <View key={p.label} style={styles.pill}>
+                <Text style={[
+                  styles.pillValue,
+                  p.accent && { color: C.mint },
+                  p.purple && { color: C.purple },
+                ]}>
+                  {p.value}
+                </Text>
+                <Text style={styles.pillLabel}>{p.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
-			<View style={styles.header}>
-				<Text style={styles.title}>My Vouchers</Text>
-				<Text style={styles.subtitle}>All active vouchers are shown here with their codes.</Text>
-			</View>
+        {/* Tab bar */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabBarContent}
+          style={styles.tabBar}
+        >
+          {TABS.map(tab => {
+            const isActive = activeTab === tab.key;
+            const count    = tabCount(tab.key);
+            const isUsed   = tab.key === 'used';
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[
+                  styles.tab,
+                  isActive && styles.tabActive,
+                  isActive && isUsed && styles.tabActiveUsed,
+                ]}
+                onPress={() => setActiveTab(tab.key)}
+              >
+                <Text style={{ fontSize: 13 }}>{tab.icon}</Text>
+                <Text style={[
+                  styles.tabText,
+                  isActive && styles.tabTextActive,
+                  isActive && isUsed && { color: C.purple },
+                ]}>
+                  {tab.label}
+                </Text>
+                {count > 0 && (
+                  <View style={[
+                    styles.tabBadge,
+                    isActive && styles.tabBadgeActive,
+                    isActive && isUsed && { backgroundColor: C.purple, borderColor: C.purple },
+                  ]}>
+                    <Text style={[styles.tabBadgeTxt, isActive && styles.tabBadgeTxtActive]}>
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </Animated.View>
 
-			{loading ? (
-				<View style={styles.loaderWrap}>
-					<ActivityIndicator size="large" color={colors.accent} />
-					<Text style={styles.loaderText}>Loading your vouchers...</Text>
-				</View>
-			) : (
-				<ScrollView
-					contentContainerStyle={styles.listContent}
-					refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadClaimedVouchers(true)} />}
-				>
-					{voucherList.map((voucher) => {
-						const claimed = claimedIds.has(voucher._id);
-						const redeemed = redeemedIds.has(voucher._id);
-						const isClaiming = claimingId === voucher._id;
+      {/* CONTENT */}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={C.accent} />
+          <Text style={styles.loadingText}>Loading your vouchers...</Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadVouchers(true)}
+              tintColor={C.accent}
+              colors={[C.accent]}
+            />
+          }
+        >
+          {/* Used tab */}
+          {activeTab === 'used' && (
+            <UsedTabView vouchers={vouchers} redeemedIds={redeemedIds} />
+          )}
 
-						return (
-						<View key={voucher._id} style={styles.card}>
-							<View style={styles.topRow}>
-								<Text style={styles.leftValue}>{voucher.leftValue}</Text>
-								{!!voucher.rightTag && <Text style={styles.rightTag}>{voucher.rightTag}</Text>}
-							</View>
+          {/* All / category tabs */}
+          {activeTab !== 'used' && (
+            <>
+              {showMonthlyNote && (
+                <View style={styles.noteBox}>
+                  <Text style={styles.noteIcon}>i</Text>
+                  <Text style={styles.noteText}>
+                    Monthly vouchers unlock one at a time. Only the{' '}
+                    <Text style={{ color: C.mint, fontWeight: '700' }}>April</Text> voucher
+                    is claimable right now. Past months are expired; future months are not yet available.
+                  </Text>
+                </View>
+              )}
 
-							<Text style={styles.badge}>{voucher.badge}</Text>
-							<Text style={styles.label}>{voucher.label}</Text>
-							<Text style={styles.description}>{voucher.description}</Text>
-							<Text style={styles.validity}>{voucher.validText}</Text>
+              {categoryOrder.map(cat => {
+                const items = grouped[cat];
+                if (!items?.length) return null;
+                return (
+                  <CategorySection
+                    key={cat}
+                    category={cat}
+                    vouchers={items}
+                    claimedIds={claimedIds}
+                    redeemedIds={redeemedIds}
+                    claimingId={claimingId}
+                    onClaim={claimVoucher}
+                  />
+                );
+              })}
 
-							<View style={styles.codeBox}>
-								<Text style={styles.codeLabel}>VOUCHER CODE</Text>
-								<Text style={styles.codeValue}>{voucher.code}</Text>
-							</View>
-
-							<Text
-								style={[
-									styles.statusText,
-									redeemed ? styles.redeemedText : claimed ? styles.claimedText : styles.notClaimedText,
-								]}
-							>
-								{redeemed ? 'Status: Fully Redeemed' : claimed ? 'Status: Claimed' : 'Status: Not claimed yet'}
-							</Text>
-
-							<Pressable
-								disabled={claimed || redeemed || isClaiming}
-								onPress={() => claimVoucher(voucher._id)}
-								style={[styles.claimBtn, (claimed || redeemed || isClaiming) && styles.claimBtnDisabled]}
-							>
-								<Text style={[styles.claimBtnText, (claimed || redeemed || isClaiming) && styles.claimBtnTextDisabled]}>
-									{isClaiming ? 'Claiming...' : redeemed ? 'Fully Redeemed' : claimed ? 'Claimed' : 'Claim Voucher'}
-								</Text>
-							</Pressable>
-
-							<Text style={styles.categoryText}>Category: {CATEGORY_LABEL[voucher.category]}</Text>
-						</View>
-					)})}
-
-					{!voucherList.length && (
-						<View style={styles.emptyWrap}>
-							<Text style={styles.emptyTitle}>No vouchers available yet</Text>
-							<Text style={styles.emptySub}>Ask admin to create vouchers, then pull down to refresh.</Text>
-						</View>
-					)}
-				</ScrollView>
-			)}
-		</SafeAreaView>
-	);
+              {vouchers.length === 0 && (
+                <View style={styles.emptyBox}>
+                  <Text style={{ fontSize: 48, marginBottom: 12 }}>🏷️</Text>
+                  <Text style={styles.emptyTitle}>No vouchers yet</Text>
+                  <Text style={styles.emptyText}>
+                    Check back soon — exclusive deals are on their way.
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </ScrollView>
+      )}
+    </View>
+  );
 }
 
+/* ==============================================
+   STYLES
+============================================== */
 const styles = StyleSheet.create({
-	safe: {
-		flex: 1,
-		backgroundColor: colors.bg,
-	},
-	header: {
-		paddingHorizontal: 16,
-		paddingTop: 10,
-	},
-	title: {
-		fontSize: 28,
-		fontWeight: '800',
-		color: colors.text,
-	},
-	subtitle: {
-		marginTop: 6,
-		fontSize: 14,
-		color: colors.sub,
-	},
-	loaderWrap: {
-		flex: 1,
-		justifyContent: 'center',
-		alignItems: 'center',
-		gap: 10,
-	},
-	loaderText: {
-		color: colors.sub,
-		fontSize: 14,
-	},
-	listContent: {
-		paddingHorizontal: 16,
-		paddingVertical: 14,
-		paddingBottom: 40,
-		gap: 12,
-	},
-	card: {
-		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: 1,
-		borderRadius: 18,
-		padding: 14,
-	},
-	topRow: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		marginBottom: 8,
-	},
-	leftValue: {
-		fontSize: 22,
-		fontWeight: '800',
-		color: colors.text,
-	},
-	rightTag: {
-		fontSize: 12,
-		fontWeight: '700',
-		color: colors.accent,
-		backgroundColor: '#E8F1FF',
-		paddingHorizontal: 10,
-		paddingVertical: 5,
-		borderRadius: 999,
-		overflow: 'hidden',
-	},
-	badge: {
-		fontSize: 12,
-		fontWeight: '700',
-		color: colors.accent,
-		marginBottom: 6,
-	},
-	label: {
-		fontSize: 17,
-		fontWeight: '800',
-		color: colors.text,
-	},
-	description: {
-		fontSize: 14,
-		color: colors.sub,
-		marginTop: 6,
-		lineHeight: 20,
-	},
-	validity: {
-		fontSize: 12,
-		color: colors.sub,
-		marginTop: 8,
-	},
-	codeBox: {
-		marginTop: 12,
-		borderWidth: 1,
-		borderColor: '#CFE0FF',
-		borderRadius: 12,
-		paddingHorizontal: 12,
-		paddingVertical: 10,
-		backgroundColor: '#F2F7FF',
-	},
-	codeLabel: {
-		fontSize: 11,
-		fontWeight: '700',
-		color: '#4B5C7D',
-		letterSpacing: 0.7,
-	},
-	codeValue: {
-		fontSize: 18,
-		fontWeight: '900',
-		color: colors.accent,
-		marginTop: 4,
-	},
-	categoryText: {
-		marginTop: 10,
-		fontSize: 12,
-		color: '#6F7C93',
-	},
-	statusText: {
-		marginTop: 10,
-		fontSize: 12,
-		fontWeight: '700',
-	},
-	claimBtn: {
-		marginTop: 12,
-		backgroundColor: colors.accent,
-		paddingVertical: 11,
-		borderRadius: 10,
-		alignItems: 'center',
-	},
-	claimBtnDisabled: {
-		backgroundColor: '#D5DCE9',
-	},
-	claimBtnText: {
-		fontSize: 13,
-		fontWeight: '800',
-		color: '#FFFFFF',
-	},
-	claimBtnTextDisabled: {
-		color: '#596A84',
-	},
-	claimedText: {
-		color: '#0E9F6E',
-	},
-	redeemedText: {
-		color: '#7C3AED',
-	},
-	notClaimedText: {
-		color: '#DA8B00',
-	},
-	emptyWrap: {
-		marginTop: 28,
-		alignItems: 'center',
-		paddingHorizontal: 18,
-	},
-	emptyTitle: {
-		fontSize: 18,
-		fontWeight: '800',
-		color: colors.text,
-	},
-	emptySub: {
-		marginTop: 6,
-		fontSize: 13,
-		color: colors.sub,
-		textAlign: 'center',
-		lineHeight: 18,
-	},
+  container:   { flex: 1, backgroundColor: C.bg },
+  center:      { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  loadingText: { color: C.textSub, fontSize: 14 },
+
+  /* Header */
+  header: {
+    backgroundColor: C.bgLayer,
+    paddingTop: Platform.OS === 'ios' ? 60 : 44,
+    paddingHorizontal: 20,
+    paddingBottom: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  eyebrow:  { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700', marginBottom: 4 },
+  title:    { color: C.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  subtitle: { color: C.textSub, fontSize: 13, marginTop: 4, marginBottom: 14, lineHeight: 18 },
+
+  /* Pills */
+  pillRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  pill: {
+    flex: 1,
+    backgroundColor: C.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 10,
+    alignItems: 'center',
+  },
+  pillValue: { color: C.accent, fontSize: 15, fontWeight: '800' },
+  pillLabel: { color: C.textSub, fontSize: 9, marginTop: 3, textAlign: 'center' },
+
+  /* Tab bar */
+  tabBar:        { marginHorizontal: -20 },
+  tabBarContent: { paddingHorizontal: 20, gap: 4 },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 2.5,
+    borderBottomColor: 'transparent',
+  },
+  tabActive:         { borderBottomColor: C.accent },
+  tabActiveUsed:     { borderBottomColor: C.purple },
+  tabText:           { color: C.textSub, fontSize: 13, fontWeight: '600' },
+  tabTextActive:     { color: C.accentText, fontWeight: '700' },
+  tabBadge: {
+    minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.border,
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  tabBadgeActive:    { backgroundColor: C.accent, borderColor: C.accent },
+  tabBadgeTxt:       { color: C.textSub, fontSize: 9, fontWeight: '800' },
+  tabBadgeTxtActive: { color: C.bg },
+
+  /* List */
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 60,
+    gap: 4,
+  },
+
+  /* Section */
+  section: { marginBottom: 20 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionTitle:      { color: C.text, fontSize: 16, fontWeight: '800' },
+  countBadge: {
+    backgroundColor: C.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  countBadgeText: { color: C.textSub, fontSize: 11, fontWeight: '700' },
+  claimableTag: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  claimableTagText: { fontSize: 11, fontWeight: '700' },
+
+  /* Active voucher card */
+  card: {
+    flexDirection: 'row',
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  cardLocked: { opacity: 0.52 },
+
+  /* Used voucher card */
+  usedCard: {
+    flexDirection: 'row',
+    backgroundColor: C.bgLayer,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(167,139,250,0.25)',
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  usedCardLeft: {
+    width: 88,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRightWidth: 1,
+    borderStyle: 'dashed',
+    borderRightColor: 'rgba(167,139,250,0.25)',
+    gap: 6,
+  },
+  usedLeftValue: {
+    color: C.textSub,
+    fontSize: 19,
+    fontWeight: '900',
+    textAlign: 'center',
+    lineHeight: 23,
+  },
+  usedStamp: {
+    borderWidth: 1.5,
+    borderColor: C.purple,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    transform: [{ rotate: '-12deg' }],
+  },
+  usedStampText: {
+    color: C.purple,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  usedCodeValue: {
+    color: C.textSub,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 4,
+    textDecorationLine: 'line-through',
+    textDecorationColor: C.textSub,
+  },
+
+  /* Used banner */
+  usedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.purpleBg,
+    borderWidth: 1,
+    borderColor: 'rgba(167,139,250,0.35)',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  usedBannerTitle: { color: C.purple, fontSize: 14, fontWeight: '800' },
+  usedBannerSub:   { color: C.textSub, fontSize: 12, marginTop: 2, lineHeight: 16 },
+
+  /* Left panel (shared) */
+  cardLeft: {
+    width: 88,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRightWidth: 1,
+    borderStyle: 'dashed',
+    gap: 4,
+  },
+  monthLabel: {
+    color: C.textSub,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  leftValue: {
+    color: C.mint,
+    fontSize: 19,
+    fontWeight: '900',
+    textAlign: 'center',
+    lineHeight: 23,
+  },
+  multiTag: {
+    backgroundColor: 'rgba(0,194,199,0.12)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.accent,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    marginTop: 2,
+  },
+  multiTagText: { color: C.accentText, fontSize: 10, fontWeight: '800' },
+
+  /* Right panel (shared) */
+  cardRight: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 3,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+    flexWrap: 'wrap',
+  },
+  badgeChip: {
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  badgeChipText:  { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  rightTagInline: { color: C.textSub, fontSize: 11, flexShrink: 1 },
+  description:    { color: C.text, fontSize: 12, lineHeight: 17 },
+  validity:       { color: C.textSub, fontSize: 10, marginTop: 2 },
+
+  innerDivider: {
+    height: 1,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: C.border,
+    marginVertical: 8,
+  },
+
+  codeValue: {
+    color: C.accentText,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+
+  cardBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 2,
+  },
+  statusRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
+  statusLabel: { fontSize: 11, fontWeight: '700', flexShrink: 1 },
+
+  claimBtn: {
+    backgroundColor: C.accent,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  claimBtnDisabled: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  claimBtnText:         { color: C.bg, fontSize: 11, fontWeight: '800' },
+  claimBtnTextDisabled: { color: C.textSub, fontSize: 10 },
+
+  /* Corner accents */
+  corner:   { position: 'absolute', backgroundColor: C.accent, opacity: 0.4 },
+  cornerTL: { top: 0, left: 0, width: 14, height: 1.5 },
+  cornerBR: { bottom: 0, right: 0, width: 14, height: 1.5 },
+
+  /* Empty */
+  emptyBox:  { marginTop: 40, alignItems: 'center', gap: 8, paddingHorizontal: 20 },
+  emptyTitle:{ color: C.text, fontSize: 18, fontWeight: '700' },
+  emptyText: { color: C.textSub, textAlign: 'center', lineHeight: 20, fontSize: 13 },
+
+  /* Note */
+  noteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: C.successBg,
+    borderWidth: 1,
+    borderColor: C.mint,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  noteIcon: { color: C.mint, fontSize: 12, fontWeight: '800', marginTop: 1 },
+  noteText: { color: C.textSub, fontSize: 12, lineHeight: 18, flex: 1 },
 });

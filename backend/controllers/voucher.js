@@ -41,6 +41,7 @@ async function notifyAllUsersForNewVoucher(voucher) {
       .map((user) => user.expoPushToken)
       .filter((token) => typeof token === 'string' && token.startsWith('ExponentPushToken['))
   )]
+
   if (tokens.length) {
     await sendExpoPush(tokens, {
       title,
@@ -56,7 +57,32 @@ async function notifyAllUsersForNewVoucher(voucher) {
   }
 }
 
+/* ─── Helper: check if a monthly voucher is claimable ─── */
+function getMonthlyClaimError(voucher) {
+  if (voucher.category !== 'monthly-voucher') return null
+
+  const currentMonth   = new Date().getMonth() + 1 // e.g. 3 = March
+  const claimableMonth = currentMonth + 1           // e.g. 4 = April
+
+  if (voucher.month === null || voucher.month === undefined) {
+    return 'This voucher is not yet available.'
+  }
+  if (voucher.month < currentMonth) {
+    return 'This voucher has expired.'
+  }
+  if (voucher.month === currentMonth) {
+    return "This month's voucher has already passed."
+  }
+  if (voucher.month > claimableMonth) {
+    return 'This voucher is not yet available.'
+  }
+
+  return null // voucher.month === claimableMonth → claimable ✓
+}
+
+// ─────────────────────────────────────────────
 // CREATE VOUCHER
+// ─────────────────────────────────────────────
 exports.createVoucher = async (req, res) => {
   try {
     const payload = {
@@ -81,7 +107,9 @@ exports.createVoucher = async (req, res) => {
   }
 }
 
+// ─────────────────────────────────────────────
 // GET ADMIN VOUCHERS
+// ─────────────────────────────────────────────
 exports.getAdminVouchers = async (req, res) => {
   try {
     const vouchers = await Voucher.find({ isDeleted: { $ne: true } }).sort({ createdAt: -1 })
@@ -98,7 +126,9 @@ exports.getAdminVouchers = async (req, res) => {
   }
 }
 
+// ─────────────────────────────────────────────
 // GET PUBLIC VOUCHERS
+// ─────────────────────────────────────────────
 exports.getPublicVouchers = async (req, res) => {
   try {
     const vouchers = await Voucher.find({
@@ -118,7 +148,9 @@ exports.getPublicVouchers = async (req, res) => {
   }
 }
 
+// ─────────────────────────────────────────────
 // GET CLAIMED VOUCHER IDS FOR CURRENT USER
+// ─────────────────────────────────────────────
 exports.getMyClaimedVoucherIds = async (req, res) => {
   try {
     const vouchers = await Voucher.find({
@@ -153,7 +185,9 @@ exports.getMyClaimedVoucherIds = async (req, res) => {
   }
 }
 
+// ─────────────────────────────────────────────
 // CLAIM VOUCHER
+// ─────────────────────────────────────────────
 exports.claimVoucher = async (req, res) => {
   try {
     const voucher = await Voucher.findById(req.params.id)
@@ -162,6 +196,15 @@ exports.claimVoucher = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Voucher not found',
+      })
+    }
+
+    // Block claiming locked monthly vouchers (server-side enforcement)
+    const monthlyError = getMonthlyClaimError(voucher)
+    if (monthlyError) {
+      return res.status(403).json({
+        success: false,
+        message: monthlyError,
       })
     }
 
@@ -193,7 +236,9 @@ exports.claimVoucher = async (req, res) => {
   }
 }
 
+// ─────────────────────────────────────────────
 // GET SINGLE VOUCHER
+// ─────────────────────────────────────────────
 exports.getSingleVoucher = async (req, res) => {
   try {
     const voucher = await Voucher.findById(req.params.id)
@@ -217,7 +262,9 @@ exports.getSingleVoucher = async (req, res) => {
   }
 }
 
+// ─────────────────────────────────────────────
 // UPDATE VOUCHER
+// ─────────────────────────────────────────────
 exports.updateVoucher = async (req, res) => {
   try {
     let voucher = await Voucher.findById(req.params.id)
@@ -256,7 +303,9 @@ exports.updateVoucher = async (req, res) => {
   }
 }
 
+// ─────────────────────────────────────────────
 // DELETE VOUCHER (SOFT DELETE)
+// ─────────────────────────────────────────────
 exports.deleteVoucher = async (req, res) => {
   try {
     const voucher = await Voucher.findById(req.params.id)

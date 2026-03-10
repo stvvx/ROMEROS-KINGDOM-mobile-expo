@@ -14,6 +14,19 @@ const voucherSchema = new mongoose.Schema({
     enum: ['free-shipping', 'minimum-spend', 'monthly-voucher'],
     required: [true, 'Please select voucher category'],
   },
+  month: {
+  type: Number,
+  min: 1,
+  max: 12,
+  default: null,
+  validate: {
+    validator: function (v) {
+      if (this.category === 'monthly-voucher') return v !== null && v !== undefined;
+      return true;
+    },
+    message: 'Month is required for monthly vouchers (1–12)',
+  },
+},
   badge: {
     type: String,
     required: [true, 'Please enter badge'],
