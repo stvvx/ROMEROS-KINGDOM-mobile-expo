@@ -17,20 +17,36 @@ import AdminToast from '@/components/admin-toast'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { deleteAdminReview, fetchAdminReviews } from '@/store/slices/adminReviewSlice'
 
-// ─── DESIGN TOKENS ────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics (Admin variant)
+───────────────────────────────────────── */
 const C = {
-  bg:         '#2a0508',
-  bgLayer:    '#350709',
-  surface:    '#420a0e',
-  border:     '#5a1015',
-  accent:     '#800007',
-  accentText: '#c0000a',
-  mint:       '#996250',
-  text:       '#F9F9F9',
-  textSub:    '#c8a090',
-  textDim:    '#7a3030',
-  danger:     '#FF5A6E',
-}
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  surfaceHigh: '#0A2035',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.45)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  danger:      '#FF4060',
+  dangerBg:    'rgba(255,64,96,0.08)',
+  dangerBorder:'rgba(255,64,96,0.22)',
+  success:     '#00D4AA',
+  successBg:   'rgba(0,212,170,0.08)',
+  successBorder:'rgba(0,212,170,0.3)',
+  warn:        '#F59E0B',
+  warnBg:      'rgba(245,158,11,0.1)',
+  warnBorder:  'rgba(245,158,11,0.28)',
+  white:       '#FFFFFF',
+} as const
+
+const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace'
 
 // ─── TYPES ────────────────────────────────────────────────────
 interface AdminReviewItem {
@@ -96,7 +112,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 const cd = StyleSheet.create({
   overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
   card:       { width: '100%', backgroundColor: C.bgLayer, borderRadius: 22, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
-  iconWrap:   { width: 72, height: 72, borderRadius: 20, backgroundColor: 'rgba(255,90,110,0.1)', borderWidth: 1, borderColor: 'rgba(255,90,110,0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  iconWrap:   { width: 72, height: 72, borderRadius: 20, backgroundColor: C.dangerBg,   borderWidth: 1, borderColor: C.dangerBorder,   alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   title:      { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 8, textAlign: 'center' },
   message:    { fontSize: 13, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   divider:    { width: '100%', height: 1, backgroundColor: C.border, marginBottom: 20 },
@@ -375,7 +391,7 @@ const s = StyleSheet.create({
   pageHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 14 },
   pageTitle:    { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: 0.3, marginBottom: 2 },
   pageSubtitle: { fontSize: 12, color: C.textSub },
-  refreshBtn:   { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.12)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)', alignItems: 'center', justifyContent: 'center' },
+  refreshBtn:   { width: 38, height: 38, borderRadius: 12, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center' },
 
   statsRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 10, marginBottom: 16 },
   statCard: { flex: 1, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, alignItems: 'center', gap: 4 },
@@ -386,11 +402,11 @@ const s = StyleSheet.create({
   filterLabel:    { fontSize: 11, fontWeight: '700', color: C.textSub, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
   chipRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip:           { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
-  chipActive:     { borderColor: 'rgba(255,202,40,0.5)', backgroundColor: 'rgba(255,202,40,0.1)' },
+  chipActive:     { borderColor: C.warnBorder, backgroundColor: C.warnBg },
   chipText:       { color: C.textSub, fontWeight: '700', fontSize: 12 },
   chipTextActive: { color: '#ffca28' },
 
-  errorWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, marginBottom: 10, backgroundColor: 'rgba(255,90,110,0.08)', borderWidth: 1, borderColor: 'rgba(255,90,110,0.25)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  errorWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, marginBottom: 10, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerBorder, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
   errorText: { color: C.danger, fontSize: 13, fontWeight: '600', flex: 1 },
 
   emptyState:   { paddingTop: 60, justifyContent: 'center', alignItems: 'center', gap: 10 },
@@ -400,14 +416,14 @@ const s = StyleSheet.create({
 
   card:            { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 14, gap: 10 },
   cardTop:         { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  productIconWrap: { width: 40, height: 40, borderRadius: 11, backgroundColor: 'rgba(128,0,7,0.15)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.3)', alignItems: 'center', justifyContent: 'center' },
+  productIconWrap: { width: 40, height: 40, borderRadius: 11, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center' },
   productName:     { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 2 },
   metaText:        { fontSize: 11, color: C.textDim },
-  ratingBadge:     { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, backgroundColor: 'rgba(255,202,40,0.1)', borderWidth: 1, borderColor: 'rgba(255,202,40,0.3)' },
+  ratingBadge:     { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, backgroundColor: C.warnBg, borderWidth: 1, borderColor: C.warnBorder },
   ratingText:      { color: '#ffca28', fontWeight: '800', fontSize: 13 },
 
   userRow:        { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  userAvatar:     { width: 30, height: 30, borderRadius: 8, backgroundColor: 'rgba(128,0,7,0.15)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.3)', alignItems: 'center', justifyContent: 'center' },
+  userAvatar:     { width: 30, height: 30, borderRadius: 8, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center' },
   userAvatarText: { color: C.text, fontSize: 12, fontWeight: '700' },
   userName:       { fontSize: 13, fontWeight: '600', color: C.text },
   userEmail:      { fontSize: 11, color: C.textSub },
@@ -418,10 +434,10 @@ const s = StyleSheet.create({
   divider:   { height: 1, backgroundColor: C.border },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
-  viewBtn:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(128,0,7,0.1)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)' },
+  viewBtn:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright },
   viewBtnText: { color: C.accent, fontWeight: '700', fontSize: 12 },
 
-  deleteBtn:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(255,90,110,0.08)', borderWidth: 1, borderColor: 'rgba(255,90,110,0.25)' },
+  deleteBtn:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerBorder },
   deleteBtnBusy: { opacity: 0.6 },
   deleteBtnText: { color: C.danger, fontWeight: '700', fontSize: 12 },
 })

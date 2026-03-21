@@ -19,20 +19,36 @@ import { fetchAdminOrders, updateAdminOrderStatus } from '@/store/slices/adminOr
 import { useLocalSearchParams } from 'expo-router'
 import { Stack } from 'expo-router'
 
-// ─── DESIGN TOKENS ────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics (Admin variant)
+───────────────────────────────────────── */
 const C = {
-  bg:         '#2a0508',
-  bgLayer:    '#350709',
-  surface:    '#420a0e',
-  border:     '#5a1015',
-  accent:     '#800007',
-  accentText: '#c0000a',
-  mint:       '#996250',
-  text:       '#F9F9F9',
-  textSub:    '#c8a090',
-  textDim:    '#7a3030',
-  danger:     '#FF5A6E',
-}
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  surfaceHigh: '#0A2035',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.45)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  danger:      '#FF4060',
+  dangerBg:    'rgba(255,64,96,0.08)',
+  dangerBorder:'rgba(255,64,96,0.22)',
+  success:     '#00D4AA',
+  successBg:   'rgba(0,212,170,0.08)',
+  successBorder:'rgba(0,212,170,0.3)',
+  warn:        '#F59E0B',
+  warnBg:      'rgba(245,158,11,0.1)',
+  warnBorder:  'rgba(245,158,11,0.28)',
+  white:       '#FFFFFF',
+} as const
+
+const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace'
 
 // ─── STATUS OPTIONS ────────────────────────────────────────────
 const STATUS_OPTIONS = ['Processing', 'Shipped', 'Delivered', 'Cancelled'] as const
@@ -54,18 +70,19 @@ const isValidStatusTransition = (from: string, to: string) => {
   return options.includes(t)
 }
 
+/* ─── Order status color config ─── */
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'Processing':
-      return { bg: 'rgba(255,202,40,0.12)', border: 'rgba(255,202,40,0.25)', text: '#ffca28',  icon: 'hourglass'      }
+      return { bg: C.warnBg,     border: C.warnBorder,     text: C.warn,     icon: 'hourglass'      }
     case 'Shipped':
-      return { bg: 'rgba(192,0,10,0.12)',   border: 'rgba(192,0,10,0.25)',   text: '#c0000a',  icon: 'truck-outline'  }
+      return { bg: C.accentGlow, border: C.borderBright,   text: C.accentText, icon: 'truck-outline'  }
     case 'Delivered':
-      return { bg: 'rgba(153,98,80,0.15)',  border: 'rgba(153,98,80,0.3)',   text: '#996250',  icon: 'check-circle'   }
+      return { bg: C.successBg,  border: C.successBorder,  text: C.success,  icon: 'check-circle'   }
     case 'Cancelled':
-      return { bg: 'rgba(255,90,110,0.10)', border: 'rgba(255,90,110,0.25)', text: '#FF5A6E',  icon: 'close-circle'   }
+      return { bg: C.dangerBg,   border: C.dangerBorder,   text: C.danger,   icon: 'close-circle'   }
     default:
-      return { bg: 'rgba(200,160,144,0.08)', border: 'rgba(200,160,144,0.15)', text: '#c8a090', icon: 'help-circle'   }
+      return { bg: C.surface,    border: C.border,         text: C.textSub,  icon: 'help-circle'   }
   }
 }
 
@@ -431,7 +448,7 @@ const s = StyleSheet.create({
   pageHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 14 },
   pageTitle:    { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: 0.3, marginBottom: 2 },
   pageSubtitle: { fontSize: 12, color: C.textSub },
-  refreshBtn:   { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.12)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)', alignItems: 'center', justifyContent: 'center' },
+  refreshBtn:   { width: 38, height: 38, borderRadius: 12, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center' },
 
   statsRow:  { flexDirection: 'row', paddingHorizontal: 18, paddingVertical: 2, gap: 10, marginBottom: 16 },
   statCard:  { width: 90, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14, paddingVertical: 16, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', gap: 6 },
@@ -445,7 +462,7 @@ const s = StyleSheet.create({
 
   card:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.surface, marginHorizontal: 18, marginBottom: 10, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
   cardLeft:      { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  orderNumberBg: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.15)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.3)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  orderNumberBg: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   cardInfo:      { flex: 1 },
   cardTitle:     { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 3 },
   cardEmail:     { fontSize: 12, color: C.textSub },

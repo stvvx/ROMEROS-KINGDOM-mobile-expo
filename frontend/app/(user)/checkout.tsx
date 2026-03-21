@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
@@ -21,22 +22,37 @@ const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   'http://localhost:4000/api/v1';
 
-// ─── DESIGN TOKENS ────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics
+───────────────────────────────────────── */
 const C = {
-  bg:         '#1a0204',
-  bgLayer:    '#200305',
-  surface:    '#2a0508',
-  border:     '#3d0a0d',
-  accent:     '#800007',
-  accentText: '#c0000a',
-  mint:       '#996250',
-  text:       '#F9F9F9',
-  textSub:    '#996250',
-  textBody:   '#c8a090',
-  danger:     '#FF5A6E',
-}
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  surfaceHigh: '#0A2035',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.45)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  danger:      '#FF4060',
+  dangerBg:    'rgba(255,64,96,0.08)',
+  dangerBorder:'rgba(255,64,96,0.22)',
+  success:     '#00D4AA',
+  warn:        '#F59E0B',
+  warnBg:      'rgba(245,158,11,0.1)',
+  warnBorder:  'rgba(245,158,11,0.28)',
+};
 
-// ─── THEMED ALERT MODAL ──────────────────────────────────────
+const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace';
+
+/* ─────────────────────────────────────────
+   Themed Alert Modal
+───────────────────────────────────────── */
 interface ThemedAlertProps {
   visible: boolean;
   type: 'success' | 'error' | 'warning' | 'info';
@@ -45,25 +61,48 @@ interface ThemedAlertProps {
   onClose: () => void;
 }
 
-const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message, onClose }) => {
+const ThemedAlert: React.FC<ThemedAlertProps> = ({
+  visible, type, title, message, onClose,
+}) => {
   const config = {
-    success: { icon: 'checkmark-circle' as const, color: C.mint,   bg: 'rgba(153,98,80,0.12)', border: 'rgba(153,98,80,0.3)',  btn: C.accent,  label: 'Great!'  },
-    error:   { icon: 'alert-circle'     as const, color: C.danger, bg: 'rgba(255,90,110,0.1)', border: 'rgba(255,90,110,0.28)', btn: C.danger,  label: 'Got it'  },
-    warning: { icon: 'warning'          as const, color: '#ffca28', bg: 'rgba(255,202,40,0.1)', border: 'rgba(255,202,40,0.28)', btn: '#e6b800', label: 'Okay'    },
-    info:    { icon: 'information-circle' as const, color: C.accent, bg: 'rgba(128,0,7,0.1)',  border: 'rgba(128,0,7,0.28)',   btn: C.accent,  label: 'Got it'  },
+    success: { icon: 'checkmark-circle' as const, color: C.success, bg: 'rgba(0,212,170,0.1)',  border: 'rgba(0,212,170,0.3)',  btn: C.success, tag: 'SYSTEM OK',      label: '[ CONFIRM ]'  },
+    error:   { icon: 'alert-circle'     as const, color: C.danger,  bg: C.dangerBg,              border: C.dangerBorder,          btn: C.danger,  tag: 'SYSTEM ERROR',  label: '[ DISMISS ]'  },
+    warning: { icon: 'warning'          as const, color: C.warn,    bg: C.warnBg,                border: C.warnBorder,            btn: C.warn,    tag: 'SYSTEM WARNING',label: '[ OKAY ]'     },
+    info:    { icon: 'information-circle' as const, color: C.accent, bg: C.accentGlow,            border: C.borderBright,          btn: C.accent,  tag: 'SYSTEM INFO',   label: '[ GOT IT ]'   },
   }[type];
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={al.overlay} onPress={onClose}>
         <Pressable style={al.card} onPress={() => {}}>
-          <View style={[al.iconWrap, { backgroundColor: config.bg, borderColor: config.border, borderWidth: 1 }]}>
-            <Ionicons name={config.icon} size={32} color={config.color} />
+          {/* Corner accents — tinted to alert type */}
+          <View style={[al.cornerTL, { borderColor: config.color }]} />
+          <View style={[al.cornerTR, { borderColor: config.color }]} />
+          <View style={[al.cornerBL, { borderColor: config.color }]} />
+          <View style={[al.cornerBR, { borderColor: config.color }]} />
+
+          {/* Icon */}
+          <View style={[al.iconWrap, { backgroundColor: config.bg, borderColor: config.border }]}>
+            <Ionicons name={config.icon} size={30} color={config.color} />
+            <View style={[al.iconDot, { backgroundColor: config.color }]} />
           </View>
+
+          {/* Sys tag */}
+          <View style={al.sysRow}>
+            <View style={[al.sysDash, { backgroundColor: config.color }]} />
+            <Text style={[al.sysTag, { color: config.color }]}>{config.tag}</Text>
+            <View style={[al.sysDash, { backgroundColor: config.color }]} />
+          </View>
+
           <Text style={al.title}>{title}</Text>
           <Text style={al.message}>{message}</Text>
           <View style={al.divider} />
-          <TouchableOpacity style={[al.btn, { backgroundColor: config.btn }]} onPress={onClose} activeOpacity={0.85}>
+
+          <TouchableOpacity
+            style={[al.btn, { backgroundColor: config.btn, overflow: 'hidden' }]}
+            onPress={onClose} activeOpacity={0.85}
+          >
+            <View style={al.btnScan} />
             <Text style={al.btnText}>{config.label}</Text>
           </TouchableOpacity>
         </Pressable>
@@ -73,48 +112,130 @@ const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message
 };
 
 const al = StyleSheet.create({
-  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
-  card:     { width: '100%', backgroundColor: C.surface, borderRadius: 22, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
-  iconWrap: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  title:    { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 8, textAlign: 'center' },
-  message:  { fontSize: 13, color: C.textBody, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  divider:  { width: '100%', height: 1, backgroundColor: C.border, marginBottom: 20 },
-  btn:      { width: '100%', borderRadius: 13, paddingVertical: 14, alignItems: 'center' },
-  btnText:  { fontSize: 14, fontWeight: '700', color: C.text },
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.82)',
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28,
+  },
+  card: {
+    width: '100%', backgroundColor: C.bgLayer,
+    borderRadius: 18, borderWidth: 1, borderColor: C.border,
+    padding: 28, alignItems: 'center',
+    shadowColor: C.accent, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2, shadowRadius: 28, elevation: 18,
+  },
+  cornerTL: { position: 'absolute', top: -1, left: -1,   width: 14, height: 14, borderTopWidth: 2,    borderLeftWidth: 2,  borderTopLeftRadius: 18 },
+  cornerTR: { position: 'absolute', top: -1, right: -1,  width: 14, height: 14, borderTopWidth: 2,    borderRightWidth: 2, borderTopRightRadius: 18 },
+  cornerBL: { position: 'absolute', bottom: -1, left: -1,  width: 14, height: 14, borderBottomWidth: 2, borderLeftWidth: 2,  borderBottomLeftRadius: 18 },
+  cornerBR: { position: 'absolute', bottom: -1, right: -1, width: 14, height: 14, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 18 },
+  iconWrap: {
+    width: 64, height: 64, borderRadius: 16,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+  },
+  iconDot: { position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: 3.5, opacity: 0.8 },
+  sysRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  sysDash: { width: 14, height: 1, opacity: 0.45, marginHorizontal: 6 },
+  sysTag:  { fontSize: 8, letterSpacing: 1.8, opacity: 0.85, fontFamily: MONO },
+  title:   { fontSize: 18, fontWeight: '800', color: C.text, marginBottom: 8, textAlign: 'center', letterSpacing: 1.5, fontFamily: MONO },
+  message: { fontSize: 13, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  divider: { width: '100%', height: 1, backgroundColor: C.border, marginBottom: 18 },
+  btn:     { width: '100%', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  btnScan: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: 'rgba(255,255,255,0.2)' },
+  btnText: { fontSize: 12, fontWeight: '800', color: C.bg, letterSpacing: 2, fontFamily: MONO },
 });
 
-// ─── MAIN SCREEN ─────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Input Field Helper
+───────────────────────────────────────── */
+interface FieldProps {
+  label: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder: string;
+  keyboardType?: any;
+  leftIcon?: React.ReactNode;
+  style?: any;
+}
+
+const Field: React.FC<FieldProps> = ({
+  label, value, onChangeText, placeholder, keyboardType, leftIcon, style,
+}) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={fi.group}>
+      <View style={fi.labelRow}>
+        <View style={fi.tick} />
+        <Text style={fi.label}>{label}</Text>
+      </View>
+      <View style={[fi.wrap, focused && fi.wrapFocused, style]}>
+        <View style={fi.rail} />
+        {leftIcon && <View style={fi.iconWrap}>{leftIcon}</View>}
+        <TextInput
+          style={fi.input}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={C.textDim}
+          keyboardType={keyboardType}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          selectionColor={C.accent}
+        />
+      </View>
+    </View>
+  );
+};
+
+const fi = StyleSheet.create({
+  group:      { marginBottom: 14 },
+  labelRow:   { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
+  tick:       { width: 2.5, height: 10, borderRadius: 1.5, backgroundColor: C.accent },
+  label:      { fontSize: 9, fontWeight: '700', color: C.accent, letterSpacing: 2, fontFamily: MONO },
+  wrap: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,168,255,0.04)',
+    borderWidth: 1, borderColor: C.border,
+    borderRadius: 9, overflow: 'hidden', height: 48,
+  },
+  wrapFocused:{ borderColor: C.accent, backgroundColor: 'rgba(0,168,255,0.08)' },
+  rail:       { width: 3, alignSelf: 'stretch', backgroundColor: C.accentDim },
+  iconWrap:   { paddingLeft: 12, paddingRight: 4 },
+  input:      { flex: 1, color: C.text, fontSize: 14, paddingHorizontal: 12, height: '100%', fontFamily: MONO },
+});
+
+/* ─────────────────────────────────────────
+   Main Screen
+───────────────────────────────────────── */
 export default function Checkout() {
   const router = useRouter();
-  const { voucherId, voucherCode, voucherDiscount } = useLocalSearchParams<{ voucherId?: string; voucherCode?: string; voucherDiscount?: string }>();
-  const [loading, setLoading]             = useState(false);
-  const [cartItems, setCartItems]         = useState<any[]>([]);
-  const [itemsPrice, setItemsPrice]       = useState(0);
-  const [taxPrice, setTaxPrice]           = useState(0);
-  const [shippingPrice, setShippingPrice] = useState(0);
-  const [totalPrice, setTotalPrice]       = useState(0);
+  const { voucherId, voucherCode, voucherDiscount } = useLocalSearchParams<{
+    voucherId?: string; voucherCode?: string; voucherDiscount?: string;
+  }>();
 
-  const [address, setAddress]       = useState('');
-  const [city, setCity]             = useState('');
+  const [loading,       setLoading]       = useState(false);
+  const [cartItems,     setCartItems]     = useState<any[]>([]);
+  const [itemsPrice,    setItemsPrice]    = useState(0);
+  const [taxPrice,      setTaxPrice]      = useState(0);
+  const [shippingPrice, setShippingPrice] = useState(0);
+  const [totalPrice,    setTotalPrice]    = useState(0);
+
+  const [address,    setAddress]    = useState('');
+  const [city,       setCity]       = useState('');
   const [postalCode, setPostalCode] = useState('');
-  const [country, setCountry]       = useState('');
-  const [phoneNo, setPhoneNo]       = useState('');
+  const [country,    setCountry]    = useState('');
+  const [phoneNo,    setPhoneNo]    = useState('');
 
   const [alertVisible, setAlertVisible] = useState(false);
-  const [alertType, setAlertType]       = useState<'success' | 'error' | 'warning' | 'info'>('info');
-  const [alertTitle, setAlertTitle]     = useState('');
+  const [alertType,    setAlertType]    = useState<'success' | 'error' | 'warning' | 'info'>('info');
+  const [alertTitle,   setAlertTitle]   = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertOnClose, setAlertOnClose] = useState<() => void>(() => () => {});
 
   const showAlert = (
     type: 'success' | 'error' | 'warning' | 'info',
-    title: string,
-    message: string,
+    title: string, message: string,
     onClose?: () => void,
   ) => {
-    setAlertType(type);
-    setAlertTitle(title);
-    setAlertMessage(message);
+    setAlertType(type); setAlertTitle(title); setAlertMessage(message);
     setAlertOnClose(() => onClose ?? (() => setAlertVisible(false)));
     setAlertVisible(true);
   };
@@ -127,9 +248,9 @@ export default function Checkout() {
         const sub      = items.reduce((s: number, it: any) => s + it.price * it.quantity, 0);
         const tax      = parseFloat((sub * 0.1).toFixed(2));
         const shipping = items.length > 0 ? 150 : 0;
-        const parsedDiscount = parseFloat(String(voucherDiscount || '0')) || 0;
+        const parsedDiscount   = parseFloat(String(voucherDiscount || '0')) || 0;
         const preDiscountTotal = sub + tax + shipping;
-        const appliedDiscount = Math.min(parsedDiscount, preDiscountTotal);
+        const appliedDiscount  = Math.min(parsedDiscount, preDiscountTotal);
         setItemsPrice(sub);
         setTaxPrice(tax);
         setShippingPrice(shipping);
@@ -148,34 +269,29 @@ export default function Checkout() {
             }
           }
         } catch (_) {}
-      } catch (err) {
-        console.error('Error loading cart for checkout:', err);
-      }
+      } catch (err) { console.error('Error loading cart for checkout:', err); }
     })();
   }, []);
 
   const placeOrderCOD = async () => {
-    if (cartItems.length === 0) { showAlert('warning', 'Cart Empty', 'Add items before placing an order.'); return; }
+    if (cartItems.length === 0) { showAlert('warning', 'CART EMPTY', 'Add units before placing an order.'); return; }
     if (!address || !city || !postalCode || !country || !phoneNo) {
-      showAlert('warning', 'Missing Info', 'Please fill in all shipping information.'); return;
+      showAlert('warning', 'MISSING DATA', 'Fill in all shipping information fields.'); return;
     }
-
     setLoading(true);
     try {
       const token = await getItem('authToken');
       if (!token) {
-        showAlert('error', 'Not Signed In', 'Please sign in to place an order.', () => {
+        showAlert('error', 'NOT AUTHENTICATED', 'Sign in to place an order.', () => {
           setAlertVisible(false); router.push('/(auth)/login');
         });
         return;
       }
-
       const orderItems = cartItems.map((it: any) => ({
         name: it.name, quantity: it.quantity,
-        image: it.images?.[0]?.url || '',
-        price: it.price, product: it._id || it.product || it.id,
+        image: it.images?.[0]?.url || '', price: it.price,
+        product: it._id || it.product || it.id,
       }));
-
       const payload = {
         orderItems,
         shippingInfo: { address, city, postalCode, country, phoneNo },
@@ -183,18 +299,16 @@ export default function Checkout() {
         paymentInfo: { id: 'COD', status: 'Cash On Delivery' },
         voucherId: voucherId || undefined,
       };
-
       const res = await axios.post(`${API_URL}/order/new`, payload, {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         timeout: 15000,
       });
-
       if (res.data.success) {
-        showAlert('success', 'Order Placed!', 'Your order was placed successfully (Cash on Delivery).', async () => {
+        showAlert('success', 'ORDER CONFIRMED', 'Your order was placed successfully. Cash on Delivery.', async () => {
           setAlertVisible(false); saveCartItemsSync([]); router.replace('/(tabs)');
         });
       } else {
-        showAlert('error', 'Order Failed', res.data.message || 'Could not place order.');
+        showAlert('error', 'ORDER FAILED', res.data.message || 'Could not place order.');
       }
     } catch (err: any) {
       console.error('Checkout error:', err?.response || err);
@@ -202,164 +316,175 @@ export default function Checkout() {
       const resp = err?.response;
       if (resp) {
         if (typeof resp.data === 'string') {
-          const titleMatch = resp.data.match(/<title>(.*?)<\/title>/i);
-          msg = titleMatch ? titleMatch[1] : `Server error (${resp.status})`;
+          const m = resp.data.match(/<title>(.*?)<\/title>/i);
+          msg = m ? m[1] : `Server error (${resp.status})`;
         } else if (resp.data && typeof resp.data === 'object') {
           msg = resp.data.message || JSON.stringify(resp.data);
-        } else {
-          msg = `Server error (${resp.status})`;
-        }
-      } else {
-        msg = err?.message || msg;
-      }
-      showAlert('error', 'Checkout Error', msg);
-    } finally {
-      setLoading(false);
-    }
+        } else { msg = `Server error (${resp.status})`; }
+      } else { msg = err?.message || msg; }
+      showAlert('error', 'CHECKOUT ERROR', msg);
+    } finally { setLoading(false); }
   };
 
   return (
     <View style={s.root}>
       <ThemedAlert
-        visible={alertVisible}
-        type={alertType}
-        title={alertTitle}
-        message={alertMessage}
-        onClose={alertOnClose}
+        visible={alertVisible} type={alertType}
+        title={alertTitle} message={alertMessage} onClose={alertOnClose}
       />
 
-      {/* ── Header ── */}
+      {/* ══════════════════════════════════
+          HEADER
+      ══════════════════════════════════ */}
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.75}>
-          <Feather name="arrow-left" size={18} color={C.text} />
+          <Feather name="arrow-left" size={17} color={C.text} />
         </TouchableOpacity>
         <View style={s.headerCenter}>
-          <Text style={s.headerTitle}>Checkout</Text>
-          <Text style={s.headerSubtitle}>Cash on Delivery</Text>
+          <View style={s.headerTitleRow}>
+            <View style={s.headerTick} />
+            <Text style={s.headerTitle}>CHECKOUT</Text>
+          </View>
+          <Text style={s.headerSubtitle}>CASH ON DELIVERY PROTOCOL</Text>
         </View>
         <View style={{ width: 38 }} />
       </View>
 
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
-        {/* ── Order Summary Card ── */}
-        <View style={s.sectionCard}>
-          <View style={s.sectionHeader}>
-            <View style={s.sectionIconWrap}>
-              <Feather name="file-text" size={16} color={C.accent} />
+        {/* ══════════════════════════════════
+            ORDER SUMMARY PANEL
+        ══════════════════════════════════ */}
+        <View style={s.panel}>
+          <View style={s.panelTL} /><View style={s.panelTR} />
+          <View style={s.panelHeader}>
+            <View style={s.panelIconWrap}>
+              <Feather name="file-text" size={15} color={C.accent} />
             </View>
-            <Text style={s.sectionTitle}>Order Summary</Text>
+            <View style={s.panelTitleBlock}>
+              <View style={s.panelTick} />
+              <Text style={s.panelTitle}>ORDER SUMMARY</Text>
+            </View>
           </View>
-          <View style={s.sectionDivider} />
+          <View style={s.panelDivider} />
 
           <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>Subtotal</Text>
+            <Text style={s.summaryLabel}>SUBTOTAL</Text>
             <Text style={s.summaryValue}>₱{itemsPrice.toFixed(2)}</Text>
           </View>
           <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>Tax (10%)</Text>
+            <Text style={s.summaryLabel}>TAX (10%)</Text>
             <Text style={s.summaryValue}>₱{taxPrice.toFixed(2)}</Text>
           </View>
           <View style={s.summaryRow}>
-            <View style={s.shippingLabelRow}>
-              <Text style={s.summaryLabel}>Shipping</Text>
-              <View style={s.flatRateBadge}>
-                <Text style={s.flatRateText}>Flat rate</Text>
-              </View>
+            <View style={s.shippingRow}>
+              <Text style={s.summaryLabel}>SHIPPING</Text>
+              <View style={s.flatBadge}><Text style={s.flatBadgeText}>FLAT</Text></View>
             </View>
             <Text style={s.summaryValue}>₱{shippingPrice.toFixed(2)}</Text>
           </View>
 
           {!!voucherDiscount && (parseFloat(String(voucherDiscount)) || 0) > 0 && (
             <View style={s.summaryRow}>
-              <Text style={s.discountLabel}>Voucher Discount{voucherCode ? ` (${voucherCode})` : ''}</Text>
+              <Text style={s.discountLabel}>DISCOUNT{voucherCode ? ` · ${voucherCode}` : ''}</Text>
               <Text style={s.discountValue}>-₱{(parseFloat(String(voucherDiscount)) || 0).toFixed(2)}</Text>
             </View>
           )}
 
-          <View style={s.sectionDivider} />
-
+          <View style={s.panelDivider} />
           <View style={s.summaryRow}>
-            <Text style={s.totalLabel}>Total</Text>
+            <Text style={s.totalLabel}>TOTAL</Text>
             <Text style={s.totalValue}>₱{totalPrice.toFixed(2)}</Text>
           </View>
         </View>
 
-        {/* ── Shipping Information Card ── */}
-        <View style={s.sectionCard}>
-          <View style={s.sectionHeader}>
-            <View style={s.sectionIconWrap}>
-              <MaterialCommunityIcons name="map-marker-outline" size={16} color={C.accent} />
+        {/* ══════════════════════════════════
+            SHIPPING INFORMATION PANEL
+        ══════════════════════════════════ */}
+        <View style={s.panel}>
+          <View style={s.panelTL} /><View style={s.panelTR} />
+          <View style={s.panelHeader}>
+            <View style={s.panelIconWrap}>
+              <MaterialCommunityIcons name="map-marker-outline" size={15} color={C.accent} />
             </View>
-            <Text style={s.sectionTitle}>Shipping Information</Text>
+            <View style={s.panelTitleBlock}>
+              <View style={s.panelTick} />
+              <Text style={s.panelTitle}>DELIVERY COORDINATES</Text>
+            </View>
           </View>
-          <View style={s.sectionDivider} />
+          <View style={s.panelDivider} />
 
-          <View style={s.inputGroup}>
-            <Text style={s.inputLabel}>Street Address</Text>
-            <TextInput style={s.input} value={address} onChangeText={setAddress} placeholder="e.g. 123 Main Street" placeholderTextColor={C.border} />
-          </View>
+          <Field label="Street Address"  value={address}    onChangeText={setAddress}    placeholder="e.g. 123 Main Street" />
 
           <View style={s.inputRow}>
-            <View style={[s.inputGroup, { flex: 1 }]}>
-              <Text style={s.inputLabel}>City</Text>
-              <TextInput style={s.input} value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={C.border} />
+            <View style={{ flex: 1 }}>
+              <Field label="City"         value={city}       onChangeText={setCity}       placeholder="City" />
             </View>
-            <View style={[s.inputGroup, { flex: 1 }]}>
-              <Text style={s.inputLabel}>Postal Code</Text>
-              <TextInput style={s.input} value={postalCode} onChangeText={setPostalCode} placeholder="0000" placeholderTextColor={C.border} keyboardType="numeric" />
+            <View style={{ flex: 1 }}>
+              <Field label="Postal Code"  value={postalCode} onChangeText={setPostalCode} placeholder="0000" keyboardType="numeric" />
             </View>
           </View>
 
-          <View style={s.inputGroup}>
-            <Text style={s.inputLabel}>Country</Text>
-            <TextInput style={s.input} value={country} onChangeText={setCountry} placeholder="e.g. Philippines" placeholderTextColor={C.border} />
-          </View>
-
-          <View style={s.inputGroup}>
-            <Text style={s.inputLabel}>Phone Number</Text>
-            <View style={s.phoneInputWrap}>
-              <Feather name="phone" size={14} color={C.textSub} style={s.phoneIcon} />
-              <TextInput style={[s.input, s.phoneInput]} value={phoneNo} onChangeText={setPhoneNo} placeholder="+63 900 000 0000" placeholderTextColor={C.border} keyboardType="phone-pad" />
-            </View>
-          </View>
+          <Field label="Country"        value={country}    onChangeText={setCountry}    placeholder="e.g. Philippines" />
+          <Field
+            label="Phone Number"
+            value={phoneNo}
+            onChangeText={setPhoneNo}
+            placeholder="+63 900 000 0000"
+            keyboardType="phone-pad"
+            leftIcon={<Feather name="phone" size={13} color={C.textSub} />}
+          />
         </View>
 
-        {/* ── Payment Method Card ── */}
-        <View style={s.sectionCard}>
-          <View style={s.sectionHeader}>
-            <View style={s.sectionIconWrap}>
-              <MaterialCommunityIcons name="cash" size={16} color={C.accent} />
+        {/* ══════════════════════════════════
+            PAYMENT METHOD PANEL
+        ══════════════════════════════════ */}
+        <View style={s.panel}>
+          <View style={s.panelTL} /><View style={s.panelTR} />
+          <View style={s.panelHeader}>
+            <View style={s.panelIconWrap}>
+              <MaterialCommunityIcons name="cash" size={15} color={C.accent} />
             </View>
-            <Text style={s.sectionTitle}>Payment Method</Text>
+            <View style={s.panelTitleBlock}>
+              <View style={s.panelTick} />
+              <Text style={s.panelTitle}>PAYMENT PROTOCOL</Text>
+            </View>
           </View>
-          <View style={s.sectionDivider} />
+          <View style={s.panelDivider} />
 
           <View style={s.codOption}>
             <View style={s.codIconWrap}>
-              <MaterialCommunityIcons name="cash-multiple" size={22} color={C.mint} />
+              <MaterialCommunityIcons name="cash-multiple" size={22} color={C.accentText} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.codTitle}>Cash on Delivery</Text>
+              <Text style={s.codTitle}>CASH ON DELIVERY</Text>
               <Text style={s.codSubtitle}>Pay when your order arrives</Text>
             </View>
-            <View style={s.codSelectedDot} />
+            {/* Active indicator */}
+            <View style={s.codActivePill}>
+              <View style={s.codPulseDot} />
+              <Text style={s.codActiveText}>ACTIVE</Text>
+            </View>
           </View>
         </View>
 
-        {/* ── Place Order Button ── */}
+        {/* ══════════════════════════════════
+            PLACE ORDER BUTTON
+        ══════════════════════════════════ */}
         <TouchableOpacity
           style={[s.placeOrderBtn, loading && s.placeOrderBtnLoading]}
           onPress={placeOrderCOD}
           disabled={loading}
           activeOpacity={0.85}
         >
+          <View style={s.placeOrderBtnScan} />
           {loading ? (
-            <ActivityIndicator color={C.text} size="small" />
+            <ActivityIndicator color={C.bg} size="small" />
           ) : (
             <>
-              <MaterialCommunityIcons name="lock-outline" size={17} color={C.text} />
-              <Text style={s.placeOrderBtnText}>Place Order</Text>
+              <MaterialCommunityIcons name="lock-outline" size={16} color={C.bg} style={{ marginRight: 8 }} />
+              <Text style={s.placeOrderBtnText}>CONFIRM ORDER</Text>
+              <Feather name="arrow-right" size={15} color={C.bg} style={{ marginLeft: 8 }} />
             </>
           )}
         </TouchableOpacity>
@@ -370,54 +495,135 @@ export default function Checkout() {
   );
 }
 
-// ─── STYLES ──────────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Styles
+───────────────────────────────────────── */
 const s = StyleSheet.create({
   root:          { flex: 1, backgroundColor: C.bg },
   scroll:        { flex: 1 },
   scrollContent: { paddingHorizontal: 18, paddingBottom: 16 },
 
+  /* Header */
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: C.border,
+    backgroundColor: C.bgLayer,
   },
-  backBtn:        { width: 38, height: 38, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  backBtn: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
   headerCenter:   { alignItems: 'center' },
-  headerTitle:    { fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: 0.2 },
-  headerSubtitle: { fontSize: 11, color: C.textSub, marginTop: 1 },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerTick:     { width: 3, height: 14, borderRadius: 2, backgroundColor: C.accent },
+  headerTitle: {
+    fontSize: 16, fontWeight: '800', color: C.text, letterSpacing: 3,
+    fontFamily: MONO,
+  },
+  headerSubtitle: {
+    fontSize: 8, color: C.textDim, letterSpacing: 1.5, marginTop: 2,
+    fontFamily: MONO,
+  },
 
-  sectionCard:    { backgroundColor: 'rgba(249,249,249,0.03)', borderWidth: 1, borderColor: C.border, borderRadius: 18, padding: 18, marginTop: 16 },
-  sectionHeader:  { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  sectionIconWrap:{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(128,0,7,0.12)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.28)', alignItems: 'center', justifyContent: 'center' },
-  sectionTitle:   { fontSize: 15, fontWeight: '800', color: C.text },
-  sectionDivider: { height: 1, backgroundColor: C.border, marginBottom: 14 },
+  /* Panel (shared card structure) */
+  panel: {
+    backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.border,
+    borderRadius: 16, padding: 18, marginTop: 16,
+  },
+  panelTL: { position: 'absolute', top: -1, left: -1,  width: 14, height: 14, borderTopWidth: 1.5,    borderLeftWidth: 1.5,  borderColor: C.accent, borderTopLeftRadius: 16 },
+  panelTR: { position: 'absolute', top: -1, right: -1, width: 14, height: 14, borderTopWidth: 1.5,    borderRightWidth: 1.5, borderColor: C.accent, borderTopRightRadius: 16 },
+  panelHeader:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  panelIconWrap:   { width: 34, height: 34, borderRadius: 9, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center' },
+  panelTitleBlock: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  panelTick:       { width: 2.5, height: 12, borderRadius: 1.5, backgroundColor: C.accent },
+  panelTitle: {
+    fontSize: 11, fontWeight: '800', color: C.text, letterSpacing: 2.5,
+    fontFamily: MONO,
+  },
+  panelDivider: { height: 1, backgroundColor: C.border, marginBottom: 14 },
 
-  summaryRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  summaryLabel:     { fontSize: 13, color: C.textSub },
-  summaryValue:     { fontSize: 13, fontWeight: '700', color: 'rgba(249,249,249,0.75)' },
-  discountLabel:    { fontSize: 13, color: C.mint, fontWeight: '700' },
-  discountValue:    { fontSize: 13, fontWeight: '800', color: C.mint },
-  shippingLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  flatRateBadge:    { backgroundColor: 'rgba(128,0,7,0.1)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  flatRateText:     { fontSize: 9, color: C.accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  totalLabel:       { fontSize: 15, fontWeight: '800', color: C.text },
-  totalValue:       { fontSize: 22, fontWeight: '800', color: C.accent },
+  /* Summary */
+  summaryRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  summaryLabel: {
+    fontSize: 9, color: C.textSub, letterSpacing: 1.8,
+    fontFamily: MONO,
+  },
+  summaryValue: {
+    fontSize: 13, fontWeight: '700', color: C.text,
+    fontFamily: MONO,
+  },
+  discountLabel: {
+    fontSize: 9, color: C.success, fontWeight: '700', letterSpacing: 1.8,
+    fontFamily: MONO,
+  },
+  discountValue: {
+    fontSize: 13, fontWeight: '800', color: C.success,
+    fontFamily: MONO,
+  },
+  shippingRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  flatBadge:     { backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  flatBadgeText: { fontSize: 7, color: C.accent, fontWeight: '700', letterSpacing: 1, fontFamily: MONO },
+  totalLabel: {
+    fontSize: 13, fontWeight: '800', color: C.text, letterSpacing: 2.5,
+    fontFamily: MONO,
+  },
+  totalValue: {
+    fontSize: 22, fontWeight: '800', color: C.accent,
+    fontFamily: MONO,
+    shadowColor: C.accent, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6, shadowRadius: 8,
+  },
 
-  inputGroup:    { marginBottom: 14 },
-  inputRow:      { flexDirection: 'row', gap: 12 },
-  inputLabel:    { fontSize: 11, fontWeight: '700', color: C.textSub, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 },
-  input:         { backgroundColor: 'rgba(249,249,249,0.04)', borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, color: C.text, fontSize: 14 },
-  phoneInputWrap:{ position: 'relative' },
-  phoneIcon:     { position: 'absolute', left: 14, top: 14, zIndex: 1 },
-  phoneInput:    { paddingLeft: 38 },
+  /* Input layout helpers */
+  inputRow: { flexDirection: 'row', gap: 12 },
 
-  codOption:     { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  codIconWrap:   { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(153,98,80,0.12)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.3)', alignItems: 'center', justifyContent: 'center' },
-  codTitle:      { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 2 },
-  codSubtitle:   { fontSize: 12, color: C.textSub },
-  codSelectedDot:{ width: 18, height: 18, borderRadius: 9, backgroundColor: C.mint, borderWidth: 3, borderColor: 'rgba(153,98,80,0.3)' },
+  /* COD option */
+  codOption: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  codIconWrap: {
+    width: 44, height: 44, borderRadius: 11,
+    backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  codTitle: {
+    fontSize: 12, fontWeight: '800', color: C.text, marginBottom: 2, letterSpacing: 1.5,
+    fontFamily: MONO,
+  },
+  codSubtitle:  { fontSize: 11, color: C.textSub },
+  codActivePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(0,212,170,0.1)',
+    borderWidth: 1, borderColor: 'rgba(0,212,170,0.3)',
+    borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5,
+  },
+  codPulseDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: C.success,
+    shadowColor: C.success, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9, shadowRadius: 4, elevation: 2,
+  },
+  codActiveText: {
+    fontSize: 8, fontWeight: '800', color: C.success, letterSpacing: 1.5,
+    fontFamily: MONO,
+  },
 
-  placeOrderBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.accent, paddingVertical: 17, borderRadius: 14, marginTop: 20, shadowColor: C.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 8 },
-  placeOrderBtnLoading: { opacity: 0.7 },
-  placeOrderBtnText:    { color: C.text, fontSize: 16, fontWeight: '800' },
+  /* Place Order Button */
+  placeOrderBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.accent, paddingVertical: 17,
+    borderRadius: 12, marginTop: 20, overflow: 'hidden',
+    shadowColor: C.accent, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65, shadowRadius: 16, elevation: 10,
+  },
+  placeOrderBtnScan: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: 2, backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  placeOrderBtnLoading: { opacity: 0.6 },
+  placeOrderBtnText: {
+    color: C.bg, fontSize: 13, fontWeight: '800', letterSpacing: 2.5,
+    fontFamily: MONO,
+  },
 });

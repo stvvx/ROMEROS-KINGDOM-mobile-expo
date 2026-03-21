@@ -10,6 +10,7 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native'
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons'
 import AdminHeader from '@/components/adminHeader'
@@ -17,20 +18,36 @@ import AdminToast from '@/components/admin-toast'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { deleteAdminVoucher, fetchAdminVouchers, upsertAdminVoucher } from '@/store/slices/adminVoucherSlice'
 
-// ─── DESIGN TOKENS ────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics (Admin variant)
+───────────────────────────────────────── */
 const C = {
-  bg:         '#2a0508',
-  bgLayer:    '#350709',
-  surface:    '#420a0e',
-  border:     '#5a1015',
-  accent:     '#800007',
-  accentText: '#c0000a',
-  mint:       '#996250',
-  text:       '#F9F9F9',
-  textSub:    '#c8a090',
-  textDim:    '#7a3030',
-  danger:     '#FF5A6E',
-}
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  surfaceHigh: '#0A2035',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.45)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  danger:      '#FF4060',
+  dangerBg:    'rgba(255,64,96,0.08)',
+  dangerBorder:'rgba(255,64,96,0.22)',
+  success:     '#00D4AA',
+  successBg:   'rgba(0,212,170,0.08)',
+  successBorder:'rgba(0,212,170,0.3)',
+  warn:        '#F59E0B',
+  warnBg:      'rgba(245,158,11,0.1)',
+  warnBorder:  'rgba(245,158,11,0.28)',
+  white:       '#FFFFFF',
+} as const
+
+const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace'
 
 type VoucherCategory = 'free-shipping' | 'minimum-spend' | 'monthly-voucher'
 
@@ -443,11 +460,11 @@ const styles = StyleSheet.create({
   ticketLeft:   { width: 108, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 14 },
   leftValue:    { color: C.mint, fontSize: 16, lineHeight: 20, textAlign: 'center', fontWeight: '900' },
   codeText:     { marginTop: 8, color: C.textSub, fontSize: 10, fontWeight: '800' },
-  ticketDivider:{ width: 2, backgroundColor: 'rgba(200,160,144,0.15)', borderStyle: 'dashed' },
+  ticketDivider:{ width: 2, backgroundColor: C.border, borderStyle: 'dashed' },
   ticketRight:  { flex: 1, paddingVertical: 12, paddingHorizontal: 12 },
 
   badgeRow:  { flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 },
-  badge:     { color: C.text, backgroundColor: 'rgba(128,0,7,0.22)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.45)', borderRadius: 7, overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 2, fontWeight: '900', fontSize: 11 },
+  badge:     { color: C.text, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, borderRadius: 7, overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 2, fontWeight: '900', fontSize: 11 },
   badgeMuted:{ color: C.textSub, fontSize: 12, fontWeight: '700' },
   desc:      { color: C.text, fontWeight: '800', fontSize: 18, lineHeight: 22 },
   validity:  { marginTop: 6, color: C.textSub, fontSize: 12 },
@@ -455,7 +472,7 @@ const styles = StyleSheet.create({
   bottomRow: { marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   editBtn:   { flexDirection: 'row', gap: 5, alignItems: 'center', backgroundColor: C.accent, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, shadowColor: C.accent, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 4 },
   editBtnText:   { color: C.text, fontWeight: '900', fontSize: 13 },
-  deleteBtn:     { flexDirection: 'row', gap: 5, alignItems: 'center', backgroundColor: 'rgba(255,90,110,0.12)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,90,110,0.25)' },
+  deleteBtn:     { flexDirection: 'row', gap: 5, alignItems: 'center', backgroundColor: C.dangerBg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: C.dangerBorder },
   deleteBtnDisabled: { opacity: 0.6 },
   deleteBtnText: { color: C.danger, fontWeight: '900', fontSize: 13 },
 

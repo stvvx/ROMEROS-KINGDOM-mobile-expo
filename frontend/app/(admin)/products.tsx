@@ -43,20 +43,36 @@ if (debuggerHost && debuggerHost !== 'localhost') {
   API_URL = API_URL.replace('localhost', '10.0.2.2')
 }
 
-// ==================== DESIGN TOKENS ====================
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics (Admin variant)
+───────────────────────────────────────── */
 const C = {
-  bg:         '#2a0508',
-  bgLayer:    '#350709',
-  surface:    '#420a0e',
-  border:     '#5a1015',
-  accent:     '#800007',
-  accentText: '#c0000a',
-  mint:       '#996250',
-  text:       '#F9F9F9',
-  textSub:    '#c8a090',
-  textDim:    '#7a3030',
-  danger:     '#FF5A6E',
-}
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  surfaceHigh: '#0A2035',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.45)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  danger:      '#FF4060',
+  dangerBg:    'rgba(255,64,96,0.08)',
+  dangerBorder:'rgba(255,64,96,0.22)',
+  success:     '#00D4AA',
+  successBg:   'rgba(0,212,170,0.08)',
+  successBorder:'rgba(0,212,170,0.3)',
+  warn:        '#F59E0B',
+  warnBg:      'rgba(245,158,11,0.1)',
+  warnBorder:  'rgba(245,158,11,0.28)',
+  white:       '#FFFFFF',
+} as const
+
+const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace'
 
 // ==================== TYPES ====================
 interface PickedImage {
@@ -141,7 +157,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 const cd = StyleSheet.create({
   overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
   card:       { width: '100%', backgroundColor: C.bgLayer, borderRadius: 22, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
-  iconWrap:   { width: 72, height: 72, borderRadius: 20, backgroundColor: 'rgba(255,90,110,0.1)', borderWidth: 1, borderColor: 'rgba(255,90,110,0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  iconWrap:   { width: 72, height: 72, borderRadius: 20, backgroundColor: C.dangerBg,   borderWidth: 1, borderColor: C.dangerBorder,   alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   title:      { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 8, textAlign: 'center' },
   message:    { fontSize: 13, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   divider:    { width: '100%', height: 1, backgroundColor: C.border, marginBottom: 20 },
@@ -599,16 +615,16 @@ const s = StyleSheet.create({
   emptySubtitle:{ fontSize: 13, color: C.textDim },
 
   card:            { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, marginBottom: 10, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
-  cardIcon:        { width: 56, height: 56, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.15)', alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' },
+  cardIcon:        { width: 56, height: 56, borderRadius: 12, backgroundColor: C.accentGlow, alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' },
   cardInfo:        { flex: 1 },
   cardName:        { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 3 },
   cardDesc:        { fontSize: 12, color: C.textSub, marginBottom: 6 },
   badgeRow:        { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  badge:           { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: 'rgba(128,0,7,0.1)' },
+  badge:           { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: C.accentGlow },
   badgeText:       { fontSize: 10, fontWeight: '700' },
   cardActions:     { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  actionIcon:      { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(128,0,7,0.1)', alignItems: 'center', justifyContent: 'center' },
-  actionIconDanger:{ backgroundColor: 'rgba(255,90,110,0.08)' },
+  actionIcon:      { width: 36, height: 36, borderRadius: 10, backgroundColor: C.accentGlow, alignItems: 'center', justifyContent: 'center' },
+  actionIconDanger:{ backgroundColor: C.dangerBg },
 
   modalOverlay:  { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },
@@ -634,8 +650,8 @@ const s = StyleSheet.create({
 
   imageButtonGroup: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   imageBtn:         { flex: 1, flexDirection: 'row', paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
-  imageBtnGallery:  { borderColor: 'rgba(128,0,7,0.4)', backgroundColor: 'rgba(128,0,7,0.1)' },
-  imageBtnCamera:   { borderColor: 'rgba(153,98,80,0.4)', backgroundColor: 'rgba(153,98,80,0.1)' },
+  imageBtnGallery:  { borderColor: C.borderBright, backgroundColor: C.accentGlow },
+  imageBtnCamera:   { borderColor: C.successBorder, backgroundColor: C.successBg },
   imageBtnText:     { color: C.textSub, fontWeight: '700', fontSize: 13 },
 
   imagePreviewContainer: { gap: 12, paddingBottom: 8 },

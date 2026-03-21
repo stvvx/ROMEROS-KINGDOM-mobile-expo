@@ -24,6 +24,10 @@ export default function UserLayout() {
         options={{ headerShown: false }} 
       />
       <Stack.Screen
+        name="notifications"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="vouchers"
         options={{ headerShown: false }}
       />

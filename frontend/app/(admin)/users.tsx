@@ -36,20 +36,36 @@ if (debuggerHost && debuggerHost !== 'localhost') {
   API_URL = API_URL.replace('localhost', '10.0.2.2')
 }
 
-// ─── DESIGN TOKENS ────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics (Admin variant)
+───────────────────────────────────────── */
 const C = {
-  bg:         '#2a0508',
-  bgLayer:    '#350709',
-  surface:    '#420a0e',
-  border:     '#5a1015',
-  accent:     '#800007',
-  accentText: '#c0000a',
-  mint:       '#996250',
-  text:       '#F9F9F9',
-  textSub:    '#c8a090',
-  textDim:    '#7a3030',
-  danger:     '#FF5A6E',
-}
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  surfaceHigh: '#0A2035',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.45)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  danger:      '#FF4060',
+  dangerBg:    'rgba(255,64,96,0.08)',
+  dangerBorder:'rgba(255,64,96,0.22)',
+  success:     '#00D4AA',
+  successBg:   'rgba(0,212,170,0.08)',
+  successBorder:'rgba(0,212,170,0.3)',
+  warn:        '#F59E0B',
+  warnBg:      'rgba(245,158,11,0.1)',
+  warnBorder:  'rgba(245,158,11,0.28)',
+  white:       '#FFFFFF',
+} as const
+
+const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace'
 
 // ─── TYPES ────────────────────────────────────────────────────
 const ROLE_OPTIONS = ['user', 'admin'] as const
@@ -75,8 +91,8 @@ const Avatar: React.FC<{ name: string; role: 'user' | 'admin' }> = ({ name, role
 
 const av = StyleSheet.create({
   circle: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  admin:  { backgroundColor: 'rgba(255,90,110,0.15)', borderWidth: 1, borderColor: 'rgba(255,90,110,0.3)' },
-  user:   { backgroundColor: 'rgba(128,0,7,0.15)',    borderWidth: 1, borderColor: 'rgba(128,0,7,0.3)'   },
+  admin:  { backgroundColor: C.dangerBg,   borderWidth: 1, borderColor: C.dangerBorder   },
+  user:   { backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright },
   text:   { color: C.text, fontSize: 15, fontWeight: '700' },
 })
 
@@ -96,7 +112,7 @@ const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message
       <Pressable style={al.overlay} onPress={onClose}>
         <Pressable style={al.card} onPress={() => {}}>
           <View style={[al.iconWrap, isSuccess ? al.iconSuccess : al.iconError]}>
-            <Ionicons name={isSuccess ? 'checkmark-circle' : 'alert-circle'} size={32} color={isSuccess ? C.mint : C.danger} />
+            <Ionicons name={isSuccess ? 'checkmark-circle' : 'alert-circle'} size={32} color={isSuccess ? C.success : C.danger} />
           </View>
           <Text style={al.title}>{title}</Text>
           <Text style={al.message}>{message}</Text>
@@ -266,13 +282,13 @@ export default function AdminUsers() {
           <Text style={s.statLabel}>Admins</Text>
         </View>
         <View style={s.statCard}>
-          <Ionicons name="checkmark-circle" size={20} color={C.mint} />
-          <Text style={[s.statNum, { color: C.mint }]}>{activeCount}</Text>
+          <Ionicons name="checkmark-circle" size={20} color={C.success} />
+          <Text style={[s.statNum, { color: C.success }]}>{activeCount}</Text>
           <Text style={s.statLabel}>Active</Text>
         </View>
         <View style={s.statCard}>
-          <Feather name="pause-circle" size={20} color="#ffca28" />
-          <Text style={[s.statNum, { color: '#ffca28' }]}>{users.length - activeCount}</Text>
+          <Feather name="pause-circle" size={20} color={C.warn} />
+          <Text style={[s.statNum, { color: C.warn }]}>{users.length - activeCount}</Text>
           <Text style={s.statLabel}>Inactive</Text>
         </View>
       </View>
@@ -461,7 +477,7 @@ const s = StyleSheet.create({
   pageHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 14 },
   pageTitle:    { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: 0.3, marginBottom: 2 },
   pageSubtitle: { fontSize: 12, color: C.textSub },
-  refreshBtn:   { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.12)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)', alignItems: 'center', justifyContent: 'center' },
+  refreshBtn:   { width: 38, height: 38, borderRadius: 12, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center' },
 
   statsRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 10, marginBottom: 16 },
   statCard: { flex: 1, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, alignItems: 'center', gap: 4 },
@@ -469,7 +485,7 @@ const s = StyleSheet.create({
   statLabel:{ fontSize: 10, color: C.textSub, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   searchWrap:        { flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, marginBottom: 10, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 13, paddingHorizontal: 14, height: 48 },
-  searchWrapFocused: { borderColor: C.accent, backgroundColor: 'rgba(128,0,7,0.08)' },
+  searchWrapFocused: { borderColor: C.accent, backgroundColor: C.accentGlow },
   searchInput:       { flex: 1, color: C.text, fontSize: 14, height: '100%' },
   resultsCount:      { fontSize: 11, color: C.textDim, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6, marginHorizontal: 20, marginBottom: 12 },
 
@@ -487,19 +503,19 @@ const s = StyleSheet.create({
 
   badgeRow:          { flexDirection: 'row', gap: 6 },
   badge:             { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
-  badgeAdmin:        { backgroundColor: 'rgba(255,90,110,0.12)', borderWidth: 1, borderColor: 'rgba(255,90,110,0.25)' },
-  badgeUser:         { backgroundColor: 'rgba(128,0,7,0.12)',    borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)'   },
-  badgeActive:       { backgroundColor: 'rgba(153,98,80,0.15)',  borderWidth: 1, borderColor: 'rgba(153,98,80,0.3)'  },
-  badgeInactive:     { backgroundColor: 'rgba(255,202,40,0.10)', borderWidth: 1, borderColor: 'rgba(255,202,40,0.25)'},
+  badgeAdmin:        { backgroundColor: C.dangerBg,   borderWidth: 1, borderColor: C.dangerBorder   },
+  badgeUser:         { backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright },
+  badgeActive:       { backgroundColor: C.successBg,  borderWidth: 1, borderColor: C.successBorder  },
+  badgeInactive:     { backgroundColor: C.warnBg,     borderWidth: 1, borderColor: C.warnBorder},
   badgeText:         { fontSize: 10, fontWeight: '700' },
   badgeTextAdmin:    { color: C.danger },
   badgeTextUser:     { color: C.accentText },
-  badgeTextActive:   { color: C.mint },
-  badgeTextInactive: { color: '#ffca28' },
+  badgeTextActive:   { color: C.success },
+  badgeTextInactive: { color: C.warn },
 
   dot:         { width: 6, height: 6, borderRadius: 3 },
-  dotActive:   { backgroundColor: C.mint },
-  dotInactive: { backgroundColor: '#ffca28' },
+  dotActive:   { backgroundColor: C.success },
+  dotInactive: { backgroundColor: C.warn },
 
   modalOverlay:  { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },
@@ -519,7 +535,7 @@ const s = StyleSheet.create({
 
   roleRow:         { flexDirection: 'row', gap: 12, marginBottom: 22 },
   roleBtn:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 13, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
-  roleBtnAdmin:    { borderColor: 'rgba(255,90,110,0.4)', backgroundColor: 'rgba(255,90,110,0.08)' },
+  roleBtnAdmin:    { borderColor: C.dangerBorder, backgroundColor: C.dangerBg },
   roleBtnUser:     { borderColor: 'rgba(128,0,7,0.4)',    backgroundColor: 'rgba(128,0,7,0.1)'     },
   roleBtnText:     { fontSize: 14, fontWeight: '600', color: C.textDim },
   roleBtnTextAdmin:{ color: C.danger },
@@ -528,13 +544,13 @@ const s = StyleSheet.create({
   statusToggle:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 14, marginBottom: 24 },
   statusToggleActive: { borderColor: 'rgba(153,98,80,0.4)', backgroundColor: 'rgba(153,98,80,0.08)' },
   toggleTrack:        { width: 44, height: 26, borderRadius: 13, backgroundColor: 'rgba(200,160,144,0.15)', padding: 3, justifyContent: 'center' },
-  toggleTrackActive:  { backgroundColor: C.mint },
+  toggleTrackActive:  { backgroundColor: C.success },
   toggleThumb:        { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(200,160,144,0.4)', alignSelf: 'flex-start' },
   toggleThumbActive:  { backgroundColor: C.text, alignSelf: 'flex-end' },
   toggleLabel:        { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 2 },
   toggleSub:          { fontSize: 11, color: C.textSub, lineHeight: 16 },
   statusDot:          { width: 10, height: 10, borderRadius: 5 },
-  statusDotActive:    { backgroundColor: C.mint },
+  statusDotActive:    { backgroundColor: C.success },
   statusDotInactive:  { backgroundColor: '#ffca28' },
 
   modalActions:   { flexDirection: 'row', gap: 12, marginTop: 8 },

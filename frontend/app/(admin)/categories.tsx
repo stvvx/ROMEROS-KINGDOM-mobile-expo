@@ -36,20 +36,36 @@ if (debuggerHost && debuggerHost !== 'localhost') {
   API_URL = API_URL.replace('localhost', '10.0.2.2')
 }
 
-// ─── DESIGN TOKENS (lighter admin theme) ─────────────────────
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics (Admin variant)
+───────────────────────────────────────── */
 const C = {
-  bg:         '#2a0508',
-  bgLayer:    '#350709',
-  surface:    '#420a0e',
-  border:     '#5a1015',
-  accent:     '#800007',
-  accentText: '#c0000a',
-  mint:       '#996250',
-  text:       '#F9F9F9',
-  textSub:    '#c8a090',
-  textDim:    '#7a3030',
-  danger:     '#FF5A6E',
-}
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  surfaceHigh: '#0A2035',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.45)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  danger:      '#FF4060',
+  dangerBg:    'rgba(255,64,96,0.08)',
+  dangerBorder:'rgba(255,64,96,0.22)',
+  success:     '#00D4AA',
+  successBg:   'rgba(0,212,170,0.08)',
+  successBorder:'rgba(0,212,170,0.3)',
+  warn:        '#F59E0B',
+  warnBg:      'rgba(245,158,11,0.1)',
+  warnBorder:  'rgba(245,158,11,0.28)',
+  white:       '#FFFFFF',
+} as const
+
+const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace'
 
 // ─── THEMED ALERT MODAL ───────────────────────────────────────
 interface ThemedAlertProps {
@@ -143,7 +159,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 const cd = StyleSheet.create({
   overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
   card:       { width: '100%', backgroundColor: C.bgLayer, borderRadius: 22, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
-  iconWrap:   { width: 72, height: 72, borderRadius: 20, backgroundColor: 'rgba(255,90,110,0.1)', borderWidth: 1, borderColor: 'rgba(255,90,110,0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  iconWrap:   { width: 72, height: 72, borderRadius: 20, backgroundColor: C.dangerBg,   borderWidth: 1, borderColor: C.dangerBorder,   alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   title:      { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 8, textAlign: 'center' },
   message:    { fontSize: 13, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   divider:    { width: '100%', height: 1, backgroundColor: C.border, marginBottom: 20 },
@@ -159,8 +175,8 @@ const al = StyleSheet.create({
   overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
   card:        { width: '100%', backgroundColor: C.bgLayer, borderRadius: 22, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
   iconWrap:    { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  iconSuccess: { backgroundColor: 'rgba(153,98,80,0.12)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.3)' },
-  iconError:   { backgroundColor: 'rgba(255,90,110,0.1)',  borderWidth: 1, borderColor: 'rgba(255,90,110,0.28)' },
+  iconSuccess: { backgroundColor: C.successBg,  borderWidth: 1, borderColor: C.successBorder  },
+  iconError:   { backgroundColor: C.dangerBg,   borderWidth: 1, borderColor: C.dangerBorder   },
   title:       { fontSize: 20, fontWeight: '800', color: C.text, marginBottom: 8, textAlign: 'center' },
   message:     { fontSize: 13, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
   divider:     { width: '100%', height: 1, backgroundColor: C.border, marginBottom: 20 },
@@ -503,7 +519,7 @@ const s = StyleSheet.create({
   pageHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 14 },
   pageTitle:   { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: 0.3, marginBottom: 2 },
   pageSubtitle:{ fontSize: 12, color: C.textSub },
-  refreshBtn:  { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.12)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)', alignItems: 'center', justifyContent: 'center' },
+  refreshBtn:  { width: 38, height: 38, borderRadius: 12, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center' },
 
   statsRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 10, marginBottom: 16 },
   statCard: { flex: 1, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, alignItems: 'center', gap: 4 },
@@ -511,7 +527,7 @@ const s = StyleSheet.create({
   statLabel:{ fontSize: 10, color: C.textSub, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   searchWrap:        { flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, marginBottom: 10, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 13, paddingHorizontal: 14, height: 48 },
-  searchWrapFocused: { borderColor: C.accent, backgroundColor: 'rgba(128,0,7,0.08)' },
+  searchWrapFocused: { borderColor: C.accent, backgroundColor: C.accentGlow },
   searchInput:       { flex: 1, color: C.text, fontSize: 14, height: '100%' },
 
   actionBar:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, marginBottom: 12 },
@@ -525,14 +541,14 @@ const s = StyleSheet.create({
   emptySubtitle:{ fontSize: 13, color: C.textDim },
 
   card:        { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, marginHorizontal: 18, marginBottom: 10, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
-  cardIcon:    { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.15)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  cardIcon:    { width: 44, height: 44, borderRadius: 12, backgroundColor: C.accentGlow, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   cardInfo:    { flex: 1 },
   cardName:    { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 3 },
   cardDesc:    { fontSize: 12, color: C.textSub, marginBottom: 5 },
   cardDate:    { fontSize: 11, color: C.textDim },
   cardActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  actionIcon:  { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(128,0,7,0.1)', alignItems: 'center', justifyContent: 'center' },
-  actionIconDanger: { backgroundColor: 'rgba(255,90,110,0.08)' },
+  actionIcon:  { width: 36, height: 36, borderRadius: 10, backgroundColor: C.accentGlow, alignItems: 'center', justifyContent: 'center' },
+  actionIconDanger: { backgroundColor: C.dangerBg },
 
   modalOverlay:  { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },

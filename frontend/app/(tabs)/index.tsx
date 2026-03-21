@@ -810,14 +810,7 @@ export default function Home() {
         </View>
       </View>
 
-      {__DEV__ && (
-        <View style={s.debugBar}>
-          <Text style={s.debugTxt}>
-            [{numCols}col] Page:{currentPage} | kw:"{activeKeyword}" | hasMore:{hasMore.toString()}
-            {error ? ` | ERR:${error}` : ''}
-          </Text>
-        </View>
-      )}
+
 
       {/* ══ MOBILE: Hamburger Drawer ══ */}
       {!isWeb && menuOpen && (

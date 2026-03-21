@@ -30,20 +30,36 @@ if (debuggerHost && debuggerHost !== 'localhost') {
   API_URL = API_URL.replace('localhost', '10.0.2.2')
 }
 
-// ─── DESIGN TOKENS ────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics (Admin variant)
+───────────────────────────────────────── */
 const C = {
-  bg:         '#2a0508',
-  bgLayer:    '#350709',
-  surface:    '#420a0e',
-  border:     '#5a1015',
-  accent:     '#800007',
-  accentText: '#c0000a',
-  mint:       '#996250',
-  text:       '#F9F9F9',
-  textSub:    '#c8a090',
-  textDim:    '#7a3030',
-  danger:     '#FF5A6E',
-}
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  surfaceHigh: '#0A2035',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.45)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  danger:      '#FF4060',
+  dangerBg:    'rgba(255,64,96,0.08)',
+  dangerBorder:'rgba(255,64,96,0.22)',
+  success:     '#00D4AA',
+  successBg:   'rgba(0,212,170,0.08)',
+  successBorder:'rgba(0,212,170,0.3)',
+  warn:        '#F59E0B',
+  warnBg:      'rgba(245,158,11,0.1)',
+  warnBorder:  'rgba(245,158,11,0.28)',
+  white:       '#FFFFFF',
+} as const
+
+const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace'
 
 // ─── TYPES ────────────────────────────────────────────────────
 interface NotificationItem {
@@ -57,21 +73,21 @@ interface NotificationItem {
   createdAt: string
 }
 
-// ─── TYPE CONFIG ──────────────────────────────────────────────
+/* ─── Notification type config ─── */
 const getTypeConfig = (type: string) => {
   switch (type?.toLowerCase()) {
     case 'order':
-      return { bg: 'rgba(192,0,10,0.12)', border: 'rgba(192,0,10,0.25)', text: '#c0000a', icon: 'truck-outline' }
+      return { bg: C.accentGlow, border: C.borderBright, text: C.accentText, icon: 'truck-outline' }
     case 'product':
-      return { bg: 'rgba(128,0,7,0.12)', border: 'rgba(128,0,7,0.25)', text: '#800007', icon: 'package-variant' }
+      return { bg: C.accentGlow, border: C.borderBright, text: C.accentText, icon: 'package-variant' }
     case 'review':
-      return { bg: 'rgba(255,202,40,0.12)', border: 'rgba(255,202,40,0.25)', text: '#ffca28', icon: 'star-outline' }
+      return { bg: C.warnBg, border: C.warnBorder, text: C.warn, icon: 'star-outline' }
     case 'user':
-      return { bg: 'rgba(153,98,80,0.15)', border: 'rgba(153,98,80,0.3)', text: '#996250', icon: 'account' }
+      return { bg: C.successBg, border: C.successBorder, text: C.success, icon: 'account' }
     case 'alert':
-      return { bg: 'rgba(255,90,110,0.10)', border: 'rgba(255,90,110,0.25)', text: '#FF5A6E', icon: 'alert-circle-outline' }
+      return { bg: C.dangerBg, border: C.dangerBorder, text: C.danger, icon: 'alert-circle-outline' }
     default:
-      return { bg: 'rgba(200,160,144,0.08)', border: 'rgba(200,160,144,0.15)', text: '#c8a090', icon: 'bell-outline' }
+      return { bg: C.surface, border: C.border, text: C.textSub, icon: 'bell-outline' }
   }
 }
 
@@ -252,14 +268,14 @@ const s = StyleSheet.create({
   pageHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 14 },
   pageTitle:    { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: 0.3, marginBottom: 2 },
   pageSubtitle: { fontSize: 12, color: C.textSub },
-  refreshBtn:   { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.12)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)', alignItems: 'center', justifyContent: 'center' },
+  refreshBtn:   { width: 38, height: 38, borderRadius: 12, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center' },
 
   statsRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 10, marginBottom: 16 },
   statCard: { flex: 1, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, alignItems: 'center', gap: 4 },
   statNum:  { fontSize: 18, fontWeight: '800', color: C.accent },
   statLabel:{ fontSize: 10, color: C.textSub, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  errorWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, marginBottom: 10, backgroundColor: 'rgba(255,90,110,0.08)', borderWidth: 1, borderColor: 'rgba(255,90,110,0.25)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  errorWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, marginBottom: 10, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerBorder, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
   errorText: { color: C.danger, fontSize: 13, fontWeight: '600', flex: 1 },
 
   emptyState:   { paddingTop: 60, justifyContent: 'center', alignItems: 'center', gap: 10 },
@@ -268,7 +284,7 @@ const s = StyleSheet.create({
   emptySubtitle:{ fontSize: 13, color: C.textDim, textAlign: 'center', paddingHorizontal: 20 },
 
   card:       { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 14, gap: 8, position: 'relative', overflow: 'hidden' },
-  cardUnread: { borderColor: 'rgba(128,0,7,0.4)', backgroundColor: 'rgba(128,0,7,0.08)' },
+  cardUnread: { borderColor: C.accentGlow, backgroundColor: C.accentGlow },
   unreadDot:  { position: 'absolute', top: 14, right: 14, width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
 
   cardTop:      { flexDirection: 'row', alignItems: 'center', gap: 10 },

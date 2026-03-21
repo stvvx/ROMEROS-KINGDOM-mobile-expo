@@ -364,6 +364,13 @@ export default function Cart() {
           PAGE HEADER
       ══════════════════════════════════ */}
       <View style={s.pageHeader}>
+        <TouchableOpacity 
+          style={s.backBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Feather name="chevron-left" size={20} color={C.accent} />
+        </TouchableOpacity>
         <View style={s.pageHeaderLeft}>
           <View style={s.pageHeaderTick} />
           <View>
@@ -603,6 +610,7 @@ const s = StyleSheet.create({
     backgroundColor: C.bgLayer,
   },
   pageHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  backBtn:        { width: 36, height: 36, borderRadius: 8, backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   pageHeaderTick: { width: 3, height: 28, borderRadius: 2, backgroundColor: C.accent },
   pageTitle: {
     fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: 3,
