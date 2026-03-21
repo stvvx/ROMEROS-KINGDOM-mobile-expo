@@ -42,6 +42,7 @@ const NAV_ITEMS = [
   { label: 'USERS',         path: '/(admin)/users',         icon: 'account-group'          },
   { label: 'REVIEWS',       path: '/(admin)/review',        icon: 'star-outline'           },
   { label: 'SIGNALS',       path: '/(admin)/notifications', icon: 'bell-outline'           },
+  { label: 'PROFILE',       path: '/(admin)/profile',       icon: 'account-cog-outline'    },
 ]
 
 interface AdminHeaderProps {
@@ -79,7 +80,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
     }
   }, [])
 
-  useEffect(() => { checkAuth() }, [checkAuth])
+  useEffect(() => { checkAuth() }, [checkAuth, pathname])
 
   useEffect(() => {
     Animated.parallel([
@@ -94,8 +95,23 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
       await removeItem('user')
       setIsLoggedIn(false)
       setMenuOpen(false)
-      if (Platform.OS === 'web') { window.location.href = '/' }
-      else { router.replace('/(auth)/login') }
+
+      const goToLogin = () => {
+        if (Platform.OS === 'web') {
+          window.location.href = '/'
+        } else {
+          router.replace('/(auth)/login')
+        }
+      }
+
+      if (Platform.OS === 'web') {
+        window.alert('You have been logged out successfully.')
+        goToLogin()
+      } else {
+        Alert.alert('Logged Out', 'You have been logged out successfully.', [
+          { text: 'OK', onPress: goToLogin },
+        ])
+      }
     } catch { Alert.alert('Error', 'Failed to logout. Please try again.') }
   }
 
@@ -193,7 +209,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({
 
             {/* Profile card */}
             {isLoggedIn && (
-              <TouchableOpacity style={s.drawerProfile} onPress={() => navigate('/(admin)/dashboard')}>
+              <TouchableOpacity style={s.drawerProfile} onPress={() => navigate('/(admin)/profile')}>
                 <View style={s.drawerAvatarWrap}>
                   {profile?.avatar
                     ? <Image source={{ uri: profile.avatar }} style={s.drawerAvatar} />

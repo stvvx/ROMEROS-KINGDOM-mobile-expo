@@ -182,6 +182,8 @@ export interface IndexHeaderProps {
   activeCategory: string;
   onCategoryChange: (cat: string) => void;
   onMenuOpen: () => void;
+  onCartPress: () => void;
+  onNotificationPress: () => void;
   cartCount: number;
   notifCount: number;
   headerFade: Animated.Value;
@@ -195,7 +197,7 @@ export default function IndexHeader({
   filterOpen, onToggleFilter, animatedFilterH,
   price, onPriceChange,
   categories, activeCategory, onCategoryChange,
-  onMenuOpen, cartCount, notifCount, headerFade,
+  onMenuOpen, onCartPress, onNotificationPress, cartCount, notifCount, headerFade,
 }: IndexHeaderProps) {
 
   const normalizedCategories = React.useMemo(() => {
@@ -254,13 +256,13 @@ export default function IndexHeader({
 
         {/* Right: bell + cart */}
         <View style={s.rightRow}>
-          <TouchableOpacity style={s.iconBtn} activeOpacity={0.75}>
+          <TouchableOpacity style={s.iconBtn} activeOpacity={0.75} onPress={onNotificationPress}>
             <Feather name="bell" size={16} color={notifCount > 0 ? C.accent : C.textSub} />
             {notifCount > 0 && (
               <View style={s.iconBadge}><Text style={s.iconBadgeTxt}>{notifCount}</Text></View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={s.iconBtn} activeOpacity={0.75}>
+          <TouchableOpacity style={s.iconBtn} activeOpacity={0.75} onPress={onCartPress}>
             <Feather name="shopping-cart" size={16} color={cartCount > 0 ? C.accent : C.textSub} />
             {cartCount > 0 && (
               <View style={s.iconBadge}><Text style={s.iconBadgeTxt}>{cartCount}</Text></View>

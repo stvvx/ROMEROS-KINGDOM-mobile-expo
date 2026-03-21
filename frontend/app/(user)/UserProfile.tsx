@@ -321,7 +321,14 @@ export default function UserProfile() {
         onPress: async () => {
           await removeItem('authToken')
           await removeItem('user')
-          router.replace('/(auth)/login')
+          if (Platform.OS === 'web') {
+            window.alert('You have been logged out successfully.')
+            router.replace('/(auth)/login')
+          } else {
+            Alert.alert('Logged Out', 'You have been logged out successfully.', [
+              { text: 'OK', onPress: () => router.replace('/(auth)/login') },
+            ])
+          }
         },
       },
     ])

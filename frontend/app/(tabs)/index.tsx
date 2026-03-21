@@ -555,8 +555,20 @@ export default function Home() {
       setIsLoggedIn(false);
       setCartCount(0);
       setNotifCount(0);
-      if (Platform.OS === 'web') { window.location.href = '/'; }
-      else { router.replace('/(tabs)'); }
+
+      const goAfterLogout = () => {
+        if (Platform.OS === 'web') { window.location.href = '/'; }
+        else { router.replace('/(tabs)'); }
+      };
+
+      if (Platform.OS === 'web') {
+        window.alert('You have been logged out successfully.');
+        goAfterLogout();
+      } else {
+        Alert.alert('Logged Out', 'You have been logged out successfully.', [
+          { text: 'OK', onPress: goAfterLogout },
+        ]);
+      }
     } catch { Alert.alert('Error', 'Failed to logout. Please try again.'); }
   };
 
@@ -685,6 +697,8 @@ export default function Home() {
             setActiveCategory(found ?? { _id: 'All', name: 'All' });
           }}
           onMenuOpen={() => setMenuOpen(true)}
+          onCartPress={handleCartPress}
+          onNotificationPress={handleNotificationPress}
           cartCount={cartCount}
           notifCount={notifCount}
           headerFade={headerFade}
