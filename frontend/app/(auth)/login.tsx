@@ -18,7 +18,7 @@ import axios from 'axios';
 import { setItem } from '@/utils/storage';
 import { registerFirebasePushToken } from '@/utils/notifications';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path, Rect, Circle, Line, Polygon, Defs, LinearGradient, Stop } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import Constants from 'expo-constants';
@@ -36,21 +36,31 @@ const IS_EXPO_GO =
 
 const CAN_USE_GOOGLE_AUTH = GOOGLE_AUTH_ENABLED && !IS_EXPO_GO;
 
-/*
-import { auth } from '@/utils/firebase'
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
-import * as WebBrowser from 'expo-web-browser'
-import * as Google from 'expo-auth-session/providers/google'
-
-WebBrowser.maybeCompleteAuthSession();
-*/
-
 const { width } = Dimensions.get('window');
 
 const API_URL =
   process.env.NGROK_URL ||
   process.env.EXPO_PUBLIC_API_URL ||
   'http://localhost:4000/api/v1';
+
+// ─── Palette ──────────────────────────────────────────────────
+// Deep navy base, electric cyan accent, steel blue mid-tones
+const C = {
+  bg:          '#020B18',       // near-black navy
+  surface:     '#040F1F',       // card dark
+  borderDim:   'rgba(0,168,255,0.18)',
+  borderBright:'rgba(0,168,255,0.65)',
+  accent:      '#00A8FF',       // electric cyan-blue
+  accentGlow:  'rgba(0,168,255,0.35)',
+  accentDeep:  '#005A8E',
+  steelBlue:   '#1E3A5F',
+  textPrimary: '#E8F4FF',
+  textMuted:   'rgba(120,180,230,0.6)',
+  textDim:     'rgba(80,140,200,0.45)',
+  error:       '#FF4060',
+  success:     '#00D4AA',
+  panel:       'rgba(0,168,255,0.05)',
+};
 
 // ─── Google Logo SVG ──────────────────────────────────────────
 const GoogleLogo = () => (
@@ -62,119 +72,90 @@ const GoogleLogo = () => (
   </Svg>
 );
 
-// ─── Car Logo SVG (side profile silhouette) ───────────────────
-const CarIcon = () => (
-  <Svg width={48} height={36} viewBox="0 0 120 70" fill="none">
-    {/* ── Main body lower chassis ── */}
-    <Path
-      d="M6 46 Q6 54 14 54 L106 54 Q114 54 114 46 L114 40 L6 40 Z"
-      fill="#800007"
-    />
-    {/* ── Cabin upper silhouette ── */}
-    <Path
-      d="M28 40 Q32 22 42 16 Q52 10 60 10 Q72 10 82 16 Q90 22 94 40 Z"
-      fill="#800007"
-    />
-    {/* ── Windshield (front) ── */}
-    <Path
-      d="M76 40 Q80 26 86 20 Q90 16 93 18 L94 40 Z"
-      fill="#3d0003"
-      opacity="0.85"
-    />
-    {/* ── Rear window ── */}
-    <Path
-      d="M28 40 Q30 26 36 19 Q40 14 44 14 Q48 12 52 11 L58 11 Q56 20 54 40 Z"
-      fill="#3d0003"
-      opacity="0.85"
-    />
-    {/* ── Side window (middle) ── */}
-    <Path
-      d="M56 40 Q57 18 62 11 Q70 10 78 14 Q82 22 80 40 Z"
-      fill="#3d0003"
-      opacity="0.7"
-    />
-    {/* ── Highlight line along roofline ── */}
-    <Path
-      d="M42 16 Q60 8 82 16"
-      stroke="#996250"
-      strokeWidth="1.5"
-      fill="none"
-      strokeLinecap="round"
-      opacity="0.8"
-    />
-    {/* ── Body crease / side line ── */}
-    <Path
-      d="M10 43 Q60 39 110 43"
-      stroke="#996250"
-      strokeWidth="1"
-      fill="none"
-      strokeLinecap="round"
-      opacity="0.5"
-    />
-    {/* ── Front bumper lip ── */}
-    <Path
-      d="M100 54 Q114 54 116 50 Q117 47 114 46 L114 54 Z"
-      fill="#3d0003"
-    />
-    {/* ── Rear bumper lip ── */}
-    <Path
-      d="M20 54 Q6 54 4 50 Q3 47 6 46 L6 54 Z"
-      fill="#3d0003"
-    />
-    {/* ── Front headlight ── */}
-    <Path
-      d="M104 38 Q108 37 112 39 Q113 41 110 42 L104 42 Z"
-      fill="#F9F9F9"
-      opacity="0.95"
-    />
-    {/* ── Rear taillight ── */}
-    <Path
-      d="M16 38 Q12 37 8 39 Q7 41 10 42 L16 42 Z"
-      fill="#996250"
-      opacity="0.9"
-    />
-    {/* ── Front wheel arch ── */}
-    <Path
-      d="M82 54 Q82 64 92 64 Q102 64 102 54 Z"
-      fill="#1a0204"
-    />
-    {/* ── Front wheel ── */}
-    <Path
-      d="M84 54 Q84 62 92 62 Q100 62 100 54 Z"
-      fill="#2a0508"
-    />
-    {/* ── Front wheel rim ── */}
-    <Path
-      d="M87 54 Q87 59 92 59 Q97 59 97 54 Z"
-      fill="#800007"
-      opacity="0.6"
-    />
-    {/* ── Rear wheel arch ── */}
-    <Path
-      d="M18 54 Q18 64 28 64 Q38 64 38 54 Z"
-      fill="#1a0204"
-    />
-    {/* ── Rear wheel ── */}
-    <Path
-      d="M20 54 Q20 62 28 62 Q36 62 36 54 Z"
-      fill="#2a0508"
-    />
-    {/* ── Rear wheel rim ── */}
-    <Path
-      d="M23 54 Q23 59 28 59 Q33 59 33 54 Z"
-      fill="#800007"
-      opacity="0.6"
-    />
-    {/* ── Door handle ── */}
-    <Path
-      d="M58 43 Q64 42 70 43 Q70 45 64 45 Q58 45 58 43 Z"
-      fill="#996250"
-      opacity="0.7"
-    />
+// ─── Robotic Car / Mech-Bot Icon ──────────────────────────────
+const RoboCarIcon = () => (
+  <Svg width={64} height={52} viewBox="0 0 140 90" fill="none">
+    {/* Chassis base */}
+    <Path d="M12 58 Q12 70 24 70 L116 70 Q128 70 128 58 L128 50 L12 50 Z" fill={C.steelBlue} />
+    {/* Body accent stripe */}
+    <Rect x="12" y="54" width="116" height="3" fill={C.accent} opacity="0.6" rx="1" />
+    {/* Cabin shell */}
+    <Path d="M34 50 Q38 28 50 20 Q62 13 70 13 Q82 13 94 20 Q106 28 108 50 Z" fill={C.steelBlue} />
+    {/* Cabin outline glow */}
+    <Path d="M34 50 Q38 28 50 20 Q62 13 70 13 Q82 13 94 20 Q106 28 108 50 Z"
+      stroke={C.accent} strokeWidth="1.2" fill="none" opacity="0.8" />
+    {/* Front windshield */}
+    <Path d="M90 50 Q94 33 100 24 Q105 19 108 22 L108 50 Z" fill="#0A1E35" opacity="0.9" />
+    <Path d="M90 50 Q94 33 100 24 Q105 19 108 22 L108 50 Z"
+      stroke={C.accent} strokeWidth="0.8" fill="none" opacity="0.5" />
+    {/* Rear window */}
+    <Path d="M34 50 Q36 32 44 22 Q48 17 54 15 L62 13 Q60 24 58 50 Z" fill="#0A1E35" opacity="0.9" />
+    <Path d="M34 50 Q36 32 44 22 Q48 17 54 15 L62 13 Q60 24 58 50 Z"
+      stroke={C.accent} strokeWidth="0.8" fill="none" opacity="0.5" />
+    {/* Center window */}
+    <Path d="M60 50 Q62 22 67 14 Q76 12 86 18 Q92 28 92 50 Z" fill="#0A1E35" opacity="0.85" />
+    <Path d="M60 50 Q62 22 67 14 Q76 12 86 18 Q92 28 92 50 Z"
+      stroke={C.accent} strokeWidth="0.8" fill="none" opacity="0.5" />
+    {/* Roofline highlight */}
+    <Path d="M50 20 Q70 10 94 20" stroke={C.accent} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.9" />
+    {/* Body crease */}
+    <Path d="M14 55 Q70 51 126 55" stroke={C.accent} strokeWidth="1" fill="none" opacity="0.4" />
+    {/* Front headlight — LED bar */}
+    <Rect x="112" y="46" width="12" height="5" rx="2.5" fill={C.accent} opacity="0.95" />
+    <Rect x="112" y="46" width="12" height="5" rx="2.5" fill={C.accent} opacity="0.4" />
+    {/* Rear taillight */}
+    <Rect x="16" y="46" width="10" height="5" rx="2.5" fill="#0040FF" opacity="0.85" />
+    {/* Front bumper */}
+    <Path d="M116 70 Q128 70 130 64 Q131 60 128 58 L128 70 Z" fill={C.accentDeep} />
+    {/* Rear bumper */}
+    <Path d="M24 70 Q12 70 10 64 Q9 60 12 58 L12 70 Z" fill={C.accentDeep} />
+    {/* Front wheel arch */}
+    <Path d="M96 70 Q96 83 108 83 Q120 83 120 70 Z" fill="#010810" />
+    {/* Front wheel */}
+    <Circle cx="108" cy="73" r="10" fill="#020D20" stroke={C.accent} strokeWidth="1.2" />
+    {/* Front rim spokes */}
+    <Line x1="108" y1="63" x2="108" y2="83" stroke={C.accent} strokeWidth="1" opacity="0.7" />
+    <Line x1="98" y1="73" x2="118" y2="73" stroke={C.accent} strokeWidth="1" opacity="0.7" />
+    <Line x1="101" y1="66" x2="115" y2="80" stroke={C.accent} strokeWidth="0.8" opacity="0.5" />
+    <Line x1="115" y1="66" x2="101" y2="80" stroke={C.accent} strokeWidth="0.8" opacity="0.5" />
+    <Circle cx="108" cy="73" r="3" fill={C.accent} opacity="0.9" />
+    {/* Rear wheel arch */}
+    <Path d="M20 70 Q20 83 32 83 Q44 83 44 70 Z" fill="#010810" />
+    {/* Rear wheel */}
+    <Circle cx="32" cy="73" r="10" fill="#020D20" stroke={C.accent} strokeWidth="1.2" />
+    {/* Rear rim spokes */}
+    <Line x1="32" y1="63" x2="32" y2="83" stroke={C.accent} strokeWidth="1" opacity="0.7" />
+    <Line x1="22" y1="73" x2="42" y2="73" stroke={C.accent} strokeWidth="1" opacity="0.7" />
+    <Line x1="25" y1="66" x2="39" y2="80" stroke={C.accent} strokeWidth="0.8" opacity="0.5" />
+    <Line x1="39" y1="66" x2="25" y2="80" stroke={C.accent} strokeWidth="0.8" opacity="0.5" />
+    <Circle cx="32" cy="73" r="3" fill={C.accent} opacity="0.9" />
+    {/* Robotic sensor array on roof */}
+    <Rect x="62" y="8" width="16" height="6" rx="3" fill={C.accentDeep} stroke={C.accent} strokeWidth="0.8" />
+    <Circle cx="70" cy="11" r="2" fill={C.accent} opacity="0.9" />
+    {/* Circuit-like door detail */}
+    <Path d="M64 52 L76 52 L76 47 L80 47" stroke={C.accent} strokeWidth="0.7" fill="none" opacity="0.55" />
+    <Circle cx="64" cy="52" r="1.2" fill={C.accent} opacity="0.7" />
+    <Circle cx="80" cy="47" r="1.2" fill={C.accent} opacity="0.7" />
   </Svg>
 );
 
-// ─── Clean Input Field Component ──────────────────────────────
+// ─── Circuit corner decoration ─────────────────────────────────
+const CircuitCorner = ({ flip }: { flip?: boolean }) => (
+  <Svg
+    width={40} height={40}
+    viewBox="0 0 40 40"
+    style={{ transform: [{ scaleX: flip ? -1 : 1 }] }}
+  >
+    <Path d="M2 38 L2 12 Q2 2 12 2 L38 2" stroke={C.accent} strokeWidth="1.2" fill="none" opacity="0.5" />
+    <Circle cx="2" cy="38" r="2.5" fill={C.accent} opacity="0.7" />
+    <Circle cx="38" cy="2" r="2.5" fill={C.accent} opacity="0.7" />
+    <Circle cx="12" cy="2" r="1.5" fill={C.accentDeep} opacity="0.9" />
+    <Rect x="18" y="0" width="8" height="4" rx="1" fill={C.accentDeep} />
+    <Rect x="0" y="20" width="4" height="8" rx="1" fill={C.accentDeep} />
+  </Svg>
+);
+
+// ─── Input Field Component ─────────────────────────────────────
 interface InputFieldProps {
   label: string;
   value: string;
@@ -195,15 +176,20 @@ const InputField: React.FC<InputFieldProps> = ({
   placeholder, leftIcon, rightElement,
 }) => {
   const [focused, setFocused] = useState(false);
-
   return (
     <View style={inp.group}>
-      <Text style={inp.label}>{label}</Text>
+      {/* Label with scan-line tick */}
+      <View style={inp.labelRow}>
+        <View style={inp.labelTick} />
+        <Text style={inp.label}>{label}</Text>
+      </View>
       <View style={[
         inp.wrap,
         focused && inp.wrapFocused,
         !!error && inp.wrapError,
       ]}>
+        {/* Left bracket accent */}
+        <View style={inp.bracket} />
         <View style={inp.iconWrap}>{leftIcon}</View>
         <TextInput
           style={inp.input}
@@ -216,13 +202,13 @@ const InputField: React.FC<InputFieldProps> = ({
           autoCapitalize={autoCapitalize || 'none'}
           editable={editable}
           placeholder={placeholder}
-          placeholderTextColor="rgba(153,98,80,0.4)"
+          placeholderTextColor={C.textDim}
         />
         {rightElement}
       </View>
       {!!error && (
         <View style={inp.errorRow}>
-          <Ionicons name="alert-circle-outline" size={13} color="#800007" />
+          <Ionicons name="alert-circle-outline" size={13} color={C.error} />
           <Text style={inp.errorText}> {error}</Text>
         </View>
       )}
@@ -231,66 +217,72 @@ const InputField: React.FC<InputFieldProps> = ({
 };
 
 const inp = StyleSheet.create({
-  group: { marginBottom: 18 },
+  group:    { marginBottom: 18 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, marginLeft: 2 },
+  labelTick:{
+    width: 2, height: 10,
+    backgroundColor: C.accent,
+    borderRadius: 1,
+    marginRight: 7,
+    opacity: 0.85,
+  },
   label: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    color: 'rgba(153,98,80,0.9)',
-    letterSpacing: 1.2,
+    color: C.accent,
+    letterSpacing: 2,
     textTransform: 'uppercase',
-    marginBottom: 8,
-    marginLeft: 2,
   },
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(249,249,249,0.05)',
+    backgroundColor: C.panel,
     borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.25)',
-    borderRadius: 10,
+    borderColor: C.borderDim,
+    borderRadius: 8,
     paddingHorizontal: 14,
     height: 52,
+    overflow: 'hidden',
+  },
+  bracket: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    width: 3,
+    backgroundColor: C.accentDeep,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
   },
   wrapFocused: {
-    borderColor: '#800007',
-    backgroundColor: 'rgba(128,0,7,0.07)',
+    borderColor: C.accent,
+    backgroundColor: 'rgba(0,168,255,0.08)',
   },
   wrapError: {
-    borderColor: '#800007',
-    backgroundColor: 'rgba(128,0,7,0.08)',
+    borderColor: C.error,
+    backgroundColor: 'rgba(255,64,96,0.06)',
   },
-  iconWrap: { marginRight: 10 },
+  iconWrap:  { marginRight: 10, marginLeft: 4 },
   input: {
     flex: 1,
-    color: '#F9F9F9',
+    color: C.textPrimary,
     fontSize: 15,
     height: '100%',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    marginLeft: 2,
-  },
-  errorText: {
-    color: '#800007',
-    fontSize: 12,
-    fontWeight: '500',
-  },
+  errorRow:  { flexDirection: 'row', alignItems: 'center', marginTop: 6, marginLeft: 2 },
+  errorText: { color: C.error, fontSize: 12, fontWeight: '500' },
 });
 
 // ─── Main Login Screen ────────────────────────────────────────
 export default function Login() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [email,       setEmail]       = useState('');
+  const [password,    setPassword]    = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [showPassword,setShowPassword]= useState(false);
+  const [errors,      setErrors]      = useState<{ email?: string; password?: string }>({});
   const [serverError, setServerError] = useState<{ field?: string; message?: string }>({});
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Remove AuthSession web flow. Use native Google Sign-In for Android/dev-client.
   React.useEffect(() => {
     if (!CAN_USE_GOOGLE_AUTH) return;
     GoogleSignin.configure({
@@ -299,96 +291,49 @@ export default function Login() {
     });
   }, []);
 
-  // Native Google sign-in handler using @react-native-google-signin/google-signin
   const handleGoogleLogin = async () => {
     if (IS_EXPO_GO) {
-      Alert.alert(
-        'Google Sign-in',
-        'Google sign-in requires a dev build (not Expo Go). You can still use email/password in Expo Go.'
-      );
+      Alert.alert('Google Sign-in', 'Google sign-in requires a dev build (not Expo Go). You can still use email/password in Expo Go.');
       return;
     }
-
     if (!GOOGLE_AUTH_ENABLED) {
-      Alert.alert(
-        'Google Sign-in',
-        'Google sign-in is disabled. Enable it by setting EXPO_PUBLIC_ENABLE_GOOGLE_AUTH=true in your dev build env.'
-      );
+      Alert.alert('Google Sign-in', 'Google sign-in is disabled. Enable it by setting EXPO_PUBLIC_ENABLE_GOOGLE_AUTH=true in your dev build env.');
       return;
     }
-
     if (!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || !process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) {
       Alert.alert('Google Sign-in', 'Missing Google client IDs in .env');
       return;
     }
-
     try {
       setLoading(true);
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-
-      // Force account picker (avoid reusing previously selected Google account)
-      try {
-        await GoogleSignin.signOut();
-      } catch {
-        // ignore
-      }
-
+      try { await GoogleSignin.signOut(); } catch { }
       const userInfo = await GoogleSignin.signIn();
-      console.log('[GoogleSignin][Login] userInfo keys=', Object.keys((userInfo as any) || {}));
-      console.log('[GoogleSignin][Login] idToken=', (userInfo as any)?.idToken);
-      console.log('[GoogleSignin][Login] data.idToken=', (userInfo as any)?.data?.idToken);
-
-      const idToken = (userInfo as any)?.data?.idToken ?? (userInfo as any)?.idToken;
-      if (!idToken) {
-        Alert.alert('Google Sign-in Failed', 'Missing id token from Google.');
-        return;
-      }
-
-      // Sign in to Firebase with Google id_token
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCred = await signInWithCredential(auth, credential);
-      const firebaseIdToken = await userCred.user.getIdToken();
-
-      // Exchange Firebase ID token for your backend JWT
-      const res = await axios.post(
-        `${API_URL}/login`,
-        { provider: 'google', idToken: firebaseIdToken },
-        { timeout: 10000 }
-      );
-
+      const idToken  = (userInfo as any)?.data?.idToken ?? (userInfo as any)?.idToken;
+      if (!idToken) { Alert.alert('Google Sign-in Failed', 'Missing id token from Google.'); return; }
+      const credential     = GoogleAuthProvider.credential(idToken);
+      const userCred       = await signInWithCredential(auth, credential);
+      const firebaseIdToken= await userCred.user.getIdToken();
+      const res = await axios.post(`${API_URL}/login`, { provider: 'google', idToken: firebaseIdToken }, { timeout: 10000 });
       if (res.data.success) {
         const { token, user } = res.data;
-
-        if (user?.isActive === false) {
-          setServerError({ field: 'email', message: 'Account is deactivated' });
-          Alert.alert('Account Inactive', 'Your account has been deactivated. Please contact support.');
-          return;
-        }
-
+        if (user?.isActive === false) { setServerError({ field: 'email', message: 'Account is deactivated' }); Alert.alert('Account Inactive', 'Your account has been deactivated.'); return; }
         await setItem('authToken', token);
         await setItem('user', JSON.stringify(user));
         await registerFirebasePushToken(API_URL, token).catch(() => null);
-
-        setSuccessMessage('Login successful!');
+        setSuccessMessage('AUTHENTICATION SUCCESSFUL');
         setTimeout(() => {
-          try {
-            const role = user?.role || (typeof user === 'string' ? JSON.parse(user).role : undefined);
-            router.replace(role === 'admin' ? '/(admin)/dashboard' : '/(tabs)');
-          } catch {
-            router.replace('/(tabs)');
-          }
+          try { const role = user?.role; router.replace(role === 'admin' ? '/(admin)/dashboard' : '/(tabs)'); }
+          catch { router.replace('/(tabs)'); }
         }, 1200);
       }
     } catch (e: any) {
-      const message = e?.response?.data?.message || e?.message || 'Google login failed';
-      Alert.alert('Google Login Failed', message);
-    } finally {
-      setLoading(false);
-    }
+      Alert.alert('Google Login Failed', e?.response?.data?.message || e?.message || 'Google login failed');
+    } finally { setLoading(false); }
   };
 
   const btnScale = useRef(new Animated.Value(1)).current;
-  const pressIn  = () => Animated.spring(btnScale, { toValue: 0.96, useNativeDriver: true }).start();
+  const pressIn  = () => Animated.spring(btnScale, { toValue: 0.97, useNativeDriver: true }).start();
   const pressOut = () => Animated.spring(btnScale, { toValue: 1,    useNativeDriver: true }).start();
 
   const validateForm = () => {
@@ -410,32 +355,20 @@ export default function Login() {
       const res = await axios.post(`${API_URL}/login`, { email, password }, { timeout: 10000 });
       if (res.data.success) {
         const { token, user } = res.data;
-
-        if (user?.isActive === false) {
-          setServerError({ field: 'email', message: 'Account is deactivated' });
-          Alert.alert('Account Inactive', 'Your account has been deactivated. Please contact support.');
-          return;
-        }
-
+        if (user?.isActive === false) { setServerError({ field: 'email', message: 'Account is deactivated' }); Alert.alert('Account Inactive', 'Your account has been deactivated.'); return; }
         try {
           await setItem('authToken', token);
           await setItem('user', JSON.stringify(user));
           await registerFirebasePushToken(API_URL, token).catch(() => null);
-        } catch (err) {
-          console.error('Storage error:', err);
-        }
-        setSuccessMessage('Login successful!');
+        } catch (err) { console.error('Storage error:', err); }
+        setSuccessMessage('AUTHENTICATION SUCCESSFUL');
         setTimeout(() => {
-          try {
-            const role = user?.role || (typeof user === 'string' ? JSON.parse(user).role : undefined);
-            router.replace(role === 'admin' ? '/(admin)/dashboard' : '/(tabs)');
-          } catch {
-            router.replace('/(tabs)');
-          }
+          try { const role = user?.role; router.replace(role === 'admin' ? '/(admin)/dashboard' : '/(tabs)'); }
+          catch { router.replace('/(tabs)'); }
         }, 1200);
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Login failed';
+      const message    = err?.response?.data?.message || err?.message || 'Login failed';
       const statusCode = err?.response?.status;
       if (statusCode === 404 || message.toLowerCase().includes('user not found')) {
         setServerError({ field: 'email', message: 'No account found with this email' });
@@ -445,13 +378,11 @@ export default function Login() {
         Alert.alert('Login Failed', 'Incorrect password. Please try again.');
       } else if (statusCode === 403 || message.toLowerCase().includes('deactiv')) {
         setServerError({ field: 'email', message: 'Account is deactivated' });
-        Alert.alert('Account Inactive', 'Your account has been deactivated. Please contact support.');
+        Alert.alert('Account Inactive', 'Your account has been deactivated.');
       } else {
         Alert.alert('Login Failed', message);
       }
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
@@ -465,53 +396,85 @@ export default function Login() {
         keyboardShouldPersistTaps="handled"
       >
 
+        {/* ── Scan-line texture strips ── */}
+        <View style={s.scanLinesTop} pointerEvents="none">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={s.scanLine} />
+          ))}
+        </View>
+
         {/* ── Brand ── */}
         <View style={s.brandWrap}>
-          <View style={s.robotBadge}>
-            <CarIcon />
+          {/* Robotic frame badge */}
+          <View style={s.badgeOuter}>
+            <View style={s.badgeInner}>
+              <RoboCarIcon />
+              {/* Blinking status indicator */}
+              <View style={s.statusDot} />
+            </View>
+            {/* Corner circuits */}
+            <View style={[s.corner, s.cornerTL]}><CircuitCorner /></View>
+            <View style={[s.corner, s.cornerTR]}><CircuitCorner flip /></View>
           </View>
-          <Text style={s.brandTitle}>DRIFT N' DASH</Text>
-          <Text style={s.brandSub}>Your premium hot wheels shopping destination</Text>
+
+          {/* System tag line above title */}
+          <View style={s.sysTagRow}>
+            <View style={s.sysDash} />
+            <Text style={s.sysTag}>UNIT-7 MOBILITY OS v2.4</Text>
+            <View style={s.sysDash} />
+          </View>
+
+          <Text style={s.brandTitle}>ROMEROS KINGDOM</Text>
+          <Text style={s.brandSub}>AUTONOMOUS HOT WHEELS COMMAND CENTER</Text>
         </View>
 
         {/* ── Card ── */}
         <View style={s.card}>
+          {/* Top corner decoration */}
+          <View style={s.cardTL} />
+          <View style={s.cardTR} />
+          <View style={s.cardBL} />
+          <View style={s.cardBR} />
 
           {/* Success */}
           {!!successMessage && (
             <View style={s.successBanner}>
-              <Ionicons name="checkmark-circle" size={18} color="#996250" />
-              <Text style={s.successText}> {successMessage}</Text>
+              <Ionicons name="checkmark-circle" size={16} color={C.success} />
+              <Text style={s.successText}>  {successMessage}</Text>
             </View>
           )}
 
-          <Text style={s.cardTitle}>Welcome Back</Text>
-          <Text style={s.cardSub}>Sign in to your account</Text>
-
-          <View style={s.divider} />
+          {/* Header */}
+          <Text style={s.cardTitle}>ACCESS TERMINAL</Text>
+          <Text style={s.cardSub}>INPUT CREDENTIALS TO AUTHENTICATE</Text>
+          <View style={s.divider}>
+            <View style={s.dividerLine} />
+            <View style={s.dividerDot} />
+            <View style={s.dividerLine} />
+          </View>
 
           {/* Email */}
           <InputField
-            label="Email Address"
-            placeholder="you@example.com"
+            label="User ID — Email"
+            placeholder="operator@system.io"
             value={email}
             onChangeText={(t) => { setEmail(t); setErrors({ ...errors, email: undefined }); setServerError({}); }}
             keyboardType="email-address"
             editable={!loading}
             error={errors.email || (serverError.field === 'email' ? serverError.message : undefined)}
-            leftIcon={<Feather name="mail" size={17} color="rgba(153,98,80,0.6)" />}
+            leftIcon={<Feather name="cpu" size={16} color={C.accent} />}
           />
 
           {/* Password */}
           <InputField
-            label="Password"
-            placeholder="Enter your password"
+            label="Auth Key — Password"
+            placeholder="••••••••••••"
             value={password}
             onChangeText={(t) => { setPassword(t); setErrors({ ...errors, password: undefined }); setServerError({}); }}
             secureTextEntry={!showPassword}
             editable={!loading}
             error={errors.password || (serverError.field === 'password' ? serverError.message : undefined)}
-            leftIcon={<Feather name="lock" size={17} color="rgba(153,98,80,0.6)" />}
+            leftIcon={<Feather name="shield" size={16} color={C.accent} />}
             rightElement={
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -519,18 +482,15 @@ export default function Login() {
                 style={s.eyeBtn}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather
-                  name={showPassword ? 'eye' : 'eye-off'}
-                  size={17}
-                  color="rgba(153,98,80,0.6)"
-                />
+                <Feather name={showPassword ? 'eye' : 'eye-off'} size={16} color={C.textMuted} />
               </TouchableOpacity>
             }
           />
 
           {/* Forgot */}
           <TouchableOpacity style={s.forgotWrap} activeOpacity={0.7}>
-            <Text style={s.forgotText}>Forgot password?</Text>
+            <Feather name="alert-triangle" size={11} color={C.accent} style={{ marginRight: 5 }} />
+            <Text style={s.forgotText}>RESET AUTH KEY</Text>
           </TouchableOpacity>
 
           {/* Sign In button */}
@@ -543,12 +503,15 @@ export default function Login() {
               disabled={loading}
               activeOpacity={1}
             >
+              {/* Button scan bar */}
+              <View style={s.btnScanBar} />
               {loading ? (
-                <ActivityIndicator size="small" color="#F9F9F9" />
+                <ActivityIndicator size="small" color={C.bg} />
               ) : (
                 <>
-                  <Text style={s.loginBtnText}>Sign In</Text>
-                  <Feather name="arrow-right" size={18} color="#F9F9F9" style={{ marginLeft: 8 }} />
+                  <Feather name="zap" size={16} color={C.bg} style={{ marginRight: 8 }} />
+                  <Text style={s.loginBtnText}>INITIALIZE SESSION</Text>
+                  <Feather name="arrow-right" size={16} color={C.bg} style={{ marginLeft: 8 }} />
                 </>
               )}
             </TouchableOpacity>
@@ -557,32 +520,30 @@ export default function Login() {
           {/* OR divider */}
           <View style={s.orDivider}>
             <View style={s.orLine} />
-            <Text style={s.orText}>or continue with</Text>
+            <Text style={s.orText}>[ ALT PROTOCOL ]</Text>
             <View style={s.orLine} />
           </View>
 
           {/* Google */}
           <TouchableOpacity style={s.socialBtn} disabled={loading} activeOpacity={0.8} onPress={handleGoogleLogin}>
-            <View style={s.socialLogoWrap}>
-              <GoogleLogo />
-            </View>
-            <Text style={s.socialText}>Continue with Google</Text>
+            <View style={s.socialLeftBar} />
+            <View style={s.socialLogoWrap}><GoogleLogo /></View>
+            <Text style={s.socialText}>SYNC VIA GOOGLE NETWORK</Text>
           </TouchableOpacity>
-
         </View>
 
         {/* ── Footer ── */}
         <View style={s.footer}>
-          <Text style={s.footerText}>Don't have an account? </Text>
+          <Text style={s.footerText}>NO PROFILE REGISTERED?  </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/register')} disabled={loading}>
-            <Text style={s.registerLink}>Sign up</Text>
+            <Text style={s.registerLink}>[ ENROLL NOW ]</Text>
           </TouchableOpacity>
         </View>
 
         {/* Admin pill */}
         <TouchableOpacity style={s.adminPill} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="shield-crown-outline" size={13} color="rgba(153,98,80,0.85)" />
-          <Text style={s.adminPillText}> Admin access available</Text>
+          <MaterialCommunityIcons name="shield-crown-outline" size={13} color={C.accent} />
+          <Text style={s.adminPillText}>  ADMIN OVERRIDE AVAILABLE</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -594,7 +555,7 @@ export default function Login() {
 const s = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#1a0204',
+    backgroundColor: C.bg,
   },
   scroll: {
     flexGrow: 1,
@@ -603,87 +564,193 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  // ── Scan lines overlay ──
+  scanLinesTop: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 120,
+    opacity: 0.06,
+    gap: 12,
+  },
+  scanLine: {
+    height: 1,
+    backgroundColor: C.accent,
+  },
+
   // ── Brand ──
   brandWrap: {
     alignItems: 'center',
     marginBottom: 28,
   },
-  robotBadge: {
-    width: 100,
-    height: 68,
-    backgroundColor: '#2a0508',
-    borderRadius: 18,
+  badgeOuter: {
+    marginBottom: 16,
+    position: 'relative',
+    width: 140,
+    height: 110,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(128,0,7,0.5)',
-    shadowColor: '#800007',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    elevation: 10,
+  },
+  badgeInner: {
+    width: 120,
+    height: 90,
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: C.borderBright,
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  statusDot: {
+    position: 'absolute',
+    top: 8, right: 8,
+    width: 7, height: 7,
+    borderRadius: 3.5,
+    backgroundColor: C.success,
+    shadowColor: C.success,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  corner: {
+    position: 'absolute',
+  },
+  cornerTL: { top: 0, left: 0 },
+  cornerTR: { top: 0, right: 0 },
+
+  sysTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sysDash: {
+    width: 20, height: 1,
+    backgroundColor: C.accent,
+    opacity: 0.4,
+    marginHorizontal: 8,
+  },
+  sysTag: {
+    fontSize: 9,
+    color: C.accent,
+    letterSpacing: 1.8,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    opacity: 0.75,
   },
   brandTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
-    color: '#F9F9F9',
-    letterSpacing: 3,
+    color: C.textPrimary,
+    letterSpacing: 4,
     marginBottom: 5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   brandSub: {
-    fontSize: 12,
-    color: 'rgba(153,98,80,0.7)',
-    letterSpacing: 0.6,
+    fontSize: 9,
+    color: C.textMuted,
+    letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
   // ── Card ──
   card: {
-    backgroundColor: 'rgba(249,249,249,0.04)',
-    borderRadius: 22,
+    backgroundColor: 'rgba(4,15,31,0.95)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.18)',
+    borderColor: C.borderDim,
     padding: 26,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.55,
-    shadowRadius: 36,
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 30,
     elevation: 14,
+    overflow: 'visible',
   },
+  // Mechanical corner accents
+  cardTL: {
+    position: 'absolute', top: -1, left: -1,
+    width: 16, height: 16,
+    borderTopWidth: 2, borderLeftWidth: 2,
+    borderColor: C.accent,
+    borderTopLeftRadius: 16,
+  },
+  cardTR: {
+    position: 'absolute', top: -1, right: -1,
+    width: 16, height: 16,
+    borderTopWidth: 2, borderRightWidth: 2,
+    borderColor: C.accent,
+    borderTopRightRadius: 16,
+  },
+  cardBL: {
+    position: 'absolute', bottom: -1, left: -1,
+    width: 16, height: 16,
+    borderBottomWidth: 2, borderLeftWidth: 2,
+    borderColor: C.accent,
+    borderBottomLeftRadius: 16,
+  },
+  cardBR: {
+    position: 'absolute', bottom: -1, right: -1,
+    width: 16, height: 16,
+    borderBottomWidth: 2, borderRightWidth: 2,
+    borderColor: C.accent,
+    borderBottomRightRadius: 16,
+  },
+
   cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#F9F9F9',
+    fontSize: 18,
+    fontWeight: '800',
+    color: C.textPrimary,
     marginBottom: 3,
+    letterSpacing: 2.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   cardSub: {
-    fontSize: 13,
-    color: 'rgba(153,98,80,0.75)',
+    fontSize: 9,
+    color: C.textMuted,
     marginBottom: 18,
+    letterSpacing: 1.4,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   divider: {
-    height: 1,
-    backgroundColor: 'rgba(153,98,80,0.15)',
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 22,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: C.borderDim,
+  },
+  dividerDot: {
+    width: 6, height: 6,
+    borderRadius: 3,
+    backgroundColor: C.accent,
+    marginHorizontal: 8,
+    opacity: 0.8,
   },
 
   // ── Success ──
   successBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(153,98,80,0.12)',
+    backgroundColor: 'rgba(0,212,170,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.45)',
-    borderRadius: 10,
+    borderColor: 'rgba(0,212,170,0.4)',
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 11,
     marginBottom: 18,
   },
   successText: {
-    color: '#996250',
-    fontSize: 13,
-    fontWeight: '600',
-    flex: 1,
+    color: C.success,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
   // ── Eye ──
@@ -691,36 +758,48 @@ const s = StyleSheet.create({
 
   // ── Forgot ──
   forgotWrap: {
+    flexDirection: 'row',
     alignSelf: 'flex-end',
+    alignItems: 'center',
     marginTop: -4,
     marginBottom: 22,
   },
   forgotText: {
-    color: '#996250',
-    fontSize: 13,
-    fontWeight: '600',
+    color: C.accent,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
   // ── Login button ──
   loginBtn: {
-    backgroundColor: '#800007',
-    borderRadius: 13,
+    backgroundColor: C.accent,
+    borderRadius: 10,
     paddingVertical: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#800007',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.55,
-    shadowRadius: 14,
-    elevation: 8,
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 16,
+    elevation: 10,
+    overflow: 'hidden',
   },
-  disabledBtn: { opacity: 0.6 },
+  btnScanBar: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  disabledBtn: { opacity: 0.5 },
   loginBtnText: {
-    color: '#F9F9F9',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.8,
+    color: C.bg,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
   // ── OR divider ──
@@ -730,15 +809,15 @@ const s = StyleSheet.create({
     marginVertical: 20,
   },
   orLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(153,98,80,0.15)',
+    flex: 1, height: 1,
+    backgroundColor: C.borderDim,
   },
   orText: {
-    color: 'rgba(153,98,80,0.55)',
-    fontSize: 12,
-    marginHorizontal: 12,
-    letterSpacing: 0.4,
+    color: C.textDim,
+    fontSize: 9,
+    marginHorizontal: 10,
+    letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
   // ── Social ──
@@ -746,17 +825,26 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(249,249,249,0.05)',
+    backgroundColor: C.panel,
     borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.2)',
-    borderRadius: 13,
+    borderColor: C.borderDim,
+    borderRadius: 10,
     paddingVertical: 13,
+    overflow: 'hidden',
+  },
+  socialLeftBar: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    width: 3,
+    backgroundColor: C.accentDeep,
   },
   socialLogoWrap: { marginRight: 10 },
   socialText: {
-    color: 'rgba(249,249,249,0.85)',
-    fontSize: 14,
-    fontWeight: '600',
+    color: C.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
   // ── Footer ──
@@ -767,13 +855,17 @@ const s = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: 'rgba(153,98,80,0.65)',
-    fontSize: 13,
+    color: C.textDim,
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    letterSpacing: 0.8,
   },
   registerLink: {
-    color: '#996250',
-    fontSize: 13,
+    color: C.accent,
+    fontSize: 10,
     fontWeight: '700',
+    letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
   // ── Admin pill ──
@@ -781,34 +873,30 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignSelf: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(128,0,7,0.1)',
+    backgroundColor: 'rgba(0,168,255,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(128,0,7,0.25)',
+    borderColor: 'rgba(0,168,255,0.2)',
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 7,
     marginTop: 16,
   },
   adminPillText: {
-    color: 'rgba(153,98,80,0.85)',
-    fontSize: 11,
-    fontWeight: '600',
+    color: C.accent,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 });
 
 async function extractGoogleIdToken(userInfo: any): Promise<string | null> {
-  // Different versions / platforms can return different shapes.
-  // We also try getTokens() as a fallback.
   const direct = userInfo?.idToken ?? userInfo?.data?.idToken ?? userInfo?.user?.idToken;
   if (typeof direct === 'string' && direct.length > 0) return direct;
-
   try {
-    const tokens = await GoogleSignin.getTokens();
+    const tokens  = await GoogleSignin.getTokens();
     const fallback = (tokens as any)?.idToken;
     if (typeof fallback === 'string' && fallback.length > 0) return fallback;
-  } catch {
-    // ignore
-  }
-
+  } catch { }
   return null;
 }

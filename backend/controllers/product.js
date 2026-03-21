@@ -306,16 +306,47 @@ exports.deleteProduct = async (req, res) => {
 exports.getProducts = async (req, res) => {
   try {
     console.log('[getProducts] Fetching public products with filters:', req.query)
-    
+
     const resPerPage = 4
     const productsCount = await Product.countDocuments({
       isDeleted: { $ne: true },
     })
 
+    // EXTRA DEBUG when category filter is present
+    if (typeof req.query?.category === 'string' && req.query.category.trim()) {
+      const cat = req.query.category.trim()
+      try {
+        const exact = await Product.countDocuments({ isDeleted: { $ne: true }, category: cat })
+        const trimmedAgg = await Product.aggregate([
+          { $match: { isDeleted: { $ne: true } } },
+          {
+            $group: {
+              _id: { $trim: { input: '$category' } },
+              count: { $sum: 1 },
+            },
+          },
+          { $match: { _id: cat } },
+          { $limit: 1 },
+        ])
+        console.log('[getProducts][debug] category filter:', JSON.stringify({ cat, exact, trimmedMatch: trimmedAgg?.[0]?.count ?? 0 }))
+      } catch (e) {
+        console.log('[getProducts][debug] category aggregation failed')
+      }
+    }
+
     const apiFeatures = new APIFeatures(
       Product.find({ isDeleted: { $ne: true } }),
       req.query
     ).search().filter()
+
+    // DEBUG: log the final query that will be executed
+    try {
+      // Mongoose query stores conditions in different places depending on version
+      const cond = apiFeatures?.query?.getQuery ? apiFeatures.query.getQuery() : apiFeatures?.query?._conditions
+      console.log('[getProducts] Final conditions:', JSON.stringify(cond))
+    } catch (e) {
+      console.log('[getProducts] Could not stringify final conditions')
+    }
 
     // Count filtered results before pagination
     const filteredProductsCount = await apiFeatures.query.clone().countDocuments()
@@ -323,7 +354,7 @@ exports.getProducts = async (req, res) => {
     apiFeatures.pagination(resPerPage)
 
     const products = await apiFeatures.query
-    
+
     console.log('[getProducts] Found', products.length, 'products')
 
     res.status(200).json({
@@ -719,30 +750,33 @@ exports.getAllReviews = async (req, res) => {
 exports.getCategories = async (req, res) => {
   try {
     console.log('[getCategories] Fetching all categories')
-    
+
     // Get all categories from Category collection
     const Category = require('../models/category')
     const allCategories = await Category.find({ isDeleted: { $ne: true } }).sort({ name: 1 })
-    
-    // Get product counts per category
+
+    // Product.category stores the category id as a string (ObjectId),
+    // so group by that id and map counts by id.
     const productCounts = await Product.aggregate([
       { $match: { isDeleted: { $ne: true } } },
-      { $group: { 
-        _id: '$category', 
-        count: { $sum: 1 } 
-      }}
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 },
+        
+        },
+      },
     ])
-    
-    // Create a map of category names to counts
+
     const countMap = {}
-    productCounts.forEach(pc => {
-      countMap[pc._id] = pc.count
+    productCounts.forEach((pc) => {
+      countMap[String(pc._id)] = pc.count
     })
 
-    // Format response with all categories and their product counts
-    const categories = allCategories.map(cat => ({
-      category: cat.name,
-      count: countMap[cat.name] || 0
+    const categories = allCategories.map((cat) => ({
+      _id: String(cat._id),
+      name: cat.name,
+      count: countMap[String(cat._id)] || 0,
     }))
 
     console.log('[getCategories] Found', categories.length, 'categories')

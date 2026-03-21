@@ -5,6 +5,27 @@ const sendEmail = require('../utils/sendEmail');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() }); // For avatar upload
 
+// Firebase Admin (optional) for verifying ID tokens
+const { getAuth: getFirebaseAuth } = require('../config/firebase')
+
+async function verifyFirebaseIdToken(idToken) {
+  if (!idToken || typeof idToken !== 'string') return null
+  const fbAuth = getFirebaseAuth()
+  if (!fbAuth) return null
+  try {
+    return await fbAuth.verifyIdToken(idToken)
+  } catch (e) {
+    return null
+  }
+}
+
+function extractBearerToken(req) {
+  const h = req.headers?.authorization
+  if (!h || typeof h !== 'string') return null
+  const m = h.match(/^Bearer\s+(.+)$/i)
+  return m ? m[1] : null
+}
+
 // REGISTER USER
 exports.registerUser = async (req, res, next) => {
   try {
@@ -12,7 +33,64 @@ exports.registerUser = async (req, res, next) => {
 
     const { name, email, password, address } = req.body;
 
-    // Validate required fields
+    // Firebase-backed register (does not break existing local flow)
+    const provider = String(req.body.provider || '').toLowerCase()
+    const idToken = req.body.idToken || extractBearerToken(req)
+
+    if ((provider === 'firebase' || provider === 'google') && idToken) {
+      const decoded = await verifyFirebaseIdToken(idToken)
+      if (!decoded) {
+        return res.status(401).json({ message: 'Invalid Firebase token' })
+      }
+
+      const uid = decoded.uid
+      const tokenEmail = decoded.email
+      const displayName = decoded.name || decoded.displayName
+      const picture = decoded.picture
+
+      if (!uid || !tokenEmail) {
+        return res.status(400).json({ message: 'Firebase token missing uid/email' })
+      }
+
+      // Find existing user (by uid or by email for social providers)
+      let user = await User.findOne({
+        $or: [
+          { uid },
+          { email: tokenEmail, provider: { $in: ['firebase', 'google'] } },
+          { email: tokenEmail, provider: 'local' },
+        ],
+      })
+
+      if (!user) {
+        user = await User.create({
+          uid,
+          name: name || displayName || tokenEmail.split('@')[0],
+          email: tokenEmail,
+          address: address || '',
+          provider: provider === 'google' ? 'google' : 'firebase',
+          avatar: picture ? { url: picture } : undefined,
+          isVerified: true,
+          lastLogin: new Date(),
+        })
+      } else {
+        // Update synced fields only (avoid breaking existing accounts)
+        const updates = {
+          uid: user.uid || uid,
+          provider: user.provider === 'local' ? user.provider : (provider === 'google' ? 'google' : 'firebase'),
+          lastLogin: new Date(),
+        }
+        if (displayName && user.name !== displayName) updates.name = displayName
+        if (picture && user.avatar?.url !== picture) updates.avatar = { ...(user.avatar || {}), url: picture }
+        if (typeof address === 'string' && address && user.address !== address) updates.address = address
+
+        user = await User.findByIdAndUpdate(user._id, updates, { new: true })
+      }
+
+      const token = user.getJwtToken()
+      return res.status(201).json({ success: true, user, token })
+    }
+
+    // Validate required fields (local)
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
@@ -72,6 +150,60 @@ exports.registerUser = async (req, res, next) => {
 // LOGIN USER
 exports.loginUser = async (req, res, next) => {
   try {
+    // Firebase-backed login (does not break existing local flow)
+    const provider = String(req.body.provider || '').toLowerCase()
+    const idToken = req.body.idToken || extractBearerToken(req)
+
+    if ((provider === 'firebase' || provider === 'google') && idToken) {
+      const decoded = await verifyFirebaseIdToken(idToken)
+      if (!decoded) {
+        return res.status(401).json({ message: 'Invalid Firebase token' })
+      }
+
+      const uid = decoded.uid
+      const tokenEmail = decoded.email
+      const displayName = decoded.name || decoded.displayName
+      const picture = decoded.picture
+
+      if (!uid || !tokenEmail) {
+        return res.status(400).json({ message: 'Firebase token missing uid/email' })
+      }
+
+      let user = await User.findOne({
+        $or: [
+          { uid },
+          { email: tokenEmail, provider: { $in: ['firebase', 'google'] } },
+          { email: tokenEmail, provider: 'local' },
+        ],
+      })
+
+      if (!user) {
+        // Auto-register on first social sign-in
+        user = await User.create({
+          uid,
+          name: displayName || tokenEmail.split('@')[0],
+          email: tokenEmail,
+          provider: provider === 'google' ? 'google' : 'firebase',
+          avatar: picture ? { url: picture } : undefined,
+          isVerified: true,
+          lastLogin: new Date(),
+        })
+      } else {
+        const updates = {
+          uid: user.uid || uid,
+          lastLogin: new Date(),
+        }
+        if (displayName && user.name !== displayName) updates.name = displayName
+        if (picture && user.avatar?.url !== picture) updates.avatar = { ...(user.avatar || {}), url: picture }
+        if (user.provider !== 'local') updates.provider = provider === 'google' ? 'google' : 'firebase'
+
+        user = await User.findByIdAndUpdate(user._id, updates, { new: true })
+      }
+
+      const token = user.getJwtToken()
+      return res.status(200).json({ success: true, token, user })
+    }
+
     const { email, password } = req.body;
 
     // Validate input

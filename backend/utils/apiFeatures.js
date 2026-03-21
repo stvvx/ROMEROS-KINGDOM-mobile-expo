@@ -35,14 +35,26 @@ class APIFeatures {
             if (queryCopy['price[lte]']) {
                 priceFilter.price.$lte = Number(queryCopy['price[lte]']);
             }
-// priceFilter {
-//     price: {
-//         $gte: 100,
-//         $lte: 1000
-//     }
-// }
             delete queryCopy['price[gte]'];
             delete queryCopy['price[lte]'];
+        }
+
+        // Normalize category filter:
+        // - ignore 'All'
+        // - support combined token "<id>|||<name>" so both legacy (name) and newer (id) data match
+        if (typeof queryCopy.category === 'string') {
+            const parts = queryCopy.category
+                .split('|||')
+                .map((v) => String(v).trim())
+                .filter((v) => v && v.toLowerCase() !== 'all');
+
+            if (parts.length === 0) {
+                delete queryCopy.category;
+            } else if (parts.length === 1) {
+                queryCopy.category = parts[0];
+            } else {
+                queryCopy.category = { $in: Array.from(new Set(parts)) };
+            }
         }
 
         console.log(queryCopy);

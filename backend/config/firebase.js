@@ -33,6 +33,12 @@ function initFirebaseAdmin() {
   return admin
 }
 
+function getAuth() {
+  const app = initFirebaseAdmin()
+  if (!app) return null
+  return app.auth()
+}
+
 function getMessaging() {
   const app = initFirebaseAdmin()
   if (!app) return null
@@ -45,5 +51,4 @@ function getFirestore() {
   return app.firestore()
 }
 
-// Backward-compatible wrapper. Prefer requiring from `config/firebase`.
-module.exports = require('../config/firebase')
+module.exports = { initFirebaseAdmin, getAuth, getMessaging, getFirestore }

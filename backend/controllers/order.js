@@ -3,6 +3,8 @@ const Product = require('../models/product');
 const Voucher = require('../models/voucher');
 const sendEmail = require('../utils/sendEmail');
 const { notify } = require('../utils/notification');
+const { sendExpoPush } = require('../utils/push');
+const User = require('../models/user');
 
 
 
@@ -83,7 +85,7 @@ exports.newOrder = async (req, res, next) => {
                 `Thank you for your order. Your order id is <strong>${order._id}</strong>.<br/>` +
                 `Items: ${itemsSummary}<br/>` +
                 `Total: $${order.totalPrice.toFixed(2)}<br/><br/>` +
-                `We will notify you once your order ships.<br/><br/>Regards,<br/>ROMEROS Team`;
+                `We will notify you once your order ships.<br/><br/>Regards,<br/>DRIFTDASH `;
 
             await sendEmail({
                 email: (req.user && req.user.email) || (req.body && req.body.email),
@@ -147,7 +149,7 @@ exports.getSingleOrder = async (req, res, next) => {
 }
 
 exports.allOrders = async (req, res, next) => {
-    const orders = await Order.find()
+    const orders = await Order.find().populate('user', 'name email')
     // console.log(orders)
     let totalAmount = 0;
 
@@ -219,6 +221,22 @@ exports.updateOrder = async (req, res, next) => {
         refId: String(order._id),
         refModel: 'Order',
     });
+
+    // Remote push (Expo push tokens)
+    try {
+        const u = await User.findById(order.user).select('expoPushToken');
+        const token = u?.expoPushToken;
+        if (token) {
+            await sendExpoPush([token], {
+                title: 'Order updated',
+                body: `Your order ${order._id} is now ${order.orderStatus}.`,
+                data: { refModel: 'Order', refId: String(order._id) },
+            });
+        }
+    } catch (e) {
+        console.error('[updateOrder] push failed', e?.message || e);
+    }
+
     res.status(200).json({
         success: true,
         order,

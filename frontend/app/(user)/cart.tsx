@@ -33,12 +33,38 @@ if (debuggerHost && debuggerHost !== 'localhost') {
 } else if (Platform.OS === 'android' && resolvedApiUrl.includes('localhost')) {
   resolvedApiUrl = resolvedApiUrl.replace('localhost', '10.0.2.2');
 }
-
 resolvedApiUrl = resolvedApiUrl.trim().replace(/\/+$/, '');
 if (!resolvedApiUrl.endsWith('/api/v1')) {
   resolvedApiUrl = `${resolvedApiUrl}/api/v1`;
 }
 
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics
+───────────────────────────────────────── */
+const C = {
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  surfaceHigh: '#0A2035',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.45)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  danger:      '#FF4060',
+  dangerBg:    'rgba(255,64,96,0.08)',
+  dangerBorder:'rgba(255,64,96,0.22)',
+  success:     '#00D4AA',
+  warn:        '#F59E0B',
+};
+
+/* ─────────────────────────────────────────
+   Types
+───────────────────────────────────────── */
 interface CartItem {
   _id: string;
   name: string;
@@ -58,7 +84,9 @@ interface VoucherItem {
   validText: string;
 }
 
-// ─── THEMED CONFIRM MODAL ─────────────────────────────────────
+/* ─────────────────────────────────────────
+   Themed Confirm Modal
+───────────────────────────────────────── */
 interface ThemedConfirmProps {
   visible: boolean;
   title: string;
@@ -71,23 +99,40 @@ interface ThemedConfirmProps {
 
 const ThemedConfirm: React.FC<ThemedConfirmProps> = ({
   visible, title, message,
-  confirmLabel = 'Confirm', confirmColor = '#ff6b6b',
+  confirmLabel = 'Confirm', confirmColor = C.danger,
   onConfirm, onCancel,
 }) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
     <Pressable style={cm.overlay} onPress={onCancel}>
       <Pressable style={cm.card} onPress={() => {}}>
+        {/* Corner accents */}
+        <View style={cm.cornerTL} /><View style={cm.cornerTR} />
+        <View style={cm.cornerBL} /><View style={cm.cornerBR} />
+
+        {/* Icon */}
         <View style={cm.iconWrap}>
-          <Ionicons name="alert-circle" size={32} color="#ff6b6b" />
+          <Ionicons name="alert-circle" size={30} color={C.danger} />
+          <View style={cm.iconDot} />
         </View>
+
+        {/* Sys tag */}
+        <View style={cm.sysRow}>
+          <View style={cm.sysDash} /><Text style={cm.sysTag}>SYSTEM WARNING</Text><View style={cm.sysDash} />
+        </View>
+
         <Text style={cm.title}>{title}</Text>
         <Text style={cm.message}>{message}</Text>
         <View style={cm.divider} />
+
         <View style={cm.btnRow}>
           <TouchableOpacity style={cm.cancelBtn} onPress={onCancel} activeOpacity={0.85}>
-            <Text style={cm.cancelBtnText}>Cancel</Text>
+            <Text style={cm.cancelBtnText}>[ CANCEL ]</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[cm.confirmBtn, { backgroundColor: confirmColor }]} onPress={onConfirm} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[cm.confirmBtn, { backgroundColor: confirmColor }]}
+            onPress={onConfirm} activeOpacity={0.85}
+          >
+            <View style={cm.btnScan} />
             <Text style={cm.confirmBtnText}>{confirmLabel}</Text>
           </TouchableOpacity>
         </View>
@@ -97,29 +142,76 @@ const ThemedConfirm: React.FC<ThemedConfirmProps> = ({
 );
 
 const cm = StyleSheet.create({
-  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
-  card:           { width: '100%', backgroundColor: '#2a0508', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(153,98,80,0.2)', padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
-  iconWrap:       { width: 64, height: 64, borderRadius: 18, backgroundColor: 'rgba(255,107,107,0.1)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  title:          { fontSize: 20, fontWeight: '800', color: '#F9F9F9', marginBottom: 8, textAlign: 'center' },
-  message:        { fontSize: 13, color: 'rgba(153,98,80,0.8)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  divider:        { width: '100%', height: 1, backgroundColor: 'rgba(153,98,80,0.15)', marginBottom: 20 },
-  btnRow:         { flexDirection: 'row', gap: 10, width: '100%' },
-  cancelBtn:      { flex: 1, borderWidth: 1, borderColor: 'rgba(153,98,80,0.2)', borderRadius: 13, paddingVertical: 13, alignItems: 'center', backgroundColor: 'rgba(249,249,249,0.04)' },
-  cancelBtnText:  { fontSize: 14, fontWeight: '700', color: 'rgba(153,98,80,0.7)' },
-  confirmBtn:     { flex: 1, borderRadius: 13, paddingVertical: 13, alignItems: 'center' },
-  confirmBtnText: { fontSize: 14, fontWeight: '700', color: '#F9F9F9' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.82)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
+  card: {
+    width: '100%', backgroundColor: C.bgLayer,
+    borderRadius: 18, borderWidth: 1, borderColor: C.border,
+    padding: 28, alignItems: 'center',
+    shadowColor: C.accent, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2, shadowRadius: 28, elevation: 18,
+  },
+  cornerTL: { position: 'absolute', top: -1, left: -1,   width: 14, height: 14, borderTopWidth: 2,    borderLeftWidth: 2,  borderColor: C.danger, borderTopLeftRadius: 18 },
+  cornerTR: { position: 'absolute', top: -1, right: -1,  width: 14, height: 14, borderTopWidth: 2,    borderRightWidth: 2, borderColor: C.danger, borderTopRightRadius: 18 },
+  cornerBL: { position: 'absolute', bottom: -1, left: -1,  width: 14, height: 14, borderBottomWidth: 2, borderLeftWidth: 2,  borderColor: C.danger, borderBottomLeftRadius: 18 },
+  cornerBR: { position: 'absolute', bottom: -1, right: -1, width: 14, height: 14, borderBottomWidth: 2, borderRightWidth: 2, borderColor: C.danger, borderBottomRightRadius: 18 },
+  iconWrap: {
+    width: 64, height: 64, borderRadius: 16,
+    backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerBorder,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+  },
+  iconDot: {
+    position: 'absolute', top: 5, right: 5,
+    width: 7, height: 7, borderRadius: 3.5,
+    backgroundColor: C.danger, opacity: 0.8,
+  },
+  sysRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  sysDash: { width: 16, height: 1, backgroundColor: C.danger, opacity: 0.4, marginHorizontal: 6 },
+  sysTag: {
+    fontSize: 8, color: C.danger, letterSpacing: 1.8, opacity: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  title: {
+    fontSize: 18, fontWeight: '800', color: C.text,
+    marginBottom: 8, textAlign: 'center', letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  message:  { fontSize: 13, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  divider:  { width: '100%', height: 1, backgroundColor: C.border, marginBottom: 18 },
+  btnRow:   { flexDirection: 'row', gap: 10, width: '100%' },
+  cancelBtn: {
+    flex: 1, borderWidth: 1, borderColor: C.border,
+    borderRadius: 10, paddingVertical: 13, alignItems: 'center',
+    backgroundColor: C.surface,
+  },
+  cancelBtnText: {
+    fontSize: 12, fontWeight: '700', color: C.textSub, letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  confirmBtn: {
+    flex: 1, borderRadius: 10, paddingVertical: 13,
+    alignItems: 'center', overflow: 'hidden',
+  },
+  btnScan: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: 2, backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  confirmBtnText: {
+    fontSize: 12, fontWeight: '800', color: C.bg, letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
 });
 
-// ─── MAIN SCREEN ──────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Main Screen
+───────────────────────────────────────── */
 export default function Cart() {
   const router = useRouter();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [claimedVouchers, setClaimedVouchers] = useState<VoucherItem[]>([]);
-  const [selectedVoucherId, setSelectedVoucherId] = useState<string | null>(null);
-
-  const [confirmVisible, setConfirmVisible] = useState(false);
-  const [confirmConfig, setConfirmConfig] = useState({
-    title: '', message: '', confirmLabel: 'Remove', confirmColor: '#ff6b6b', onConfirm: () => {},
+  const [cartItems,        setCartItems]        = useState<CartItem[]>([]);
+  const [claimedVouchers,  setClaimedVouchers]  = useState<VoucherItem[]>([]);
+  const [selectedVoucherId,setSelectedVoucherId]= useState<string | null>(null);
+  const [confirmVisible,   setConfirmVisible]   = useState(false);
+  const [confirmConfig,    setConfirmConfig]     = useState({
+    title: '', message: '', confirmLabel: 'Remove', confirmColor: C.danger, onConfirm: () => {},
   });
 
   const showConfirm = (
@@ -131,87 +223,56 @@ export default function Cart() {
     setConfirmVisible(true);
   };
 
-  useFocusEffect(useCallback(() => {
-    loadCart();
-    loadClaimedVouchers();
-  }, []));
+  useFocusEffect(useCallback(() => { loadCart(); loadClaimedVouchers(); }, []));
   useEffect(() => { loadCart(); }, []);
 
   const loadCart = async () => {
-    try {
-      setCartItems(await loadCartAsync());
-    } catch (err) {
-      console.error('Error loading cart:', err);
-      setCartItems([]);
-    }
+    try { setCartItems(await loadCartAsync()); }
+    catch (err) { console.error('Error loading cart:', err); setCartItems([]); }
   };
 
   const saveCart = (items: CartItem[]) => {
     setCartItems(items);
-    try {
-      saveCartItemsSync(items);
-    } catch (err) {
-      console.error('Error saving cart:', err);
-    }
+    try { saveCartItemsSync(items); }
+    catch (err) { console.error('Error saving cart:', err); }
   };
 
   const loadClaimedVouchers = async () => {
     try {
       const token = await getItem('authToken');
-      if (!token) {
-        setClaimedVouchers([]);
-        setSelectedVoucherId(null);
-        return;
-      }
-
+      if (!token) { setClaimedVouchers([]); setSelectedVoucherId(null); return; }
       const headers = { Authorization: `Bearer ${token}` };
       const [allVouchersRes, claimedRes] = await Promise.all([
         axios.get(`${resolvedApiUrl}/vouchers`),
         axios.get(`${resolvedApiUrl}/my/vouchers/claimed`, { headers }),
       ]);
-
       const claimedSet = new Set<string>((claimedRes.data?.voucherIds || []).map((id: string) => String(id)));
-      const claimed = (allVouchersRes.data?.vouchers || []).filter((v: VoucherItem) => claimedSet.has(String(v._id)));
-
+      const claimed    = (allVouchersRes.data?.vouchers || []).filter((v: VoucherItem) => claimedSet.has(String(v._id)));
       setClaimedVouchers(claimed);
       setSelectedVoucherId((prev) => {
-        if (prev && claimed.some((voucher: VoucherItem) => voucher._id === prev)) return prev;
+        if (prev && claimed.some((v: VoucherItem) => v._id === prev)) return prev;
         return claimed.length ? claimed[0]._id : null;
       });
     } catch (err) {
-      console.error('Error loading claimed vouchers for cart:', err);
-      setClaimedVouchers([]);
-      setSelectedVoucherId(null);
+      console.error('Error loading vouchers:', err);
+      setClaimedVouchers([]); setSelectedVoucherId(null);
     }
   };
 
-  const selectedVoucher = claimedVouchers.find((voucher) => voucher._id === selectedVoucherId) || null;
+  const selectedVoucher = claimedVouchers.find((v) => v._id === selectedVoucherId) || null;
 
   const handleIncreaseQty = (id: string) =>
-    saveCart(cartItems.map(item => item._id === id ? { ...item, quantity: item.quantity + 1 } : item));
-
+    saveCart(cartItems.map(i => i._id === id ? { ...i, quantity: i.quantity + 1 } : i));
   const handleDecreaseQty = (id: string) =>
-    saveCart(cartItems.map(item => item._id === id ? { ...item, quantity: Math.max(1, item.quantity - 1) } : item));
+    saveCart(cartItems.map(i => i._id === id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i));
+  const handleRemoveItem  = (id: string) =>
+    showConfirm('Remove Unit', 'Remove this unit from your cart?', 'REMOVE', C.danger,
+      () => { saveCart(cartItems.filter(i => i._id !== id)); setConfirmVisible(false); });
+  const handleClearCart   = () =>
+    showConfirm('Purge Cart', 'Remove all units from your cart?', 'PURGE ALL', C.danger,
+      () => { saveCart([]); setConfirmVisible(false); });
 
-  const handleRemoveItem = (id: string) => {
-    showConfirm(
-      'Remove Item',
-      'Are you sure you want to remove this item from your cart?',
-      'Remove', '#ff6b6b',
-      () => { saveCart(cartItems.filter(item => item._id !== id)); setConfirmVisible(false); }
-    );
-  };
-
-  const handleClearCart = () => {
-    showConfirm(
-      'Clear Cart',
-      'Are you sure you want to remove all items from your cart?',
-      'Clear All', '#ff6b6b',
-      () => { saveCart([]); setConfirmVisible(false); }
-    );
-  };
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const tax      = subtotal * 0.1;
   const shipping = cartItems.length > 0 ? 150 : 0;
 
@@ -220,67 +281,70 @@ export default function Cart() {
     if (voucher.category === 'free-shipping') return shipping;
     const text = `${voucher.leftValue || ''} ${voucher.label || ''}`;
     const percentMatch = text.match(/(\d+(?:\.\d+)?)\s*%/);
-    const amountMatch = text.match(/(\d+(?:\.\d+)?)/);
+    const amountMatch  = text.match(/(\d+(?:\.\d+)?)/);
     if (percentMatch) {
-      const percent = Number(percentMatch[1]);
-      if (!Number.isNaN(percent)) return (subtotal + tax + shipping) * (percent / 100);
+      const pct = Number(percentMatch[1]);
+      if (!Number.isNaN(pct)) return (subtotal + tax + shipping) * (pct / 100);
     }
     if (amountMatch) {
-      const amount = Number(amountMatch[1]);
-      if (!Number.isNaN(amount)) return amount;
+      const amt = Number(amountMatch[1]);
+      if (!Number.isNaN(amt)) return amt;
     }
     return 0;
   };
 
   const voucherDiscountRaw = computeVoucherDiscount(selectedVoucher);
-  const voucherDiscount = Math.min(voucherDiscountRaw, subtotal + tax + shipping);
-  const total = Math.max(0, subtotal + tax + shipping - voucherDiscount);
+  const voucherDiscount    = Math.min(voucherDiscountRaw, subtotal + tax + shipping);
+  const total              = Math.max(0, subtotal + tax + shipping - voucherDiscount);
 
   const handleCheckout = () => {
     if (cartItems.length === 0) return;
     router.push({
       pathname: '/(user)/checkout',
       params: {
-        cartTotal: total.toString(),
-        voucherId: selectedVoucher?._id || '',
-        voucherCode: selectedVoucher?.code || '',
+        cartTotal:       total.toString(),
+        voucherId:       selectedVoucher?._id || '',
+        voucherCode:     selectedVoucher?.code || '',
         voucherDiscount: voucherDiscount.toFixed(2),
       },
     });
   };
 
-  // ── Empty State ──
+  /* ── Empty State ── */
   if (cartItems.length === 0) {
     return (
       <View style={s.root}>
         <ThemedConfirm
-          visible={confirmVisible}
-          title={confirmConfig.title}
-          message={confirmConfig.message}
-          confirmLabel={confirmConfig.confirmLabel}
-          confirmColor={confirmConfig.confirmColor}
-          onConfirm={confirmConfig.onConfirm}
+          visible={confirmVisible} title={confirmConfig.title}
+          message={confirmConfig.message} confirmLabel={confirmConfig.confirmLabel}
+          confirmColor={confirmConfig.confirmColor} onConfirm={confirmConfig.onConfirm}
           onCancel={() => setConfirmVisible(false)}
         />
+        {/* Header */}
         <View style={s.pageHeader}>
-          <View>
-            <Text style={s.pageTitle}>Shopping Cart</Text>
-            <Text style={s.pageSubtitle}>Your selected items</Text>
+          <View style={s.pageHeaderLeft}>
+            <View style={s.pageHeaderTick} />
+            <View>
+              <Text style={s.pageTitle}>CART</Text>
+              <Text style={s.pageSubtitle}>UNIT INVENTORY</Text>
+            </View>
           </View>
           <View style={s.cartBadge}>
-            <MaterialCommunityIcons name="cart-outline" size={18} color="#800007" />
+            <MaterialCommunityIcons name="cart-outline" size={16} color={C.accent} />
             <Text style={s.cartBadgeText}>0</Text>
           </View>
         </View>
+
         <View style={s.emptyContainer}>
           <View style={s.emptyIconWrap}>
-            <MaterialCommunityIcons name="cart-outline" size={40} color="rgba(153,98,80,0.35)" />
+            <MaterialCommunityIcons name="cart-outline" size={36} color={C.textDim} />
           </View>
-          <Text style={s.emptyTitle}>Your cart is empty</Text>
-          <Text style={s.emptyText}>Add items from the store to get started</Text>
+          <Text style={s.emptyTitle}>CART IS EMPTY</Text>
+          <Text style={s.emptyText}>No units queued for checkout</Text>
           <TouchableOpacity style={s.browseBtn} onPress={() => router.push('/(tabs)')} activeOpacity={0.85}>
-            <Feather name="shopping-bag" size={15} color="#F9F9F9" />
-            <Text style={s.browseBtnText}>Browse Products</Text>
+            <View style={s.browseBtnScan} />
+            <Feather name="zap" size={14} color={C.bg} style={{ marginRight: 8 }} />
+            <Text style={s.browseBtnText}>BROWSE INVENTORY</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -290,30 +354,34 @@ export default function Cart() {
   return (
     <View style={s.root}>
       <ThemedConfirm
-        visible={confirmVisible}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        confirmLabel={confirmConfig.confirmLabel}
-        confirmColor={confirmConfig.confirmColor}
-        onConfirm={confirmConfig.onConfirm}
+        visible={confirmVisible} title={confirmConfig.title}
+        message={confirmConfig.message} confirmLabel={confirmConfig.confirmLabel}
+        confirmColor={confirmConfig.confirmColor} onConfirm={confirmConfig.onConfirm}
         onCancel={() => setConfirmVisible(false)}
       />
 
-      {/* ── Page Header ── */}
+      {/* ══════════════════════════════════
+          PAGE HEADER
+      ══════════════════════════════════ */}
       <View style={s.pageHeader}>
-        <View>
-          <Text style={s.pageTitle}>Shopping Cart</Text>
-          <Text style={s.pageSubtitle}>Your selected items</Text>
+        <View style={s.pageHeaderLeft}>
+          <View style={s.pageHeaderTick} />
+          <View>
+            <Text style={s.pageTitle}>CART</Text>
+            <Text style={s.pageSubtitle}>UNIT INVENTORY</Text>
+          </View>
         </View>
         <View style={s.cartBadge}>
-          <MaterialCommunityIcons name="cart-outline" size={18} color="#800007" />
+          <MaterialCommunityIcons name="cart-outline" size={16} color={C.accent} />
           <Text style={s.cartBadgeText}>{cartItems.length}</Text>
         </View>
       </View>
 
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
-        {/* ── Cart Items ── */}
+        {/* ══════════════════════════════════
+            CART ITEMS
+        ══════════════════════════════════ */}
         <FlatList
           data={cartItems}
           keyExtractor={item => item._id}
@@ -328,21 +396,29 @@ export default function Cart() {
           )}
         />
 
-        {/* ── Claimed Vouchers ── */}
-        <View style={s.voucherCard}>
-          <View style={s.summaryCardHeader}>
-            <View style={s.summaryIconWrap}>
-              <MaterialCommunityIcons name="ticket-percent-outline" size={16} color="#800007" />
+        {/* ══════════════════════════════════
+            VOUCHERS
+        ══════════════════════════════════ */}
+        <View style={s.panelCard}>
+          {/* Corner accents */}
+          <View style={s.panelTL} /><View style={s.panelTR} />
+
+          <View style={s.panelHeader}>
+            <View style={s.panelIconWrap}>
+              <MaterialCommunityIcons name="ticket-percent-outline" size={15} color={C.accent} />
             </View>
-            <Text style={s.summaryCardTitle}>Your Claimed Vouchers</Text>
+            <View style={s.panelTitleBlock}>
+              <View style={s.panelTick} />
+              <Text style={s.panelTitle}>VOUCHER CODES</Text>
+            </View>
           </View>
 
-          <View style={s.summaryDivider} />
+          <View style={s.panelDivider} />
 
           {!claimedVouchers.length ? (
-            <Text style={s.voucherEmptyText}>No claimed vouchers yet. Claim one in the Vouchers page.</Text>
+            <Text style={s.voucherEmptyText}>No voucher codes claimed yet. Visit the Vouchers page.</Text>
           ) : (
-            <View style={s.voucherListWrap}>
+            <View style={s.voucherList}>
               {claimedVouchers.map((voucher) => {
                 const active = voucher._id === selectedVoucherId;
                 return (
@@ -352,11 +428,16 @@ export default function Cart() {
                     onPress={() => setSelectedVoucherId(voucher._id)}
                     activeOpacity={0.85}
                   >
+                    {active && <View style={s.voucherChipRail} />}
                     <View style={{ flex: 1 }}>
                       <Text style={[s.voucherCode, active && s.voucherCodeActive]}>{voucher.code}</Text>
-                      <Text style={s.voucherMeta}>{voucher.leftValue} • {voucher.validText}</Text>
+                      <Text style={s.voucherMeta}>{voucher.leftValue} · {voucher.validText}</Text>
                     </View>
-                    <Text style={[s.voucherApply, active && s.voucherApplyActive]}>{active ? 'Applied' : 'Apply'}</Text>
+                    <View style={[s.voucherApplyBadge, active && s.voucherApplyBadgeActive]}>
+                      <Text style={[s.voucherApplyText, active && s.voucherApplyTextActive]}>
+                        {active ? 'ACTIVE' : 'APPLY'}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -364,30 +445,37 @@ export default function Cart() {
           )}
         </View>
 
-        {/* ── Order Summary ── */}
-        <View style={s.summaryCard}>
-          <View style={s.summaryCardHeader}>
-            <View style={s.summaryIconWrap}>
-              <Feather name="file-text" size={16} color="#800007" />
+        {/* ══════════════════════════════════
+            ORDER SUMMARY
+        ══════════════════════════════════ */}
+        <View style={s.panelCard}>
+          <View style={s.panelTL} /><View style={s.panelTR} />
+
+          <View style={s.panelHeader}>
+            <View style={s.panelIconWrap}>
+              <Feather name="file-text" size={15} color={C.accent} />
             </View>
-            <Text style={s.summaryCardTitle}>Order Summary</Text>
+            <View style={s.panelTitleBlock}>
+              <View style={s.panelTick} />
+              <Text style={s.panelTitle}>ORDER SUMMARY</Text>
+            </View>
           </View>
 
-          <View style={s.summaryDivider} />
+          <View style={s.panelDivider} />
 
           <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>Subtotal</Text>
+            <Text style={s.summaryLabel}>SUBTOTAL</Text>
             <Text style={s.summaryValue}>₱{subtotal.toFixed(2)}</Text>
           </View>
           <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>Tax (10%)</Text>
+            <Text style={s.summaryLabel}>TAX (10%)</Text>
             <Text style={s.summaryValue}>₱{tax.toFixed(2)}</Text>
           </View>
           <View style={s.summaryRow}>
             <View style={s.shippingLabelRow}>
-              <Text style={s.summaryLabel}>Shipping</Text>
+              <Text style={s.summaryLabel}>SHIPPING</Text>
               <View style={s.flatRateBadge}>
-                <Text style={s.flatRateText}>Flat rate</Text>
+                <Text style={s.flatRateText}>FLAT</Text>
               </View>
             </View>
             <Text style={s.summaryValue}>₱{shipping.toFixed(2)}</Text>
@@ -395,44 +483,52 @@ export default function Cart() {
 
           {voucherDiscount > 0 && (
             <View style={s.summaryRow}>
-              <Text style={s.discountLabel}>Voucher Discount{selectedVoucher ? ` (${selectedVoucher.code})` : ''}</Text>
+              <Text style={s.discountLabel}>
+                DISCOUNT{selectedVoucher ? ` · ${selectedVoucher.code}` : ''}
+              </Text>
               <Text style={s.discountValue}>-₱{voucherDiscount.toFixed(2)}</Text>
             </View>
           )}
 
-          <View style={s.summaryDivider} />
+          <View style={s.panelDivider} />
 
           <View style={s.summaryRow}>
-            <Text style={s.totalLabel}>Total</Text>
+            <Text style={s.totalLabel}>TOTAL</Text>
             <Text style={s.totalValue}>₱{total.toFixed(2)}</Text>
           </View>
         </View>
 
-        {/* ── Checkout Button ── */}
+        {/* ══════════════════════════════════
+            CHECKOUT BUTTON
+        ══════════════════════════════════ */}
         <TouchableOpacity style={s.checkoutBtn} onPress={handleCheckout} activeOpacity={0.85}>
-          <MaterialCommunityIcons name="lock-outline" size={17} color="#F9F9F9" />
-          <Text style={s.checkoutBtnText}>Proceed to Checkout</Text>
+          <View style={s.checkoutBtnScan} />
+          <MaterialCommunityIcons name="lock-outline" size={16} color={C.bg} style={{ marginRight: 8 }} />
+          <Text style={s.checkoutBtnText}>PROCEED TO CHECKOUT</Text>
+          <Feather name="arrow-right" size={15} color={C.bg} style={{ marginLeft: 8 }} />
         </TouchableOpacity>
 
-        {/* ── Secondary Buttons ── */}
+        {/* Secondary buttons */}
         <View style={s.secondaryBtns}>
           <TouchableOpacity style={s.continueBtn} onPress={() => router.push('/(tabs)')} activeOpacity={0.85}>
-            <Feather name="arrow-left" size={14} color="#800007" />
-            <Text style={s.continueBtnText}>Keep Shopping</Text>
+            <Feather name="arrow-left" size={13} color={C.accent} />
+            <Text style={s.continueBtnText}>BROWSE MORE</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.clearBtn} onPress={handleClearCart} activeOpacity={0.85}>
-            <Feather name="trash-2" size={14} color="#ff6b6b" />
-            <Text style={s.clearBtnText}>Clear Cart</Text>
+            <Feather name="trash-2" size={13} color={C.danger} />
+            <Text style={s.clearBtnText}>PURGE CART</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 28 }} />
+        <View style={{ height: 32 }} />
       </ScrollView>
     </View>
   );
 }
 
-// ─── CART ITEM CARD ──────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Cart Item Card
+───────────────────────────────────────── */
 interface CartItemCardProps {
   item: CartItem;
   onIncreaseQty: () => void;
@@ -446,30 +542,36 @@ const CartItemCard = ({ item, onIncreaseQty, onDecreaseQty, onRemove }: CartItem
 
   return (
     <View style={s.card}>
+      {/* Left accent rail */}
+      <View style={s.cardRail} />
+
       {/* Image */}
       <View style={s.itemImageWrap}>
         {imgUrl ? (
           <Image source={{ uri: imgUrl }} style={s.itemImage} resizeMode="cover" />
         ) : (
           <View style={s.itemImagePlaceholder}>
-            <MaterialCommunityIcons name="car-sports" size={28} color="rgba(153,98,80,0.35)" />
+            <MaterialCommunityIcons name="robot-outline" size={26} color={C.textDim} />
           </View>
         )}
+        {/* Scan line on image */}
+        <View style={s.imgScanLine} />
       </View>
 
       {/* Info */}
       <View style={s.itemInfo}>
         <Text style={s.itemName} numberOfLines={2}>{item.name}</Text>
-        <Text style={s.itemUnitPrice}>₱{item.price.toFixed(2)} / pc</Text>
+        <Text style={s.itemUnitPrice}>₱{item.price.toFixed(2)} / unit</Text>
         <View style={s.qtyRow}>
           <TouchableOpacity style={s.qtyBtn} onPress={onDecreaseQty}>
-            <Feather name="minus" size={13} color={item.quantity <= 1 ? 'rgba(153,98,80,0.25)' : '#F9F9F9'} />
+            <Feather name="minus" size={12}
+              color={item.quantity <= 1 ? C.textDim : C.accentText} />
           </TouchableOpacity>
           <View style={s.qtyDisplay}>
             <Text style={s.qtyText}>{item.quantity}</Text>
           </View>
           <TouchableOpacity style={s.qtyBtn} onPress={onIncreaseQty}>
-            <Feather name="plus" size={13} color="#F9F9F9" />
+            <Feather name="plus" size={12} color={C.accentText} />
           </TouchableOpacity>
         </View>
       </View>
@@ -478,83 +580,262 @@ const CartItemCard = ({ item, onIncreaseQty, onDecreaseQty, onRemove }: CartItem
       <View style={s.itemRight}>
         <Text style={s.itemTotal}>₱{itemTotal.toFixed(2)}</Text>
         <TouchableOpacity style={s.removeBtn} onPress={onRemove} activeOpacity={0.8}>
-          <Feather name="trash-2" size={14} color="#ff6b6b" />
+          <Feather name="trash-2" size={13} color={C.danger} />
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-// ─── STYLES ──────────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Styles
+───────────────────────────────────────── */
 const s = StyleSheet.create({
-  root:          { flex: 1, backgroundColor: '#1a0204' },
+  root:          { flex: 1, backgroundColor: C.bg },
   scroll:        { flex: 1 },
   scrollContent: { paddingHorizontal: 18, paddingBottom: 16 },
 
-  // ── Page Header ──
-  pageHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16 },
-  pageTitle:     { fontSize: 22, fontWeight: '800', color: '#F9F9F9', letterSpacing: 0.3, marginBottom: 2 },
-  pageSubtitle:  { fontSize: 12, color: 'rgba(153,98,80,0.65)' },
-  cartBadge:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(128,0,7,0.1)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.28)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  cartBadgeText: { fontSize: 13, fontWeight: '800', color: '#800007' },
+  /* Page Header */
+  pageHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: C.border,
+    backgroundColor: C.bgLayer,
+  },
+  pageHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pageHeaderTick: { width: 3, height: 28, borderRadius: 2, backgroundColor: C.accent },
+  pageTitle: {
+    fontSize: 18, fontWeight: '800', color: C.text, letterSpacing: 3,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  pageSubtitle: {
+    fontSize: 8, color: C.textDim, letterSpacing: 2, marginTop: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  cartBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: C.accentGlow,
+    borderWidth: 1, borderColor: C.borderBright,
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  cartBadgeText: {
+    fontSize: 13, fontWeight: '800', color: C.accent,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
 
-  // ── Empty State ──
+  /* Empty State */
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 80, gap: 10 },
-  emptyIconWrap:  { width: 88, height: 88, borderRadius: 26, backgroundColor: 'rgba(128,0,7,0.06)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  emptyTitle:     { fontSize: 18, fontWeight: '800', color: 'rgba(249,249,249,0.7)' },
-  emptyText:      { fontSize: 13, color: 'rgba(153,98,80,0.55)', textAlign: 'center' },
-  browseBtn:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, backgroundColor: '#800007', paddingHorizontal: 22, paddingVertical: 13, borderRadius: 13, shadowColor: '#800007', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
-  browseBtnText:  { color: '#F9F9F9', fontWeight: '700', fontSize: 14 },
+  emptyIconWrap: {
+    width: 88, height: 88, borderRadius: 22,
+    backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  },
+  emptyTitle: {
+    fontSize: 16, fontWeight: '800', color: C.textSub, letterSpacing: 2.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  emptyText: {
+    fontSize: 11, color: C.textDim, textAlign: 'center', letterSpacing: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  browseBtn: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 10,
+    backgroundColor: C.accent, paddingHorizontal: 22, paddingVertical: 13,
+    borderRadius: 10, overflow: 'hidden',
+    shadowColor: C.accent, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6, shadowRadius: 14, elevation: 8,
+  },
+  browseBtnScan: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: 'rgba(255,255,255,0.25)' },
+  browseBtnText: {
+    color: C.bg, fontWeight: '800', fontSize: 12, letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
 
-  // ── Cart Item Card ──
-  card:                { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(249,249,249,0.04)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.15)', borderRadius: 16, padding: 12, marginBottom: 10 },
-  itemImageWrap:       { marginRight: 12 },
-  itemImage:           { width: 76, height: 76, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.08)' },
-  itemImagePlaceholder:{ width: 76, height: 76, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.06)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.15)', alignItems: 'center', justifyContent: 'center' },
-  itemInfo:            { flex: 1 },
-  itemName:            { fontSize: 14, fontWeight: '700', color: '#F9F9F9', marginBottom: 3, lineHeight: 19 },
-  itemUnitPrice:       { fontSize: 12, color: '#996250', fontWeight: '600', marginBottom: 10 },
-  qtyRow:              { flexDirection: 'row', alignItems: 'center' },
-  qtyBtn:              { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(249,249,249,0.06)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.2)', alignItems: 'center', justifyContent: 'center' },
-  qtyDisplay:          { width: 36, height: 28, marginHorizontal: 6, borderRadius: 8, backgroundColor: 'rgba(128,0,7,0.08)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.2)', alignItems: 'center', justifyContent: 'center' },
-  qtyText:             { fontSize: 13, fontWeight: '800', color: '#F9F9F9' },
-  itemRight:           { alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch', marginLeft: 10, paddingVertical: 2 },
-  itemTotal:           { fontSize: 15, fontWeight: '800', color: '#F9F9F9' },
-  removeBtn:           { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,107,107,0.08)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.22)', alignItems: 'center', justifyContent: 'center' },
+  /* Cart Item Card */
+  card: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, padding: 12, marginBottom: 10,
+    overflow: 'hidden',
+  },
+  cardRail: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    width: 3, backgroundColor: C.accentDim,
+    borderTopLeftRadius: 14, borderBottomLeftRadius: 14,
+  },
+  itemImageWrap: { marginRight: 12, marginLeft: 6 },
+  itemImage:     { width: 76, height: 76, borderRadius: 10, backgroundColor: C.bgLayer },
+  itemImagePlaceholder: {
+    width: 76, height: 76, borderRadius: 10,
+    backgroundColor: C.bgLayer, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  imgScanLine: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    height: 2, backgroundColor: C.accent, opacity: 0.3,
+    borderBottomLeftRadius: 10, borderBottomRightRadius: 10,
+  },
+  itemInfo:      { flex: 1 },
+  itemName: {
+    fontSize: 13, fontWeight: '700', color: C.text,
+    marginBottom: 3, lineHeight: 18,
+  },
+  itemUnitPrice: {
+    fontSize: 11, color: C.accentText, fontWeight: '600', marginBottom: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  qtyRow:    { flexDirection: 'row', alignItems: 'center' },
+  qtyBtn: {
+    width: 28, height: 28, borderRadius: 7,
+    backgroundColor: C.bgLayer, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  qtyDisplay: {
+    width: 36, height: 28, marginHorizontal: 6, borderRadius: 7,
+    backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  qtyText: {
+    fontSize: 13, fontWeight: '800', color: C.accent,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  itemRight:  { alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch', marginLeft: 10, paddingVertical: 2 },
+  itemTotal: {
+    fontSize: 14, fontWeight: '800', color: C.accentText,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  removeBtn: {
+    width: 32, height: 32, borderRadius: 9,
+    backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerBorder,
+    alignItems: 'center', justifyContent: 'center',
+  },
 
-  // ── Voucher & Summary Cards ──
-  voucherCard:       { backgroundColor: 'rgba(249,249,249,0.03)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.15)', borderRadius: 18, padding: 18, marginBottom: 14, marginTop: 4 },
-  voucherListWrap:   { gap: 10 },
-  voucherChip:       { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(153,98,80,0.15)', backgroundColor: 'rgba(249,249,249,0.03)', paddingHorizontal: 12, paddingVertical: 11 },
-  voucherChipActive: { borderColor: 'rgba(128,0,7,0.45)', backgroundColor: 'rgba(128,0,7,0.1)' },
-  voucherCode:       { color: '#F9F9F9', fontSize: 13, fontWeight: '800' },
-  voucherCodeActive: { color: '#800007' },
-  voucherMeta:       { marginTop: 3, color: 'rgba(153,98,80,0.65)', fontSize: 11 },
-  voucherApply:      { color: '#996250', fontSize: 12, fontWeight: '700' },
-  voucherApplyActive:{ color: '#800007' },
-  voucherEmptyText:  { color: 'rgba(153,98,80,0.65)', fontSize: 12, lineHeight: 18 },
-  summaryCard:       { backgroundColor: 'rgba(249,249,249,0.03)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.15)', borderRadius: 18, padding: 18, marginBottom: 16, marginTop: 6 },
-  summaryCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  summaryIconWrap:   { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(128,0,7,0.12)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.28)', alignItems: 'center', justifyContent: 'center' },
-  summaryCardTitle:  { fontSize: 15, fontWeight: '800', color: '#F9F9F9' },
-  summaryDivider:    { height: 1, backgroundColor: 'rgba(153,98,80,0.15)', marginBottom: 14 },
-  summaryRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  summaryLabel:      { fontSize: 13, color: 'rgba(153,98,80,0.65)' },
-  summaryValue:      { fontSize: 13, fontWeight: '700', color: 'rgba(249,249,249,0.75)' },
-  discountLabel:     { fontSize: 13, color: '#996250', fontWeight: '700' },
-  discountValue:     { fontSize: 13, fontWeight: '800', color: '#996250' },
-  shippingLabelRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  flatRateBadge:     { backgroundColor: 'rgba(128,0,7,0.1)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  flatRateText:      { fontSize: 9, color: '#800007', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  totalLabel:        { fontSize: 15, fontWeight: '800', color: '#F9F9F9' },
-  totalValue:        { fontSize: 22, fontWeight: '800', color: '#800007' },
+  /* Panel Card (vouchers + summary) */
+  panelCard: {
+    backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.border,
+    borderRadius: 16, padding: 18,
+    marginBottom: 14, marginTop: 4,
+  },
+  panelTL: { position: 'absolute', top: -1, left: -1,  width: 14, height: 14, borderTopWidth: 1.5,    borderLeftWidth: 1.5,  borderColor: C.accent, borderTopLeftRadius: 16 },
+  panelTR: { position: 'absolute', top: -1, right: -1, width: 14, height: 14, borderTopWidth: 1.5,    borderRightWidth: 1.5, borderColor: C.accent, borderTopRightRadius: 16 },
+  panelHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  panelIconWrap: {
+    width: 34, height: 34, borderRadius: 9,
+    backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  panelTitleBlock: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  panelTick:       { width: 2.5, height: 12, borderRadius: 1.5, backgroundColor: C.accent },
+  panelTitle: {
+    fontSize: 12, fontWeight: '800', color: C.text, letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  panelDivider: { height: 1, backgroundColor: C.border, marginBottom: 14 },
 
-  // ── Buttons ──
-  checkoutBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#800007', paddingVertical: 16, borderRadius: 14, marginBottom: 12, shadowColor: '#800007', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 8 },
-  checkoutBtnText: { color: '#F9F9F9', fontSize: 15, fontWeight: '800' },
-  secondaryBtns:   { flexDirection: 'row', gap: 10 },
-  continueBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(128,0,7,0.28)', backgroundColor: 'rgba(128,0,7,0.07)' },
-  continueBtnText: { color: '#800007', fontSize: 13, fontWeight: '700' },
-  clearBtn:        { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(255,107,107,0.22)', backgroundColor: 'rgba(255,107,107,0.06)' },
-  clearBtnText:    { color: '#ff6b6b', fontSize: 13, fontWeight: '700' },
+  /* Voucher chips */
+  voucherList:         { gap: 10 },
+  voucherChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderRadius: 10, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.bgLayer, paddingHorizontal: 12, paddingVertical: 11,
+    overflow: 'hidden',
+  },
+  voucherChipActive:   { borderColor: C.borderBright, backgroundColor: C.accentGlow },
+  voucherChipRail:     { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: C.accent },
+  voucherCode: {
+    color: C.text, fontSize: 13, fontWeight: '800',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  voucherCodeActive:   { color: C.accentText },
+  voucherMeta:         { marginTop: 3, color: C.textDim, fontSize: 10 },
+  voucherApplyBadge: {
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 6, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.surface,
+  },
+  voucherApplyBadgeActive: { borderColor: C.borderBright, backgroundColor: C.accentGlow },
+  voucherApplyText: {
+    color: C.textSub, fontSize: 9, fontWeight: '700', letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  voucherApplyTextActive: { color: C.accent },
+  voucherEmptyText: { color: C.textDim, fontSize: 12, lineHeight: 18 },
+
+  /* Summary rows */
+  summaryRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  summaryLabel: {
+    fontSize: 10, color: C.textSub, letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  summaryValue: {
+    fontSize: 13, fontWeight: '700', color: C.text,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  discountLabel: {
+    fontSize: 10, color: C.success, fontWeight: '700', letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  discountValue: {
+    fontSize: 13, fontWeight: '800', color: C.success,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  shippingLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  flatRateBadge: {
+    backgroundColor: C.accentGlow, borderWidth: 1, borderColor: C.borderBright,
+    borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  flatRateText: {
+    fontSize: 8, color: C.accent, fontWeight: '700', letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  totalLabel: {
+    fontSize: 14, fontWeight: '800', color: C.text, letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  totalValue: {
+    fontSize: 22, fontWeight: '800', color: C.accent,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    shadowColor: C.accent, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6, shadowRadius: 8,
+  },
+
+  /* Checkout Button */
+  checkoutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.accent, paddingVertical: 16, borderRadius: 12,
+    marginBottom: 12, overflow: 'hidden',
+    shadowColor: C.accent, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65, shadowRadius: 16, elevation: 10,
+  },
+  checkoutBtnScan: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: 2, backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  checkoutBtnText: {
+    color: C.bg, fontSize: 13, fontWeight: '800', letterSpacing: 2.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+
+  /* Secondary Buttons */
+  secondaryBtns: { flexDirection: 'row', gap: 10 },
+  continueBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    paddingVertical: 13, borderRadius: 10, borderWidth: 1,
+    borderColor: C.borderBright, backgroundColor: C.accentGlow,
+  },
+  continueBtnText: {
+    color: C.accent, fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
+  clearBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    paddingVertical: 13, borderRadius: 10, borderWidth: 1,
+    borderColor: C.dangerBorder, backgroundColor: C.dangerBg,
+  },
+  clearBtnText: {
+    color: C.danger, fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+  },
 });

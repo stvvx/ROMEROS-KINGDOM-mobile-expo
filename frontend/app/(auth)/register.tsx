@@ -19,8 +19,7 @@ import axios from 'axios';
 import { setItem } from '@/utils/storage';
 import { registerFirebasePushToken } from '@/utils/notifications';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import Svg, { Path, Rect } from 'react-native-svg';
-
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import Constants from 'expo-constants';
 import { auth } from '@/utils/firebase';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
@@ -43,7 +42,30 @@ const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   'http://localhost:4000/api/v1';
 
-// ─── Google Logo SVG ──────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Palette — Blue Robotics
+───────────────────────────────────────── */
+const C = {
+  bg:          '#020B18',
+  surface:     '#040F1F',
+  surfaceHigh: '#071828',
+  border:      '#0D2440',
+  borderBright:'rgba(0,168,255,0.55)',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.1)',
+  accentText:  '#33BBFF',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.7)',
+  textDim:     'rgba(60,110,170,0.45)',
+  error:       '#FF4060',
+  success:     '#00D4AA',
+  panel:       'rgba(0,168,255,0.05)',
+};
+
+/* ─────────────────────────────────────────
+   Google Logo SVG
+───────────────────────────────────────── */
 const GoogleLogo = () => (
   <Svg width={20} height={20} viewBox="0 0 48 48">
     <Path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
@@ -53,99 +75,55 @@ const GoogleLogo = () => (
   </Svg>
 );
 
-// ─── Car Logo SVG (side profile silhouette) ───────────────────
-const CarIcon = () => (
-  <Svg width={48} height={36} viewBox="0 0 120 70" fill="none">
-    {/* ── Main body lower chassis ── */}
-    <Path
-      d="M6 46 Q6 54 14 54 L106 54 Q114 54 114 46 L114 40 L6 40 Z"
-      fill="#800007"
-    />
-    {/* ── Cabin upper silhouette ── */}
-    <Path
-      d="M28 40 Q32 22 42 16 Q52 10 60 10 Q72 10 82 16 Q90 22 94 40 Z"
-      fill="#800007"
-    />
-    {/* ── Windshield (front) ── */}
-    <Path
-      d="M76 40 Q80 26 86 20 Q90 16 93 18 L94 40 Z"
-      fill="#3d0003"
-      opacity="0.85"
-    />
-    {/* ── Rear window ── */}
-    <Path
-      d="M28 40 Q30 26 36 19 Q40 14 44 14 Q48 12 52 11 L58 11 Q56 20 54 40 Z"
-      fill="#3d0003"
-      opacity="0.85"
-    />
-    {/* ── Side window (middle) ── */}
-    <Path
-      d="M56 40 Q57 18 62 11 Q70 10 78 14 Q82 22 80 40 Z"
-      fill="#3d0003"
-      opacity="0.7"
-    />
-    {/* ── Highlight line along roofline ── */}
-    <Path
-      d="M42 16 Q60 8 82 16"
-      stroke="#996250"
-      strokeWidth="1.5"
-      fill="none"
-      strokeLinecap="round"
-      opacity="0.8"
-    />
-    {/* ── Body crease / side line ── */}
-    <Path
-      d="M10 43 Q60 39 110 43"
-      stroke="#996250"
-      strokeWidth="1"
-      fill="none"
-      strokeLinecap="round"
-      opacity="0.5"
-    />
-    {/* ── Front bumper lip ── */}
-    <Path
-      d="M100 54 Q114 54 116 50 Q117 47 114 46 L114 54 Z"
-      fill="#3d0003"
-    />
-    {/* ── Rear bumper lip ── */}
-    <Path
-      d="M20 54 Q6 54 4 50 Q3 47 6 46 L6 54 Z"
-      fill="#3d0003"
-    />
-    {/* ── Front headlight ── */}
-    <Path
-      d="M104 38 Q108 37 112 39 Q113 41 110 42 L104 42 Z"
-      fill="#F9F9F9"
-      opacity="0.95"
-    />
-    {/* ── Rear taillight ── */}
-    <Path
-      d="M16 38 Q12 37 8 39 Q7 41 10 42 L16 42 Z"
-      fill="#996250"
-      opacity="0.9"
-    />
-    {/* ── Front wheel arch ── */}
-    <Path d="M82 54 Q82 64 92 64 Q102 64 102 54 Z" fill="#1a0204"/>
-    {/* ── Front wheel ── */}
-    <Path d="M84 54 Q84 62 92 62 Q100 62 100 54 Z" fill="#2a0508"/>
-    {/* ── Front wheel rim ── */}
-    <Path d="M87 54 Q87 59 92 59 Q97 59 97 54 Z" fill="#800007" opacity="0.6"/>
-    {/* ── Rear wheel arch ── */}
-    <Path d="M18 54 Q18 64 28 64 Q38 64 38 54 Z" fill="#1a0204"/>
-    {/* ── Rear wheel ── */}
-    <Path d="M20 54 Q20 62 28 62 Q36 62 36 54 Z" fill="#2a0508"/>
-    {/* ── Rear wheel rim ── */}
-    <Path d="M23 54 Q23 59 28 59 Q33 59 33 54 Z" fill="#800007" opacity="0.6"/>
-    {/* ── Door handle ── */}
-    <Path
-      d="M58 43 Q64 42 70 43 Q70 45 64 45 Q58 45 58 43 Z"
-      fill="#996250"
-      opacity="0.7"
-    />
+/* ─────────────────────────────────────────
+   Robot Head Icon SVG
+───────────────────────────────────────── */
+const RobotHeadIcon = ({ size = 48 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 44 44" fill="none">
+    {/* Neck */}
+    <Rect x="17" y="35" width="10" height="5" rx="2" fill="#1E3A5F" />
+    <Rect x="19" y="35" width="6" height="5" fill="#00A8FF" opacity="0.3" />
+    {/* Head body */}
+    <Rect x="5" y="10" width="34" height="26" rx="6" fill="#1E3A5F" />
+    <Rect x="5" y="10" width="34" height="26" rx="6" fill="none" stroke="#00A8FF" strokeWidth="1.2" opacity="0.75" />
+    {/* Forehead circuit trace */}
+    <Line x1="12" y1="16" x2="32" y2="16" stroke="#00A8FF" strokeWidth="0.6" opacity="0.4" />
+    <Circle cx="12" cy="16" r="1.2" fill="#00A8FF" opacity="0.65" />
+    <Circle cx="32" cy="16" r="1.2" fill="#00A8FF" opacity="0.65" />
+    <Circle cx="22" cy="16" r="1.2" fill="#00A8FF" opacity="0.45" />
+    {/* Visor band */}
+    <Rect x="9" y="20" width="26" height="9" rx="3" fill="#020D20" />
+    <Rect x="9" y="20" width="26" height="9" rx="3" fill="none" stroke="#00A8FF" strokeWidth="0.8" opacity="0.6" />
+    {/* Left eye */}
+    <Rect x="12" y="22.5" width="8" height="4" rx="1.5" fill="#00A8FF" opacity="0.9" />
+    <Circle cx="16" cy="24.5" r="1.2" fill="#E8F4FF" opacity="0.85" />
+    {/* Right eye */}
+    <Rect x="24" y="22.5" width="8" height="4" rx="1.5" fill="#00A8FF" opacity="0.9" />
+    <Circle cx="28" cy="24.5" r="1.2" fill="#E8F4FF" opacity="0.85" />
+    {/* Mouth grille */}
+    <Rect x="14" y="32" width="3"  height="1.5" rx="0.7" fill="#00A8FF" opacity="0.55" />
+    <Rect x="19" y="32" width="3"  height="1.5" rx="0.7" fill="#00A8FF" opacity="0.55" />
+    <Rect x="24" y="32" width="3"  height="1.5" rx="0.7" fill="#00A8FF" opacity="0.55" />
+    <Rect x="29" y="32" width="3"  height="1.5" rx="0.7" fill="#00A8FF" opacity="0.4"  />
+    {/* Ear bolts */}
+    <Circle cx="5"  cy="22" r="2.5" fill="#0A2035" stroke="#00A8FF" strokeWidth="1" opacity="0.85" />
+    <Circle cx="5"  cy="22" r="0.9" fill="#00A8FF" opacity="0.8" />
+    <Circle cx="39" cy="22" r="2.5" fill="#0A2035" stroke="#00A8FF" strokeWidth="1" opacity="0.85" />
+    <Circle cx="39" cy="22" r="0.9" fill="#00A8FF" opacity="0.8" />
+    {/* Antenna base */}
+    <Rect x="20" y="6" width="4" height="5" rx="1.5" fill="#1E3A5F" stroke="#00A8FF" strokeWidth="0.8" opacity="0.9" />
+    {/* Antenna tip — teal glow */}
+    <Circle cx="22" cy="5" r="2" fill="#020D20" stroke="#00A8FF" strokeWidth="1" />
+    <Circle cx="22" cy="5" r="1" fill="#00D4AA" opacity="0.95" />
+    {/* Corner ticks */}
+    <Path d="M5 14 L5 10 L9 10"    stroke="#00A8FF" strokeWidth="1" fill="none" opacity="0.7" strokeLinecap="round" />
+    <Path d="M39 14 L39 10 L35 10" stroke="#00A8FF" strokeWidth="1" fill="none" opacity="0.7" strokeLinecap="round" />
   </Svg>
 );
 
-// ─── Input Field Component ────────────────────────────────────
+/* ─────────────────────────────────────────
+   Input Field Component
+───────────────────────────────────────── */
 interface InputFieldProps {
   label: string;
   value: string;
@@ -166,15 +144,14 @@ const InputField: React.FC<InputFieldProps> = ({
   placeholder, leftIcon, rightElement,
 }) => {
   const [focused, setFocused] = useState(false);
-
   return (
     <View style={inp.group}>
-      <Text style={inp.label}>{label}</Text>
-      <View style={[
-        inp.wrap,
-        focused && inp.wrapFocused,
-        !!error && inp.wrapError,
-      ]}>
+      <View style={inp.labelRow}>
+        <View style={inp.labelTick} />
+        <Text style={inp.label}>{label}</Text>
+      </View>
+      <View style={[inp.wrap, focused && inp.wrapFocused, !!error && inp.wrapError]}>
+        <View style={inp.bracket} />
         <View style={inp.iconWrap}>{leftIcon}</View>
         <TextInput
           style={inp.input}
@@ -187,13 +164,13 @@ const InputField: React.FC<InputFieldProps> = ({
           autoCapitalize={autoCapitalize || 'none'}
           editable={editable}
           placeholder={placeholder}
-          placeholderTextColor="rgba(153,98,80,0.4)"
+          placeholderTextColor={C.textDim}
         />
         {rightElement}
       </View>
       {!!error && (
         <View style={inp.errorRow}>
-          <Ionicons name="alert-circle-outline" size={13} color="#800007" />
+          <Ionicons name="alert-circle-outline" size={13} color={C.error} />
           <Text style={inp.errorText}> {error}</Text>
         </View>
       )}
@@ -202,55 +179,39 @@ const InputField: React.FC<InputFieldProps> = ({
 };
 
 const inp = StyleSheet.create({
-  group: { marginBottom: 16 },
+  group:    { marginBottom: 16 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, marginLeft: 2 },
+  labelTick:{ width: 2, height: 10, backgroundColor: C.accent, borderRadius: 1, marginRight: 7, opacity: 0.85 },
   label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: 'rgba(153,98,80,0.9)',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    marginLeft: 2,
+    fontSize: 10, fontWeight: '700', color: C.accent,
+    letterSpacing: 2, textTransform: 'uppercase',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   wrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(249,249,249,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.25)',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    height: 52,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.panel, borderWidth: 1,
+    borderColor: C.border, borderRadius: 8,
+    paddingHorizontal: 14, height: 52, overflow: 'hidden',
   },
-  wrapFocused: {
-    borderColor: '#800007',
-    backgroundColor: 'rgba(128,0,7,0.07)',
+  bracket: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    width: 3, backgroundColor: C.accentDim,
+    borderTopLeftRadius: 8, borderBottomLeftRadius: 8,
   },
-  wrapError: {
-    borderColor: '#800007',
-    backgroundColor: 'rgba(128,0,7,0.08)',
-  },
-  iconWrap: { marginRight: 10 },
+  wrapFocused: { borderColor: C.accent, backgroundColor: 'rgba(0,168,255,0.08)' },
+  wrapError:   { borderColor: C.error,  backgroundColor: 'rgba(255,64,96,0.06)' },
+  iconWrap:    { marginRight: 10, marginLeft: 4 },
   input: {
-    flex: 1,
-    color: '#F9F9F9',
-    fontSize: 15,
-    height: '100%',
+    flex: 1, color: C.text, fontSize: 15, height: '100%',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    marginLeft: 2,
-  },
-  errorText: {
-    color: '#800007',
-    fontSize: 12,
-    fontWeight: '500',
-  },
+  errorRow:  { flexDirection: 'row', alignItems: 'center', marginTop: 6, marginLeft: 2 },
+  errorText: { color: C.error, fontSize: 12, fontWeight: '500' },
 });
 
-// ─── Form Errors Interface ────────────────────────────────────
+/* ─────────────────────────────────────────
+   Form Errors
+───────────────────────────────────────── */
 interface FormErrors {
   name?: string;
   email?: string;
@@ -258,20 +219,22 @@ interface FormErrors {
   confirmPassword?: string;
 }
 
-// ─── Main Register Screen ─────────────────────────────────────
+/* ─────────────────────────────────────────
+   Register Screen
+───────────────────────────────────────── */
 export default function Register() {
   const router = useRouter();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [name,            setName]            = useState('');
+  const [email,           setEmail]           = useState('');
+  const [password,        setPassword]        = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [loading,         setLoading]         = useState(false);
+  const [showPassword,    setShowPassword]    = useState(false);
+  const [showConfirmPw,   setShowConfirmPw]   = useState(false);
+  const [errors,          setErrors]          = useState<FormErrors>({});
+  const [agreedToTerms,   setAgreedToTerms]   = useState(false);
+  const [successMessage,  setSuccessMessage]  = useState('');
+  const [showTermsModal,  setShowTermsModal]  = useState(false);
 
   const btnScale = useRef(new Animated.Value(1)).current;
   const pressIn  = () => Animated.spring(btnScale, { toValue: 0.96, useNativeDriver: true }).start();
@@ -279,62 +242,39 @@ export default function Register() {
 
   const validateForm = () => {
     const newErrors: FormErrors = {};
-
     if (!name.trim()) newErrors.name = 'Full name is required';
     else if (name.trim().length < 2) newErrors.name = 'Name must be at least 2 characters';
-
     if (!email.trim()) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = 'Invalid email format';
-
     if (!password) newErrors.password = 'Password is required';
     else if (password.length < 6) newErrors.password = 'Must be at least 6 characters';
-
     if (!confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
     else if (password !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
-
     setErrors(newErrors);
-
     if (Object.keys(newErrors).length > 0) return false;
-
-    if (!agreedToTerms) {
-      setShowTermsModal(true);
-      return false;
-    }
-
+    if (!agreedToTerms) { setShowTermsModal(true); return false; }
     return true;
   };
 
   const handleRegister = async () => {
     setSuccessMessage('');
     if (!validateForm()) return;
-
     try {
       setLoading(true);
-      const res = await axios.post(
-        `${API_URL}/register`,
-        { name, email, password },
-        { timeout: 10000 }
-      );
-
+      const res = await axios.post(`${API_URL}/register`, { name, email, password }, { timeout: 10000 });
       if (res.data.success) {
         const { token, user } = res.data;
         try {
           await setItem('authToken', token);
           await setItem('user', JSON.stringify(user));
           await registerFirebasePushToken(API_URL, token).catch(() => null);
-        } catch (err) {
-          console.error('Error storing token/user:', err);
-        }
-        setSuccessMessage('Account created successfully!');
-        setTimeout(() => {
-          router.replace('/(user)/UserProfile');
-        }, 1500);
+        } catch (err) { console.error('Error storing token/user:', err); }
+        setSuccessMessage('UNIT REGISTERED SUCCESSFULLY');
+        setTimeout(() => router.replace('/(user)/UserProfile'), 1500);
       }
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Registration failed';
+      const message    = err?.response?.data?.message || err?.message || 'Registration failed';
       const statusCode = err?.response?.status;
-      console.error('[Register] Error:', message, 'Status:', statusCode);
-
       const isEmailTaken =
         statusCode === 409 ||
         message.toLowerCase().includes('already') ||
@@ -342,104 +282,45 @@ export default function Register() {
         message.toLowerCase().includes('registered') ||
         message.toLowerCase().includes('duplicate') ||
         message.toLowerCase().includes('in use');
-
       if (isEmailTaken) {
-        setErrors((prev) => ({
-          ...prev,
-          email: 'This email is already registered. Try signing in instead.',
-        }));
+        setErrors((prev) => ({ ...prev, email: 'This email is already registered. Try signing in instead.' }));
       } else {
         Alert.alert('Registration Failed', message);
       }
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  // Remove AuthSession web flow. Use native Google Sign-In for Android/dev-client.
   React.useEffect(() => {
     if (!CAN_USE_GOOGLE_AUTH) return;
-    GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-      offlineAccess: false,
-    });
+    GoogleSignin.configure({ webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, offlineAccess: false });
   }, []);
 
-  // Native Google sign-in handler using @react-native-google-signin/google-signin
   const handleGoogleRegister = async () => {
-    if (IS_EXPO_GO) {
-      Alert.alert(
-        'Google Sign-in',
-        'Google sign-in requires a dev build (not Expo Go). You can still use email/password in Expo Go.'
-      );
-      return;
-    }
-
-    if (!GOOGLE_AUTH_ENABLED) {
-      Alert.alert(
-        'Google Sign-in',
-        'Google sign-in is disabled. Enable it by setting EXPO_PUBLIC_ENABLE_GOOGLE_AUTH=true in your dev build env.'
-      );
-      return;
-    }
-
-    if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) {
-      Alert.alert('Google Sign-in', 'Missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env');
-      return;
-    }
-
+    if (IS_EXPO_GO) { Alert.alert('Google Sign-in', 'Requires a dev build.'); return; }
+    if (!GOOGLE_AUTH_ENABLED) { Alert.alert('Google Sign-in', 'Disabled in current env.'); return; }
+    if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) { Alert.alert('Google Sign-in', 'Missing client ID.'); return; }
     try {
       setLoading(true);
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-
-      // Force account picker (avoid reusing previously selected Google account)
-      try {
-        await GoogleSignin.signOut();
-      } catch {
-        // ignore
-      }
-
+      try { await GoogleSignin.signOut(); } catch { }
       const userInfo = await GoogleSignin.signIn();
-      console.log('[GoogleSignin][Register] userInfo keys=', Object.keys((userInfo as any) || {}));
-      console.log('[GoogleSignin][Register] idToken=', (userInfo as any)?.idToken);
-      console.log('[GoogleSignin][Register] data.idToken=', (userInfo as any)?.data?.idToken);
-
-      const idToken = (userInfo as any)?.data?.idToken ?? (userInfo as any)?.idToken;
-      if (!idToken) {
-        Alert.alert('Google Sign-in Failed', 'Missing id token from Google.');
-        return;
-      }
-
-      // Sign in to Firebase with Google id_token
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCred = await signInWithCredential(auth, credential);
+      const idToken  = (userInfo as any)?.data?.idToken ?? (userInfo as any)?.idToken;
+      if (!idToken) { Alert.alert('Google Sign-in Failed', 'Missing id token.'); return; }
+      const credential      = GoogleAuthProvider.credential(idToken);
+      const userCred        = await signInWithCredential(auth, credential);
       const firebaseIdToken = await userCred.user.getIdToken();
-
-      // Use /login for Google (backend auto-registers on first social sign-in)
-      const res = await axios.post(
-        `${API_URL}/login`,
-        { provider: 'google', idToken: firebaseIdToken },
-        { timeout: 10000 }
-      );
-
+      const res = await axios.post(`${API_URL}/login`, { provider: 'google', idToken: firebaseIdToken }, { timeout: 10000 });
       if (res.data.success) {
         const { token, user } = res.data;
-
         await setItem('authToken', token);
         await setItem('user', JSON.stringify(user));
         await registerFirebasePushToken(API_URL, token).catch(() => null);
-
-        setSuccessMessage('Account created successfully!');
-        setTimeout(() => {
-          router.replace('/(user)/UserProfile');
-        }, 1200);
+        setSuccessMessage('UNIT REGISTERED SUCCESSFULLY');
+        setTimeout(() => router.replace('/(user)/UserProfile'), 1200);
       }
     } catch (e: any) {
-      const message = e?.response?.data?.message || e?.message || 'Google registration failed';
-      Alert.alert('Google Registration Failed', message);
-    } finally {
-      setLoading(false);
-    }
+      Alert.alert('Google Registration Failed', e?.response?.data?.message || e?.message || 'Failed');
+    } finally { setLoading(false); }
   };
 
   return (
@@ -447,7 +328,9 @@ export default function Register() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={s.root}
     >
-      {/* ── Custom Terms Modal ── */}
+      {/* ══════════════════════════════════
+          TERMS MODAL
+      ══════════════════════════════════ */}
       <Modal
         visible={showTermsModal}
         transparent
@@ -456,40 +339,47 @@ export default function Register() {
       >
         <Pressable style={s.modalOverlay} onPress={() => setShowTermsModal(false)}>
           <Pressable style={s.modalCard} onPress={() => {}}>
+            {/* Corner accents */}
+            <View style={s.modalCornerTL} />
+            <View style={s.modalCornerTR} />
+            <View style={s.modalCornerBL} />
+            <View style={s.modalCornerBR} />
+
             {/* Icon */}
             <View style={s.modalIconWrap}>
-              <MaterialCommunityIcons name="file-document-outline" size={32} color="#996250" />
+              <MaterialCommunityIcons name="shield-lock-outline" size={30} color={C.accent} />
+              {/* Pulsing dot */}
+              <View style={s.modalIconDot} />
             </View>
 
-            {/* Title */}
+            {/* Sys tag */}
+            <View style={s.modalSysRow}>
+              <View style={s.modalSysDash} />
+              <Text style={s.modalSysTag}>AUTHORIZATION REQUIRED</Text>
+              <View style={s.modalSysDash} />
+            </View>
+
             <Text style={s.modalTitle}>Terms Required</Text>
             <Text style={s.modalSubtitle}>
-              You need to accept our Terms & Conditions and Privacy Policy before creating your account.
+              You must accept our Terms & Conditions and Privacy Policy to initialize your unit account.
             </Text>
 
-            {/* Divider */}
             <View style={s.modalDivider} />
 
-            {/* Accept button */}
+            {/* Accept */}
             <TouchableOpacity
               style={s.modalAcceptBtn}
-              onPress={() => {
-                setAgreedToTerms(true);
-                setShowTermsModal(false);
-              }}
+              onPress={() => { setAgreedToTerms(true); setShowTermsModal(false); }}
               activeOpacity={0.85}
             >
-              <Feather name="check-circle" size={16} color="#F9F9F9" />
-              <Text style={s.modalAcceptText}>  I Accept the Terms</Text>
+              <View style={s.modalBtnScanBar} />
+              <Feather name="zap" size={15} color={C.bg} style={{ marginRight: 8 }} />
+              <Text style={s.modalAcceptText}>ACCEPT & INITIALIZE</Text>
             </TouchableOpacity>
 
             {/* Dismiss */}
-            <TouchableOpacity
-              style={s.modalDismissBtn}
-              onPress={() => setShowTermsModal(false)}
-              activeOpacity={0.7}
-            >
-              <Text style={s.modalDismissText}>Maybe Later</Text>
+            <TouchableOpacity style={s.modalDismissBtn} onPress={() => setShowTermsModal(false)} activeOpacity={0.7}>
+              <Text style={s.modalDismissText}>[ CANCEL ]</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -500,66 +390,86 @@ export default function Register() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-
-        {/* ── Brand ── */}
+        {/* ══════════════════════════════════
+            BRAND
+        ══════════════════════════════════ */}
         <View style={s.brandWrap}>
           <View style={s.robotBadge}>
-            <CarIcon />
+            <RobotHeadIcon size={48} />
+            <View style={s.badgeStatusDot} />
           </View>
-          <Text style={s.brandTitle}>DRIFT N' DASH </Text>
-          <Text style={s.brandSub}>Your premium hot wheels shopping destination</Text>
+
+          <View style={s.sysTagRow}>
+            <View style={s.sysDash} />
+            <Text style={s.sysTag}>UNIT-7 MOBILITY OS v2.4</Text>
+            <View style={s.sysDash} />
+          </View>
+
+          <Text style={s.brandTitle}>ROMERO'S KINGDOM</Text>
+          <Text style={s.brandSub}>AUTONOMOUS COMMERCE UNIT — ENROLL</Text>
         </View>
 
-        {/* ── Card ── */}
+        {/* ══════════════════════════════════
+            CARD
+        ══════════════════════════════════ */}
         <View style={s.card}>
+          {/* Mechanical corner accents */}
+          <View style={s.cardTL} />
+          <View style={s.cardTR} />
+          <View style={s.cardBL} />
+          <View style={s.cardBR} />
 
-          {/* Success Banner */}
+          {/* Success banner */}
           {!!successMessage && (
             <View style={s.successBanner}>
-              <Ionicons name="checkmark-circle" size={18} color="#996250" />
-              <Text style={s.successText}> {successMessage}</Text>
+              <Ionicons name="checkmark-circle" size={16} color={C.success} />
+              <Text style={s.successText}>  {successMessage}</Text>
             </View>
           )}
 
-          <Text style={s.cardTitle}>Create Account</Text>
-          <Text style={s.cardSub}>Join us and start shopping</Text>
+          <Text style={s.cardTitle}>ENROLL UNIT</Text>
+          <Text style={s.cardSub}>CREATE YOUR OPERATOR PROFILE</Text>
 
-          <View style={s.divider} />
+          <View style={s.divider}>
+            <View style={s.dividerLine} />
+            <View style={s.dividerDot} />
+            <View style={s.dividerLine} />
+          </View>
 
           {/* Full Name */}
           <InputField
-            label="Full Name"
-            placeholder="John Doe"
+            label="Operator Name"
+            placeholder="Full name"
             value={name}
             onChangeText={(t) => { setName(t); setErrors({ ...errors, name: undefined }); }}
             autoCapitalize="words"
             editable={!loading}
             error={errors.name}
-            leftIcon={<Feather name="user" size={17} color="rgba(153,98,80,0.6)" />}
+            leftIcon={<Feather name="user" size={16} color={C.accent} />}
           />
 
           {/* Email */}
           <InputField
-            label="Email Address"
-            placeholder="you@example.com"
+            label="User ID — Email"
+            placeholder="operator@system.io"
             value={email}
             onChangeText={(t) => { setEmail(t); setErrors({ ...errors, email: undefined }); }}
             keyboardType="email-address"
             editable={!loading}
             error={errors.email}
-            leftIcon={<Feather name="mail" size={17} color="rgba(153,98,80,0.6)" />}
+            leftIcon={<Feather name="cpu" size={16} color={C.accent} />}
           />
 
           {/* Password */}
           <InputField
-            label="Password"
-            placeholder="Create a password"
+            label="Auth Key — Password"
+            placeholder="Create a passkey"
             value={password}
             onChangeText={(t) => { setPassword(t); setErrors({ ...errors, password: undefined }); }}
             secureTextEntry={!showPassword}
             editable={!loading}
             error={errors.password}
-            leftIcon={<Feather name="lock" size={17} color="rgba(153,98,80,0.6)" />}
+            leftIcon={<Feather name="shield" size={16} color={C.accent} />}
             rightElement={
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -567,54 +477,52 @@ export default function Register() {
                 style={s.eyeBtn}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name={showPassword ? 'eye' : 'eye-off'} size={17} color="rgba(153,98,80,0.6)" />
+                <Feather name={showPassword ? 'eye' : 'eye-off'} size={16} color={C.textSub} />
               </TouchableOpacity>
             }
           />
 
           {/* Confirm Password */}
           <InputField
-            label="Confirm Password"
-            placeholder="Re-enter your password"
+            label="Confirm Auth Key"
+            placeholder="Re-enter passkey"
             value={confirmPassword}
             onChangeText={(t) => { setConfirmPassword(t); setErrors({ ...errors, confirmPassword: undefined }); }}
-            secureTextEntry={!showConfirmPassword}
+            secureTextEntry={!showConfirmPw}
             editable={!loading}
             error={errors.confirmPassword}
-            leftIcon={<Feather name="shield" size={17} color="rgba(153,98,80,0.6)" />}
+            leftIcon={<Feather name="lock" size={16} color={C.accent} />}
             rightElement={
               <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                onPress={() => setShowConfirmPw(!showConfirmPw)}
                 disabled={loading}
                 style={s.eyeBtn}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name={showConfirmPassword ? 'eye' : 'eye-off'} size={17} color="rgba(153,98,80,0.6)" />
+                <Feather name={showConfirmPw ? 'eye' : 'eye-off'} size={16} color={C.textSub} />
               </TouchableOpacity>
             }
           />
 
-          {/* Terms & Conditions */}
+          {/* Terms checkbox */}
           <TouchableOpacity
-            style={[s.termsRow, !agreedToTerms && errors.name !== undefined && s.termsRowError]}
+            style={s.termsRow}
             onPress={() => setAgreedToTerms(!agreedToTerms)}
             disabled={loading}
             activeOpacity={0.8}
           >
             <View style={[s.checkbox, agreedToTerms && s.checkboxChecked]}>
-              {agreedToTerms && (
-                <Feather name="check" size={12} color="#F9F9F9" />
-              )}
+              {agreedToTerms && <Feather name="check" size={11} color={C.bg} />}
             </View>
             <Text style={s.termsText}>
-              I agree to the{' '}
+              I authorize the{' '}
               <Text style={s.termsLink}>Terms & Conditions</Text>
               {' '}and{' '}
-              <Text style={s.termsLink}>Privacy Policy</Text>
+              <Text style={s.termsLink}>Privacy Protocol</Text>
             </Text>
           </TouchableOpacity>
 
-          {/* Create Account button */}
+          {/* Register button */}
           <Animated.View style={{ transform: [{ scale: btnScale }] }}>
             <TouchableOpacity
               style={[s.registerBtn, loading && s.disabledBtn]}
@@ -624,12 +532,14 @@ export default function Register() {
               disabled={loading}
               activeOpacity={1}
             >
+              <View style={s.btnScanBar} />
               {loading ? (
-                <ActivityIndicator size="small" color="#F9F9F9" />
+                <ActivityIndicator size="small" color={C.bg} />
               ) : (
                 <>
-                  <Text style={s.registerBtnText}>Create Account</Text>
-                  <Feather name="arrow-right" size={18} color="#F9F9F9" style={{ marginLeft: 8 }} />
+                  <Feather name="zap" size={15} color={C.bg} style={{ marginRight: 8 }} />
+                  <Text style={s.registerBtnText}>INITIALIZE ACCOUNT</Text>
+                  <Feather name="arrow-right" size={15} color={C.bg} style={{ marginLeft: 8 }} />
                 </>
               )}
             </TouchableOpacity>
@@ -638,37 +548,30 @@ export default function Register() {
           {/* OR divider */}
           <View style={s.orDivider}>
             <View style={s.orLine} />
-            <Text style={s.orText}>or continue with</Text>
+            <Text style={s.orText}>[ ALT PROTOCOL ]</Text>
             <View style={s.orLine} />
           </View>
 
           {/* Google */}
-          <TouchableOpacity
-            style={s.socialBtn}
-            disabled={loading}
-            activeOpacity={0.8}
-            onPress={handleGoogleRegister}
-          >
-            <View style={s.socialLogoWrap}>
-              <GoogleLogo />
-            </View>
-            <Text style={s.socialText}>Continue with Google</Text>
+          <TouchableOpacity style={s.socialBtn} disabled={loading} activeOpacity={0.8} onPress={handleGoogleRegister}>
+            <View style={s.socialLeftBar} />
+            <View style={s.socialLogoWrap}><GoogleLogo /></View>
+            <Text style={s.socialText}>SYNC VIA GOOGLE NETWORK</Text>
           </TouchableOpacity>
-
         </View>
 
         {/* ── Footer ── */}
         <View style={s.footer}>
-          <Text style={s.footerText}>Already have an account? </Text>
+          <Text style={s.footerText}>ALREADY ENROLLED?  </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/login')} disabled={loading}>
-            <Text style={s.loginLink}>Sign in</Text>
+            <Text style={s.loginLink}>[ SIGN IN ]</Text>
           </TouchableOpacity>
         </View>
 
         {/* Admin pill */}
         <TouchableOpacity style={s.adminPill} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="shield-crown-outline" size={13} color="rgba(153,98,80,0.85)" />
-          <Text style={s.adminPillText}> Admin access available</Text>
+          <MaterialCommunityIcons name="shield-crown-outline" size={13} color={C.accent} />
+          <Text style={s.adminPillText}>  ADMIN OVERRIDE AVAILABLE</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -676,316 +579,253 @@ export default function Register() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────
+/* ─────────────────────────────────────────
+   Styles
+───────────────────────────────────────── */
 const s = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#1a0204',
-  },
+  root: { flex: 1, backgroundColor: C.bg },
   scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 22,
-    paddingVertical: 48,
-    justifyContent: 'center',
+    flexGrow: 1, paddingHorizontal: 22,
+    paddingVertical: 48, justifyContent: 'center',
   },
 
-  // ── Brand ──
-  brandWrap: {
-    alignItems: 'center',
-    marginBottom: 26,
-  },
+  /* Brand */
+  brandWrap:      { alignItems: 'center', marginBottom: 26 },
   robotBadge: {
-    width: 100,
-    height: 68,
-    backgroundColor: '#2a0508',
+    width: 82, height: 82,
+    backgroundColor: C.surface,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(128,0,7,0.5)',
-    shadowColor: '#800007',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    elevation: 10,
+    borderWidth: 1.5, borderColor: C.borderBright,
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6, shadowRadius: 20, elevation: 12,
+  },
+  badgeStatusDot: {
+    position: 'absolute', top: 6, right: 6,
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: C.success,
+    shadowColor: C.success, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9, shadowRadius: 6, elevation: 4,
+  },
+  sysTagRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  sysDash:      { width: 20, height: 1, backgroundColor: C.accent, opacity: 0.4, marginHorizontal: 8 },
+  sysTag: {
+    fontSize: 8, color: C.accent, letterSpacing: 1.8, opacity: 0.75,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   brandTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#F9F9F9',
-    letterSpacing: 3,
-    marginBottom: 5,
+    fontSize: 18, fontWeight: '800', color: C.text,
+    letterSpacing: 3.5, marginBottom: 5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   brandSub: {
-    fontSize: 12,
-    color: 'rgba(153,98,80,0.7)',
-    letterSpacing: 0.6,
+    fontSize: 9, color: C.textSub, letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
-  // ── Card ──
+  /* Card */
   card: {
-    backgroundColor: 'rgba(249,249,249,0.04)',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.18)',
+    backgroundColor: 'rgba(4,15,31,0.95)',
+    borderRadius: 16, borderWidth: 1, borderColor: C.border,
     padding: 26,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.55,
-    shadowRadius: 36,
-    elevation: 14,
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.12, shadowRadius: 30, elevation: 14,
   },
+  /* Mechanical corner accents */
+  cardTL: { position: 'absolute', top: -1, left: -1,   width: 16, height: 16, borderTopWidth: 2,    borderLeftWidth: 2,  borderColor: C.accent, borderTopLeftRadius: 16 },
+  cardTR: { position: 'absolute', top: -1, right: -1,  width: 16, height: 16, borderTopWidth: 2,    borderRightWidth: 2, borderColor: C.accent, borderTopRightRadius: 16 },
+  cardBL: { position: 'absolute', bottom: -1, left: -1,  width: 16, height: 16, borderBottomWidth: 2, borderLeftWidth: 2,  borderColor: C.accent, borderBottomLeftRadius: 16 },
+  cardBR: { position: 'absolute', bottom: -1, right: -1, width: 16, height: 16, borderBottomWidth: 2, borderRightWidth: 2, borderColor: C.accent, borderBottomRightRadius: 16 },
+
   cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#F9F9F9',
-    marginBottom: 3,
+    fontSize: 18, fontWeight: '800', color: C.text,
+    marginBottom: 3, letterSpacing: 2.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   cardSub: {
-    fontSize: 13,
-    color: 'rgba(153,98,80,0.75)',
-    marginBottom: 18,
+    fontSize: 9, color: C.textSub, marginBottom: 18, letterSpacing: 1.4,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(153,98,80,0.15)',
-    marginBottom: 20,
-  },
+  divider:     { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: C.border },
+  dividerDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent, marginHorizontal: 8, opacity: 0.8 },
 
-  // ── Success ──
+  /* Success */
   successBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(153,98,80,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.45)',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    marginBottom: 18,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,212,170,0.08)',
+    borderWidth: 1, borderColor: 'rgba(0,212,170,0.4)',
+    borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, marginBottom: 18,
   },
   successText: {
-    color: '#996250',
-    fontSize: 13,
-    fontWeight: '600',
-    flex: 1,
+    color: C.success, fontSize: 11, fontWeight: '700', letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
-  // ── Eye ──
   eyeBtn: { padding: 4, marginLeft: 6 },
 
-  // ── Terms ──
+  /* Terms */
   termsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 22,
-    marginTop: 4,
+    flexDirection: 'row', alignItems: 'flex-start',
+    marginBottom: 22, marginTop: 4,
   },
-  termsRowError: {},
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: 'rgba(153,98,80,0.35)',
-    backgroundColor: 'rgba(249,249,249,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    marginTop: 1,
+    width: 20, height: 20, borderRadius: 5,
+    borderWidth: 1.5, borderColor: C.border,
+    backgroundColor: C.panel,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 12, marginTop: 1,
   },
-  checkboxChecked: {
-    backgroundColor: '#800007',
-    borderColor: '#800007',
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 13,
-    color: 'rgba(153,98,80,0.75)',
-    lineHeight: 20,
-  },
-  termsLink: {
-    color: '#996250',
-    fontWeight: '600',
-  },
+  checkboxChecked: { backgroundColor: C.accent, borderColor: C.accent },
+  termsText: { flex: 1, fontSize: 12, color: C.textSub, lineHeight: 20 },
+  termsLink: { color: C.accentText, fontWeight: '700' },
 
-  // ── Register button ──
+  /* Register button */
   registerBtn: {
-    backgroundColor: '#800007',
-    borderRadius: 13,
+    backgroundColor: C.accent, borderRadius: 10,
     paddingVertical: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#800007',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.55,
-    shadowRadius: 14,
-    elevation: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7, shadowRadius: 16, elevation: 10,
+    overflow: 'hidden',
   },
-  disabledBtn: { opacity: 0.6 },
+  btnScanBar: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: 2, backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  disabledBtn: { opacity: 0.5 },
   registerBtnText: {
-    color: '#F9F9F9',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.8,
+    color: C.bg, fontSize: 13, fontWeight: '800', letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
-  // ── OR divider ──
-  orDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  orLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(153,98,80,0.15)',
-  },
+  /* OR */
+  orDivider:   { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  orLine:      { flex: 1, height: 1, backgroundColor: C.border },
   orText: {
-    color: 'rgba(153,98,80,0.55)',
-    fontSize: 12,
-    marginHorizontal: 12,
-    letterSpacing: 0.4,
+    color: C.textDim, fontSize: 9, marginHorizontal: 10, letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
-  // ── Social ──
+  /* Social */
   socialBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(249,249,249,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.2)',
-    borderRadius: 13,
-    paddingVertical: 13,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.panel, borderWidth: 1, borderColor: C.border,
+    borderRadius: 10, paddingVertical: 13, overflow: 'hidden',
+  },
+  socialLeftBar: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    width: 3, backgroundColor: C.accentDim,
   },
   socialLogoWrap: { marginRight: 10 },
   socialText: {
-    color: 'rgba(249,249,249,0.85)',
-    fontSize: 14,
-    fontWeight: '600',
+    color: C.text, fontSize: 11, fontWeight: '700', letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
-  // ── Footer ──
+  /* Footer */
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
+    flexDirection: 'row', justifyContent: 'center',
+    alignItems: 'center', marginTop: 24,
   },
   footerText: {
-    color: 'rgba(153,98,80,0.65)',
-    fontSize: 13,
+    color: C.textDim, fontSize: 10, letterSpacing: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   loginLink: {
-    color: '#996250',
-    fontSize: 13,
-    fontWeight: '700',
+    color: C.accent, fontSize: 10, fontWeight: '700', letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
-  // ── Admin pill ──
+  /* Admin pill */
   adminPill: {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(128,0,7,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(128,0,7,0.25)',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    marginTop: 16,
+    flexDirection: 'row', alignSelf: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(0,168,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(0,168,255,0.2)',
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginTop: 16,
   },
   adminPillText: {
-    color: 'rgba(153,98,80,0.85)',
-    fontSize: 11,
-    fontWeight: '600',
+    color: C.accent, fontSize: 9, fontWeight: '700', letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 
-  // ── Terms Modal ──
+  /* Terms Modal */
   modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 28,
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28,
   },
   modalCard: {
     width: '100%',
-    backgroundColor: '#2a0508',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.3)',
-    padding: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-    elevation: 20,
+    backgroundColor: C.surface,
+    borderRadius: 18, borderWidth: 1, borderColor: C.border,
+    padding: 28, alignItems: 'center',
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3, shadowRadius: 30, elevation: 20,
   },
+  /* Modal corner accents */
+  modalCornerTL: { position: 'absolute', top: -1, left: -1,   width: 14, height: 14, borderTopWidth: 2,    borderLeftWidth: 2,  borderColor: C.accent, borderTopLeftRadius: 18 },
+  modalCornerTR: { position: 'absolute', top: -1, right: -1,  width: 14, height: 14, borderTopWidth: 2,    borderRightWidth: 2, borderColor: C.accent, borderTopRightRadius: 18 },
+  modalCornerBL: { position: 'absolute', bottom: -1, left: -1,  width: 14, height: 14, borderBottomWidth: 2, borderLeftWidth: 2,  borderColor: C.accent, borderBottomLeftRadius: 18 },
+  modalCornerBR: { position: 'absolute', bottom: -1, right: -1, width: 14, height: 14, borderBottomWidth: 2, borderRightWidth: 2, borderColor: C.accent, borderBottomRightRadius: 18 },
+
   modalIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    backgroundColor: 'rgba(153,98,80,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(153,98,80,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
+    width: 64, height: 64, borderRadius: 16,
+    backgroundColor: C.accentGlow,
+    borderWidth: 1, borderColor: C.borderBright,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+  },
+  modalIconDot: {
+    position: 'absolute', top: 5, right: 5,
+    width: 7, height: 7, borderRadius: 3.5,
+    backgroundColor: C.success,
+    shadowColor: C.success, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9, shadowRadius: 5, elevation: 3,
+  },
+  modalSysRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  modalSysDash: { width: 16, height: 1, backgroundColor: C.accent, opacity: 0.4, marginHorizontal: 6 },
+  modalSysTag: {
+    fontSize: 8, color: C.accent, letterSpacing: 1.8, opacity: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#F9F9F9',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-    textAlign: 'center',
+    fontSize: 18, fontWeight: '800', color: C.text,
+    letterSpacing: 1.5, marginBottom: 10, textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
   modalSubtitle: {
-    fontSize: 13,
-    color: 'rgba(153,98,80,0.8)',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 22,
-    paddingHorizontal: 4,
+    fontSize: 12, color: C.textSub,
+    textAlign: 'center', lineHeight: 20,
+    marginBottom: 22, paddingHorizontal: 4,
   },
   modalDivider: {
-    width: '100%',
-    height: 1,
-    backgroundColor: 'rgba(153,98,80,0.15)',
-    marginBottom: 20,
+    width: '100%', height: 1,
+    backgroundColor: C.border, marginBottom: 20,
   },
   modalAcceptBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#800007',
-    borderRadius: 13,
-    paddingVertical: 14,
-    width: '100%',
-    marginBottom: 12,
-    shadowColor: '#800007',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 6,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.accent, borderRadius: 10,
+    paddingVertical: 14, width: '100%', marginBottom: 12,
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7, shadowRadius: 14, elevation: 8,
+    overflow: 'hidden',
+  },
+  modalBtnScanBar: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: 2, backgroundColor: 'rgba(255,255,255,0.3)',
   },
   modalAcceptText: {
-    color: '#F9F9F9',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    color: C.bg, fontSize: 13, fontWeight: '800', letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
-  modalDismissBtn: {
-    paddingVertical: 8,
-  },
+  modalDismissBtn: { paddingVertical: 8 },
   modalDismissText: {
-    color: 'rgba(153,98,80,0.5)',
-    fontSize: 13,
-    fontWeight: '500',
+    color: C.textDim, fontSize: 11, fontWeight: '600', letterSpacing: 1.5,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 });

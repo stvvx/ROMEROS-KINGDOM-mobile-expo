@@ -1,10 +1,11 @@
 {
   "expo": {
-    "name": "DriftDash",
+    "name": "ROMEROS Kingdom",
+    "owner": "rosariojerome",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/ROMEROSKingdom.jpg",
     "scheme": "com.juliane.driftdash",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -12,13 +13,12 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.juliane.driftdash",
-      "googleServicesFile": "./android/app/google-services.json",
+      "package": "romeroskingdom.ph",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/driftdashlogo.jpg",
-        "backgroundImage": "./assets/images/driftdashlogo.jpg",
-        "monochromeImage": "./assets/images/driftdashlogo.jpg"
+        "foregroundImage": "./assets/images/ROMEROSKingdom.jpg",
+        "backgroundImage": "./assets/images/ROMEROSKingdom.jpg",
+        "monochromeImage": "./assets/images/ROMEROSKingdom.jpg"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -50,7 +50,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "230f2c81-c9f0-4bbb-80b6-50de64293854"
+        "projectId": "80a0591d-c7a0-433c-b264-52d540a9e51a"
       }
     }
   }

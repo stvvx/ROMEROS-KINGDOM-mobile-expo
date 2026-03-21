@@ -11,55 +11,83 @@ import {
 } from 'react-native';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
-import Svg, {
-  Circle,
-  Defs,
-  Line,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
-} from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect, G } from 'react-native-svg';
 
-/* ── Design tokens ── */
+/* ── Design tokens — Blue Robotics ── */
 const C = {
-  bg:         '#1a0204',
-  bgLayer:    '#200305',
-  surface:    '#2a0508',
-  border:     '#3d0a0d',
-  accent:     '#800007',
-  accentGlow: 'rgba(128,0,7,0.14)',
-  accentText: '#c0000a',
-  text:       '#F9F9F9',
-  textSub:    '#996250',
-  textDim:    '#4a2020',
+  bg:          '#020B18',
+  bgLayer:     '#040F1F',
+  surface:     '#071828',
+  border:      '#0D2440',
+  accent:      '#00A8FF',
+  accentDim:   '#005A8E',
+  accentGlow:  'rgba(0,168,255,0.12)',
+  accentText:  '#33BBFF',
+  steel:       '#1E3A5F',
+  text:        '#E8F4FF',
+  textSub:     'rgba(120,180,230,0.75)',
+  textDim:     'rgba(60,110,170,0.5)',
+  success:     '#00D4AA',
 } as const;
 
 const SIDE_PAD = 16;
+const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace';
 
 /* ════════════════════════════════════════
-   CAR LOGO — SVG (side profile silhouette)
+   ROBOT HEAD ICON — SVG (humanoid face)
 ════════════════════════════════════════ */
-const CarLogo = ({ size = 44 }: { size?: number }) => (
-  <Svg width={size} height={size * 0.75} viewBox="0 0 120 70" fill="none">
-    <Path d="M6 46 Q6 54 14 54 L106 54 Q114 54 114 46 L114 40 L6 40 Z" fill="#800007" />
-    <Path d="M28 40 Q32 22 42 16 Q52 10 60 10 Q72 10 82 16 Q90 22 94 40 Z" fill="#800007" />
-    <Path d="M76 40 Q80 26 86 20 Q90 16 93 18 L94 40 Z" fill="#3d0003" opacity="0.85" />
-    <Path d="M28 40 Q30 26 36 19 Q40 14 44 14 Q48 12 52 11 L58 11 Q56 20 54 40 Z" fill="#3d0003" opacity="0.85" />
-    <Path d="M56 40 Q57 18 62 11 Q70 10 78 14 Q82 22 80 40 Z" fill="#3d0003" opacity="0.7" />
-    <Path d="M42 16 Q60 8 82 16" stroke="#996250" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.8" />
-    <Path d="M10 43 Q60 39 110 43" stroke="#996250" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.5" />
-    <Path d="M100 54 Q114 54 116 50 Q117 47 114 46 L114 54 Z" fill="#3d0003" />
-    <Path d="M20 54 Q6 54 4 50 Q3 47 6 46 L6 54 Z" fill="#3d0003" />
-    <Path d="M104 38 Q108 37 112 39 Q113 41 110 42 L104 42 Z" fill="#F9F9F9" opacity="0.95" />
-    <Path d="M16 38 Q12 37 8 39 Q7 41 10 42 L16 42 Z" fill="#996250" opacity="0.9" />
-    <Path d="M82 54 Q82 64 92 64 Q102 64 102 54 Z" fill="#1a0204" />
-    <Path d="M84 54 Q84 62 92 62 Q100 62 100 54 Z" fill="#2a0508" />
-    <Path d="M87 54 Q87 59 92 59 Q97 59 97 54 Z" fill="#800007" opacity="0.6" />
-    <Path d="M18 54 Q18 64 28 64 Q38 64 38 54 Z" fill="#1a0204" />
-    <Path d="M20 54 Q20 62 28 62 Q36 62 36 54 Z" fill="#2a0508" />
-    <Path d="M23 54 Q23 59 28 59 Q33 59 33 54 Z" fill="#800007" opacity="0.6" />
-    <Path d="M58 43 Q64 42 70 43 Q70 45 64 45 Q58 45 58 43 Z" fill="#996250" opacity="0.7" />
+const RobotIcon = ({ size = 46 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 80 80" fill="none">
+    {/* Antenna stem + orb */}
+    <Rect x="38" y="3" width="4" height="10" rx="2" fill={C.accentDim} />
+    <Circle cx="40" cy="2.5" r="3.5" fill={C.accent} opacity="0.95" />
+    {/* Neck */}
+    <Rect x="33" y="63" width="14" height="8" rx="3" fill={C.steel} />
+    <Rect x="35" y="65" width="10" height="2" rx="1" fill={C.accent} opacity="0.45" />
+    {/* Head shell */}
+    <Rect x="12" y="13" width="56" height="52" rx="10" fill={C.steel} />
+    <Rect x="12" y="13" width="56" height="52" rx="10"
+      stroke={C.accent} strokeWidth="1.2" fill="none" opacity="0.75" />
+    {/* Panel seam below top */}
+    <Line x1="12" y1="25" x2="68" y2="25" stroke={C.accent} strokeWidth="0.6" opacity="0.3" />
+    {/* Forehead status LED */}
+    <Circle cx="40" cy="19.5" r="2.5" fill={C.success} opacity="0.9" />
+    {/* Visor bar */}
+    <Rect x="17" y="28" width="46" height="16" rx="5" fill="#0A1E35" />
+    <Rect x="17" y="28" width="46" height="16" rx="5"
+      stroke={C.accent} strokeWidth="0.8" fill="none" opacity="0.6" />
+    {/* Left eye socket + pupil */}
+    <Rect x="21" y="31" width="16" height="10" rx="3" fill={C.accentDim} />
+    <Rect x="21" y="31" width="16" height="10" rx="3" fill={C.accent} opacity="0.7" />
+    <Circle cx="29" cy="36" r="3" fill={C.accent} opacity="0.95" />
+    <Circle cx="27.5" cy="34.5" r="1" fill="#E8F4FF" opacity="0.85" />
+    {/* Right eye socket + pupil */}
+    <Rect x="43" y="31" width="16" height="10" rx="3" fill={C.accentDim} />
+    <Rect x="43" y="31" width="16" height="10" rx="3" fill={C.accent} opacity="0.7" />
+    <Circle cx="51" cy="36" r="3" fill={C.accent} opacity="0.95" />
+    <Circle cx="49.5" cy="34.5" r="1" fill="#E8F4FF" opacity="0.85" />
+    {/* Nose sensor */}
+    <Circle cx="40" cy="49" r="1.8" fill={C.accent} opacity="0.7" />
+    {/* Mouth / speaker grille */}
+    <Rect x="22" y="54" width="36" height="7" rx="3.5" fill="#0A1E35" />
+    <Rect x="22" y="54" width="36" height="7" rx="3.5"
+      stroke={C.accent} strokeWidth="0.7" fill="none" opacity="0.5" />
+    <Line x1="28" y1="55.5" x2="28" y2="59.5" stroke={C.accent} strokeWidth="0.8" opacity="0.55" />
+    <Line x1="33" y1="55.5" x2="33" y2="59.5" stroke={C.accent} strokeWidth="0.8" opacity="0.55" />
+    <Line x1="38" y1="55.5" x2="38" y2="59.5" stroke={C.accent} strokeWidth="0.8" opacity="0.55" />
+    <Line x1="43" y1="55.5" x2="43" y2="59.5" stroke={C.accent} strokeWidth="0.8" opacity="0.55" />
+    <Line x1="48" y1="55.5" x2="48" y2="59.5" stroke={C.accent} strokeWidth="0.8" opacity="0.55" />
+    <Line x1="53" y1="55.5" x2="53" y2="59.5" stroke={C.accent} strokeWidth="0.8" opacity="0.55" />
+    {/* Ear bolts */}
+    <Rect x="7" y="30" width="6" height="18" rx="3" fill={C.steel}
+      stroke={C.accent} strokeWidth="0.8" />
+    <Line x1="10" y1="34" x2="10" y2="44" stroke={C.accent} strokeWidth="0.6" opacity="0.4" />
+    <Rect x="67" y="30" width="6" height="18" rx="3" fill={C.steel}
+      stroke={C.accent} strokeWidth="0.8" />
+    <Line x1="70" y1="34" x2="70" y2="44" stroke={C.accent} strokeWidth="0.6" opacity="0.4" />
+    {/* Cheek circuit dots */}
+    <Circle cx="18" cy="50" r="1.5" fill={C.accent} opacity="0.45" />
+    <Circle cx="62" cy="50" r="1.5" fill={C.accent} opacity="0.45" />
   </Svg>
 );
 
@@ -123,16 +151,15 @@ const Chip = ({ label, active, onPress }: { label: string; active: boolean; onPr
   const scale    = useRef(new Animated.Value(1)).current;
   const pressIn  = () => Animated.spring(scale, { toValue: 0.92, useNativeDriver: true }).start();
   const pressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true }).start();
-
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <TouchableOpacity
         onPress={onPress} onPressIn={pressIn} onPressOut={pressOut}
         activeOpacity={1} style={[s.chip, active && s.chipActive]}
       >
-        <CatIconComponent label={label} size={12} color={active ? C.accentText : C.textSub} />
+        <CatIconComponent label={label} size={11} color={active ? C.accentText : C.textSub} />
         <Text style={[s.chipText, active && s.chipTextActive]}>{label.toUpperCase()}</Text>
-        {active && <View style={s.chipActiveDot} />}
+        {active && <View style={s.chipDot} />}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -164,34 +191,18 @@ export interface IndexHeaderProps {
    COMPONENT
 ════════════════════════════════════════ */
 export default function IndexHeader({
-  searchQuery,
-  onSearchChange,
-  onSearchSubmit,
-  onSearchClear,
-  filterOpen,
-  onToggleFilter,
-  animatedFilterH,
-  price,
-  onPriceChange,
-  categories,
-  activeCategory,
-  onCategoryChange,
-  onMenuOpen,
-  cartCount,
-  notifCount,
-  headerFade,
+  searchQuery, onSearchChange, onSearchSubmit, onSearchClear,
+  filterOpen, onToggleFilter, animatedFilterH,
+  price, onPriceChange,
+  categories, activeCategory, onCategoryChange,
+  onMenuOpen, cartCount, notifCount, headerFade,
 }: IndexHeaderProps) {
+
   const normalizedCategories = React.useMemo(() => {
-    const raw = Array.isArray(categories) ? categories : [];
-    const cleaned = raw
-      .map((c) => String(c ?? '').trim())
-      .filter(Boolean);
-
-    const withAll = cleaned.some((c) => c.toLowerCase() === 'all')
-      ? cleaned
-      : ['All', ...cleaned];
-
-    const seen = new Set<string>();
+    const raw     = Array.isArray(categories) ? categories : [];
+    const cleaned = raw.map((c) => String(c ?? '').trim()).filter(Boolean);
+    const withAll = cleaned.some((c) => c.toLowerCase() === 'all') ? cleaned : ['All', ...cleaned];
+    const seen    = new Set<string>();
     const result: string[] = [];
     for (const c of withAll) {
       const key = c.toLowerCase();
@@ -203,65 +214,78 @@ export default function IndexHeader({
   }, [categories]);
 
   return (
-    <Animated.View style={[s.mobileHeader, { opacity: headerFade }]}>
+    <Animated.View style={[s.header, { opacity: headerFade }]}>
 
-      {/* ── Top row ── */}
-      <View style={s.topRow}>
+      {/* ══ ZONE 1 — HUD status strip ══ */}
+      <View style={s.hudStrip}>
+        <View style={s.hudOnline} />
+        <Text style={s.hudText}>UNIT-7  ·  COMMERCE OS  ·  v2.4</Text>
+        <View style={s.hudBlue} />
+      </View>
 
-        {/* ── Brand lockup ── */}
-        <View style={s.brandLockup}>
+      {/* ══ ZONE 2 — Brand row: menu | robot+name | cart+bell ══ */}
+      <View style={s.brandRow}>
 
-          {/* Car logo with glow ring */}
-          <View style={s.logoWrap}>
-            <View style={s.logoGlowRing} />
-            <CarLogo size={44} />
+        {/* Left: hamburger */}
+        <TouchableOpacity style={s.iconBtn} onPress={onMenuOpen} activeOpacity={0.75}>
+          <View style={s.menuLines}>
+            <View style={s.menuLine} />
+            <View style={[s.menuLine, { width: 13, backgroundColor: C.accent }]} />
+            <View style={s.menuLine} />
           </View>
-
-          {/* Wordmark */}
-          <View style={s.wordmark}>
-            <View style={s.eyebrowRow}>
-              <View style={s.accentBar} />
-              <Text style={s.eyebrowText}>DRIFT N'</Text>
+          {(cartCount + notifCount > 0) && (
+            <View style={s.iconBadge}>
+              <Text style={s.iconBadgeTxt}>{cartCount + notifCount}</Text>
             </View>
-            <Text style={s.titleText}>DASH</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Center: robot badge + wordmark */}
+        <View style={s.brandCenter}>
+          <View style={s.robotBadge}>
+            <View style={s.robotGlowRing} />
+            <RobotIcon size={44} />
+          </View>
+          <View>
+            <Text style={s.wordEyebrow}>ROMERO'S</Text>
+            <Text style={s.wordTitle}>KINGDOM</Text>
           </View>
         </View>
 
-        {/* ── Action buttons ── */}
-        <View style={s.actions}>
-          <TouchableOpacity
-            style={[s.iconBtn, filterOpen && s.iconBtnOn]}
-            onPress={onToggleFilter}
-          >
-            <Feather
-              name="sliders"
-              size={17}
-              color={filterOpen ? C.accentText : C.textSub}
-            />
+        {/* Right: bell + cart */}
+        <View style={s.rightRow}>
+          <TouchableOpacity style={s.iconBtn} activeOpacity={0.75}>
+            <Feather name="bell" size={16} color={notifCount > 0 ? C.accent : C.textSub} />
+            {notifCount > 0 && (
+              <View style={s.iconBadge}><Text style={s.iconBadgeTxt}>{notifCount}</Text></View>
+            )}
           </TouchableOpacity>
-
-          <TouchableOpacity style={s.iconBtn} onPress={onMenuOpen}>
-            <View style={s.hamburgerLines}>
-              <View style={s.hamburgerLine} />
-              <View style={[s.hamburgerLine, { width: 15 }]} />
-              <View style={[s.hamburgerLine, { width: 20 }]} />
-            </View>
-            {(cartCount > 0 || notifCount > 0) && (
-              <View style={s.badge}>
-                <Text style={s.badgeTxt}>{cartCount + notifCount}</Text>
-              </View>
+          <TouchableOpacity style={s.iconBtn} activeOpacity={0.75}>
+            <Feather name="shopping-cart" size={16} color={cartCount > 0 ? C.accent : C.textSub} />
+            {cartCount > 0 && (
+              <View style={s.iconBadge}><Text style={s.iconBadgeTxt}>{cartCount}</Text></View>
             )}
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Search bar ── */}
+      {/* ══ ZONE 3 — Decorative divider ══ */}
+      <View style={s.divRow}>
+        <View style={s.divTick} />
+        <View style={s.divLine} />
+        <View style={s.divDiamond} />
+        <View style={s.divLine} />
+        <View style={s.divTick} />
+      </View>
+
+      {/* ══ ZONE 4 — Search bar (filter toggle embedded inside) ══ */}
       <View style={s.searchRow}>
-        <View style={s.searchBox}>
-          <Feather name="search" size={15} color={C.accent} />
+        <View style={[s.searchBox, filterOpen && s.searchBoxOn]}>
+          <View style={s.searchBracket} />
+          <Feather name="cpu" size={14} color={C.accent} style={{ marginLeft: 6 }} />
           <TextInput
             style={s.searchInput}
-            placeholder="Search hot wheels..."
+            placeholder="Query the inventory..."
             placeholderTextColor={C.textDim}
             value={searchQuery}
             onChangeText={onSearchChange}
@@ -270,50 +294,49 @@ export default function IndexHeader({
             selectionColor={C.accent}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={onSearchClear}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Feather name="x" size={14} color={C.textSub} />
+            <TouchableOpacity onPress={onSearchClear}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={13} color={C.textSub} />
             </TouchableOpacity>
           )}
+          <View style={s.searchSep} />
+          <TouchableOpacity
+            onPress={onToggleFilter}
+            style={[s.filterBtn, filterOpen && s.filterBtnOn]}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Feather name="sliders" size={14} color={filterOpen ? C.accent : C.textSub} />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Collapsible filter panel ── */}
-      <Animated.View
-        style={[s.filterPanel, { height: animatedFilterH, overflow: 'hidden' }]}
-      >
-        <Text style={s.filterLabel}>PRICE RANGE</Text>
-        <Text style={s.filterValue}>
-          ₱{price[0].toLocaleString()} — ₱{price[1].toLocaleString()}
-        </Text>
-        <Slider
-          minimumValue={1}
-          maximumValue={10000}
-          step={50}
-          value={price[1]}
-          onValueChange={(v) => onPriceChange(Math.max(price[0] + 50, v))}
-          minimumTrackTintColor={C.accent}
-          maximumTrackTintColor={C.border}
-          thumbTintColor={C.accent}
-          style={{ height: 36, marginTop: 4 }}
-        />
+      {/* ══ ZONE 5 — Collapsible price filter ══ */}
+      <Animated.View style={[s.filterPanel, { height: animatedFilterH, overflow: 'hidden' }]}>
+        <View style={s.filterInner}>
+          <View style={s.filterHeader}>
+            <View style={s.filterTick} />
+            <Text style={s.filterLabel}>PRICE RANGE</Text>
+            <Text style={s.filterValue}>₱{price[0].toLocaleString()} — ₱{price[1].toLocaleString()}</Text>
+          </View>
+          <Slider
+            minimumValue={1} maximumValue={10000} step={50} value={price[1]}
+            onValueChange={(v) => onPriceChange(Math.max(price[0] + 50, v))}
+            minimumTrackTintColor={C.accent}
+            maximumTrackTintColor={C.border}
+            thumbTintColor={C.accent}
+            style={{ height: 32, marginTop: 2 }}
+          />
+        </View>
       </Animated.View>
 
-      {/* ── Category chips ── */}
+      {/* ══ ZONE 6 — Category chips ══ */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
+        horizontal showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.chipRow}
       >
         {normalizedCategories.map((cat) => (
-          <Chip
-            key={cat}
-            label={cat}
-            active={activeCategory === cat}
-            onPress={() => onCategoryChange(cat)}
-          />
+          <Chip key={cat} label={cat} active={activeCategory === cat}
+            onPress={() => onCategoryChange(cat)} />
         ))}
       </ScrollView>
 
@@ -325,152 +348,175 @@ export default function IndexHeader({
    STYLES
 ════════════════════════════════════════ */
 const s = StyleSheet.create({
-  mobileHeader: {
+  header: {
     backgroundColor: C.bgLayer,
-    paddingTop: Platform.OS === 'ios' ? 54 : 36,
-    paddingHorizontal: SIDE_PAD,
-    paddingBottom: 10,
+    paddingTop: Platform.OS === 'ios' ? 52 : 34,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
 
-  topRow: {
+  // ── Zone 1: HUD strip ──
+  hudStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 5,
+    backgroundColor: 'rgba(0,168,255,0.04)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,168,255,0.09)',
+    gap: 8,
+  },
+  hudOnline: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#00D4AA' },
+  hudBlue:   { width: 5, height: 5, borderRadius: 2.5, backgroundColor: C.accent, opacity: 0.7 },
+  hudText: {
+    color: C.textSub, fontSize: 9, letterSpacing: 2.5, fontFamily: MONO,
+  },
+
+  // ── Zone 2: Brand row ──
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    paddingHorizontal: SIDE_PAD,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
 
-  brandLockup: {
+  iconBtn: {
+    width: 44, height: 44,
+    borderRadius: 10,
+    backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  menuLines: { gap: 5, alignItems: 'flex-start' },
+  menuLine:  { width: 20, height: 2, borderRadius: 1.5, backgroundColor: C.text },
+  iconBadge: {
+    position: 'absolute', top: -4, right: -4,
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: C.accent,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  iconBadgeTxt: { color: C.bg, fontSize: 8, fontWeight: '800' },
+
+  brandCenter: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
+    gap: 10,
   },
-
-  logoWrap: {
-    width: 64,
-    height: 48,
+  robotBadge: {
+    width: 54, height: 54,
+    borderRadius: 14,
+    backgroundColor: C.surface,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,168,255,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoGlowRing: {
+  robotGlowRing: {
     position: 'absolute',
-    width: 64,
-    height: 48,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(128,0,7,0.5)',
-    backgroundColor: 'rgba(128,0,7,0.08)',
-    shadowColor: '#800007',
+    width: 54, height: 54,
+    borderRadius: 14,
+    shadowColor: C.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.55,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  wordEyebrow: {
+    color: C.accent, fontSize: 10, fontWeight: '800',
+    letterSpacing: 3, fontFamily: MONO, lineHeight: 13,
+  },
+  wordTitle: {
+    color: C.text, fontSize: 21, fontWeight: '900',
+    letterSpacing: 1.5, fontFamily: MONO, lineHeight: 25,
   },
 
-  wordmark: {
-    justifyContent: 'center',
-  },
-  eyebrowRow: {
+  rightRow: { flexDirection: 'row', gap: 8 },
+
+  // ── Zone 3: Divider ──
+  divRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 1,
+    marginHorizontal: SIDE_PAD,
+    marginBottom: 10,
+    gap: 4,
   },
-  accentBar: {
-    width: 3,
-    height: 11,
-    borderRadius: 2,
+  divTick:    { width: 2, height: 10, borderRadius: 1, backgroundColor: C.accent, opacity: 0.65 },
+  divLine:    { flex: 1, height: 1, backgroundColor: C.border },
+  divDiamond: {
+    width: 6, height: 6, borderRadius: 1,
     backgroundColor: C.accent,
-  },
-  eyebrowText: {
-    color: C.accent,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 3.5,
-  },
-  titleText: {
-    color: C.text,
-    fontSize: 23,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    lineHeight: 25,
-    marginLeft: 9,
-  },
-  tagText: {
-    color: C.textDim,
-    fontSize: 8,
-    fontWeight: '700',
-    letterSpacing: 2.8,
-    marginLeft: 9,
-    marginTop: 2,
+    transform: [{ rotate: '45deg' }],
+    opacity: 0.8,
   },
 
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconBtnOn: {
-    borderColor: C.accent,
-    backgroundColor: C.accentGlow,
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: C.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeTxt: { color: C.text, fontSize: 8, fontWeight: '800' },
-
-  hamburgerLines: { gap: 4, alignItems: 'flex-end' },
-  hamburgerLine:  { width: 20, height: 2, borderRadius: 2, backgroundColor: C.text },
-
-  searchRow: { marginBottom: 12 },
+  // ── Zone 4: Search ──
+  searchRow: { paddingHorizontal: SIDE_PAD, marginBottom: 8 },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: C.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1, borderColor: C.border,
     height: 46,
+    paddingRight: 10,
     gap: 8,
+    overflow: 'hidden',
   },
-  searchInput: { flex: 1, color: C.text, fontSize: 14, paddingVertical: 0 },
+  searchBoxOn:  { borderColor: C.accent },
+  searchBracket:{ width: 3, alignSelf: 'stretch', backgroundColor: C.accentDim },
+  searchInput: {
+    flex: 1, color: C.text, fontSize: 14, paddingVertical: 0,
+    fontFamily: MONO,
+  },
+  searchSep: { width: 1, height: 22, backgroundColor: C.border, marginHorizontal: 2 },
+  filterBtn: {
+    width: 28, height: 28, borderRadius: 7,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  filterBtnOn: { backgroundColor: C.accentGlow },
 
-  filterPanel: {
+  // ── Zone 5: Filter panel ──
+  filterPanel: { marginHorizontal: SIDE_PAD, marginBottom: 4 },
+  filterInner: {
     backgroundColor: C.surface,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    marginBottom: 10,
+    borderRadius: 10,
+    borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 14, paddingVertical: 10,
   },
-  filterLabel: { color: C.accent, fontSize: 9, letterSpacing: 3, fontWeight: '700' },
-  filterValue: { color: C.text, fontSize: 13, fontWeight: '600', marginTop: 3 },
+  filterHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  filterTick:   { width: 2.5, height: 10, borderRadius: 1.5, backgroundColor: C.accent },
+  filterLabel: {
+    color: C.accent, fontSize: 9, letterSpacing: 3,
+    fontWeight: '700', fontFamily: MONO, flex: 1,
+  },
+  filterValue: { color: C.text, fontSize: 12, fontWeight: '600', fontFamily: MONO },
 
-  chipRow:        { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingHorizontal: 2 },
-  chip:           { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 22, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
-  chipActive:     { backgroundColor: 'rgba(128,0,7,0.18)', borderColor: C.accent, shadowColor: C.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 4 },
-  chipActiveDot:  { width: 5, height: 5, borderRadius: 3, backgroundColor: C.accent, marginLeft: 2 },
-  chipText:       { color: C.textSub,    fontSize: 11, fontWeight: '600', letterSpacing: 0.8 },
+  // ── Zone 6: Chips ──
+  chipRow: {
+    flexDirection: 'row', gap: 7,
+    paddingVertical: 8, paddingHorizontal: SIDE_PAD,
+  },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 11, paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.border,
+  },
+  chipActive: {
+    backgroundColor: C.accentGlow, borderColor: C.accent,
+    shadowColor: C.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45, shadowRadius: 8, elevation: 4,
+  },
+  chipDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.accent, marginLeft: 1 },
+  chipText: {
+    color: C.textSub, fontSize: 9, fontWeight: '600',
+    letterSpacing: 1, fontFamily: MONO,
+  },
   chipTextActive: { color: C.accentText, fontWeight: '700' },
 });
