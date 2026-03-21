@@ -66,22 +66,24 @@ interface IProduct {
   category?: string;
 }
 
+type CategoryItem = { _id: string; name: string; count?: number };
+
 /* ─────────────────────────────────────────
    Design Tokens
 ───────────────────────────────────────── */
 const C = {
-  bg:         '#0E1117',
-  bgLayer:    '#12151F',
-  surface:    '#1A1E2E',
-  border:     '#262D42',
-  accent:     '#00C2C7',
-  accentDim:  '#007F84',
-  accentGlow: 'rgba(0,194,199,0.12)',
-  accentText: '#00E5EB',
-  mint:       '#3DFFC0',
-  text:       '#E8EDF5',
-  textSub:    '#7A859E',
-  textDim:    '#353D52',
+  bg:         '#1a0204',
+  bgLayer:    '#200305',
+  surface:    '#2a0508',
+  border:     '#3d0a0d',
+  accent:     '#800007',
+  accentDim:  '#5a0005',
+  accentGlow: 'rgba(128,0,7,0.14)',
+  accentText: '#c0000a',
+  mint:       '#996250',
+  text:       '#F9F9F9',
+  textSub:    '#996250',
+  textDim:    '#4a2020',
   danger:     '#FF5A6E',
   dangerBg:   'rgba(255,90,110,0.10)',
   white:      '#FFFFFF',
@@ -205,7 +207,7 @@ const ProductCard = React.memo(({ item, index, cardWidth, isWeb }: {
               <Image source={{ uri: imgUrl }} style={s.cardImg} resizeMode="cover" />
             ) : (
               <View style={s.cardImgPlaceholder}>
-                <MaterialCommunityIcons name="package-variant" size={isWeb ? 42 : 34} color={C.textDim} />
+                <MaterialCommunityIcons name="car-sports" size={isWeb ? 42 : 34} color={C.textDim} />
               </View>
             )}
             <View style={s.scanLine} />
@@ -410,10 +412,10 @@ export default function Home() {
   }, []);
 
   /* Product / filter state */
-  const [categories,     setCategories]     = useState<string[]>(['All']);
+  const [categories,     setCategories]     = useState<CategoryItem[]>([{ _id: 'All', name: 'All' }]);
   const [price,          setPrice]          = useState<[number, number]>([1, 10000]);
   const [currentPage,    setCurrentPage]    = useState(1);
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState<CategoryItem>({ _id: 'All', name: 'All' });
   const [filterOpen,     setFilterOpen]     = useState(false);
   const [menuOpen,       setMenuOpen]       = useState(false);
 
@@ -475,12 +477,26 @@ export default function Home() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const res  = await axios.get(`${API_URL}/products/categories`, { timeout: 8000 });
+      const res = await axios.get(`${API_URL}/products/categories`, { timeout: 8000 });
       const raw: any = res.data?.categories ?? res.data ?? [];
-      const cats: string[] = Array.isArray(raw)
-        ? raw.map((c: any) => typeof c === 'string' ? c : c?.category ?? c?._id ?? String(c))
+
+      // Backend should return: [{ _id, name, count }]
+      const cats: CategoryItem[] = Array.isArray(raw)
+        ? raw
+            .map((c: any): CategoryItem => {
+              if (typeof c === 'string') return { _id: c, name: c };
+              const id = c?._id ?? c?.id ?? c?.value;
+              const name = c?.name ?? c?.category;
+              return {
+                _id: id ? String(id) : '',
+                name: name ? String(name) : '',
+                count: c?.count,
+              };
+            })
+            .filter((c) => Boolean(c._id) && Boolean(c.name))
         : [];
-      if (cats.length > 0) setCategories(['All', ...cats]);
+
+      if (cats.length > 0) setCategories([{ _id: 'All', name: 'All' }, ...cats]);
     } catch {}
   }, []);
 
@@ -490,22 +506,18 @@ export default function Home() {
   }, [activeKeyword, price, activeCategory]);
 
   const fetchProducts = useCallback(async (page: number, isLoadMore = false) => {
+    const categoryFilter = activeCategory._id === 'All' ? undefined : activeCategory._id;
+
     const res = await dispatch(fetchProductsAction({
       page,
       isLoadMore,
       price,
       keyword: activeKeyword,
-      category: activeCategory,
+      category: categoryFilter,
     }));
 
     if (fetchProductsAction.fulfilled.match(res)) {
-      const fetched: IProduct[] = res.payload.fetched ?? [];
-      setCategories((prev) => {
-        if (prev.length <= 1 && fetched.length > 0) {
-          return ['All', ...Array.from(new Set(fetched.map((p) => p.category).filter(Boolean) as string[]))];
-        }
-        return prev;
-      });
+      // If backend doesn't provide categories, keep the existing list.
     }
   }, [activeKeyword, price, activeCategory]);
 
@@ -579,15 +591,18 @@ export default function Home() {
         <View style={s.webNav}>
           <View style={[s.webNavInner, { maxWidth: maxContentWidth }]}>
             <View style={s.webNavBrand}>
-              <MaterialCommunityIcons name="storefront-outline" size={22} color={C.accent} />
-              <Text style={s.webNavTitle}>ROMEROS</Text>
+              <MaterialCommunityIcons name="car-sports" size={22} color={C.accent} />
+              <View>
+                <Text style={s.webNavTitle}>DRIFT N' DASH</Text>
+                <Text style={s.webNavTagline}>HOT WHEELS STORE</Text>
+              </View>
             </View>
 
             <View style={s.webSearchBox}>
               <Feather name="search" size={16} color={C.accent} />
               <TextInput
                 style={s.webSearchInput}
-                placeholder="Search products..."
+                placeholder="Search hot wheels..."
                 placeholderTextColor={C.textDim}
                 value={searchQuery}
                 onChangeText={handleSearchChange}
@@ -651,9 +666,12 @@ export default function Home() {
           animatedFilterH={animatedFilterH}
           price={price}
           onPriceChange={(val) => setPrice([price[0], val])}
-          categories={categories}
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
+          categories={categories.map((c) => c.name)}
+          activeCategory={activeCategory.name}
+          onCategoryChange={(name) => {
+            const found = categories.find((c) => c.name === name);
+            setActiveCategory(found ?? { _id: 'All', name: 'All' });
+          }}
           onMenuOpen={() => setMenuOpen(true)}
           cartCount={cartCount}
           notifCount={notifCount}
@@ -683,13 +701,13 @@ export default function Home() {
               <View style={s.sidebarCats}>
                 {categories.map((cat) => (
                   <TouchableOpacity
-                    key={cat}
+                    key={cat._id}
                     onPress={() => setActiveCategory(cat)}
-                    style={[s.sidebarCatRow, activeCategory === cat && s.sidebarCatRowActive]}
+                    style={[s.sidebarCatRow, activeCategory._id === cat._id && s.sidebarCatRowActive]}
                   >
-                    <CatIconComponent label={cat} size={14} color={activeCategory === cat ? C.accent : C.textSub} />
-                    <Text style={[s.sidebarCatTxt, activeCategory === cat && s.sidebarCatTxtActive]}>{cat}</Text>
-                    {activeCategory === cat && (
+                    <CatIconComponent label={cat.name} size={14} color={activeCategory._id === cat._id ? C.accent : C.textSub} />
+                    <Text style={[s.sidebarCatTxt, activeCategory._id === cat._id && s.sidebarCatTxtActive]}>{cat.name}</Text>
+                    {activeCategory._id === cat._id && (
                       <View style={{ flex: 1, alignItems: 'flex-end' }}>
                         <View style={s.sidebarActiveLine} />
                       </View>
@@ -706,7 +724,7 @@ export default function Home() {
           {isWeb && !webLayout && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.chipRow, { marginBottom: 12 }]}>
               {categories.map((cat) => (
-                <Chip key={cat} label={cat} active={activeCategory === cat} onPress={() => setActiveCategory(cat)} />
+                <Chip key={cat._id} label={cat.name} active={activeCategory._id === cat._id} onPress={() => setActiveCategory(cat)} />
               ))}
             </ScrollView>
           )}
@@ -726,7 +744,7 @@ export default function Home() {
             </View>
           ) : products.length === 0 ? (
             <View style={s.centerWrap}>
-              <MaterialCommunityIcons name="package-variant-closed" size={52} color={C.textDim} />
+              <MaterialCommunityIcons name="car-sports" size={52} color={C.textDim} />
               <Text style={s.emptyTitle}>No Products Found</Text>
               <Text style={s.emptyMsg}>Try adjusting your filters or search</Text>
             </View>
@@ -746,7 +764,7 @@ export default function Home() {
                 <View style={s.resultsBar}>
                   <Text style={s.resultsCount}>{products.length.toLocaleString()} PRODUCTS</Text>
                   {activeKeyword ? <Text style={s.resultsKw}>for "{activeKeyword}"</Text> : null}
-                  {activeCategory !== 'All' ? <Text style={s.resultsCat}>· {activeCategory}</Text> : null}
+                  {activeCategory._id !== 'All' ? <Text style={s.resultsCat}>· {activeCategory.name}</Text> : null}
                 </View>
               }
               ListFooterComponent={
@@ -792,9 +810,12 @@ export default function Home() {
 
           <Animated.View style={[s.drawerPanel, { transform: [{ translateX: menuSlide }] }]}>
             <View style={s.drawerHeader}>
-              <View>
-                <Text style={s.drawerEyebrow}>ROMEROS</Text>
-                <Text style={s.drawerTitle}>MENU</Text>
+              <View style={s.drawerBrandRow}>
+                <MaterialCommunityIcons name="car-sports" size={20} color={C.accent} />
+                <View>
+                  <Text style={s.drawerEyebrow}>DRIFT N' DASH</Text>
+                  <Text style={s.drawerTitle}>MENU</Text>
+                </View>
               </View>
               <TouchableOpacity style={s.drawerCloseBtn} onPress={() => setMenuOpen(false)}>
                 <Feather name="x" size={18} color={C.textSub} />
@@ -899,8 +920,9 @@ const s = StyleSheet.create({
     width: '100%', flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: SIDE_PAD * 2, paddingVertical: 14, gap: 20,
   },
-  webNavBrand:  { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 180 },
-  webNavTitle:  { color: C.text, fontSize: 16, fontWeight: '800', letterSpacing: 3 },
+  webNavBrand:   { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 190 },
+  webNavTitle:   { color: C.text, fontSize: 15, fontWeight: '800', letterSpacing: 2.5 },
+  webNavTagline: { color: C.accentDim, fontSize: 8, fontWeight: '700', letterSpacing: 2, marginTop: 1 },
   webSearchBox: {
     flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface,
     borderRadius: 10, borderWidth: 1, borderColor: C.border,
@@ -941,7 +963,7 @@ const s = StyleSheet.create({
   sidebarValue:        { color: C.text, fontSize: 13, fontWeight: '600' },
   sidebarCats:         { gap: 4, marginTop: 4 },
   sidebarCatRow:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 8 },
-  sidebarCatRowActive: { backgroundColor: 'rgba(0,194,199,0.16)', borderLeftWidth: 2, borderLeftColor: C.accent },
+  sidebarCatRowActive: { backgroundColor: 'rgba(128,0,7,0.16)', borderLeftWidth: 2, borderLeftColor: C.accent },
   sidebarActiveLine:   { width: 3, height: 3, borderRadius: 2, backgroundColor: C.accent },
   sidebarCatTxt:       { color: C.textSub,    fontSize: 13, fontWeight: '500', flex: 1 },
   sidebarCatTxtActive: { color: C.accentText, fontWeight: '700' },
@@ -1000,7 +1022,7 @@ const s = StyleSheet.create({
 
   chipRow:       { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingHorizontal: 2 },
   chip:          { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 22, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
-  chipActive:    { backgroundColor: 'rgba(0,194,199,0.18)', borderColor: C.accent, shadowColor: C.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 4 },
+  chipActive:    { backgroundColor: 'rgba(128,0,7,0.18)', borderColor: C.accent, shadowColor: C.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 4 },
   chipActiveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.accent, marginLeft: 2 },
   chipText:      { color: C.textSub,    fontSize: 11, fontWeight: '600', letterSpacing: 0.8 },
   chipTextActive:{ color: C.accentText, fontWeight: '700' },
@@ -1008,6 +1030,7 @@ const s = StyleSheet.create({
   drawerBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 200 },
   drawerPanel:    { position: 'absolute', top: 0, left: 0, bottom: 0, width: 280, backgroundColor: C.bgLayer, borderRightWidth: 1, borderRightColor: C.border, zIndex: 201, paddingTop: Platform.OS === 'ios' ? 56 : 40, paddingBottom: 40 },
   drawerHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 20 },
+  drawerBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   drawerEyebrow:  { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700', marginBottom: 2 },
   drawerTitle:    { color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: 2 },
   drawerCloseBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },

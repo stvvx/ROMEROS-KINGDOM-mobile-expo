@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { fetchMyOrders } from '@/store/slices/orderSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 
@@ -49,24 +49,24 @@ interface Order {
 
 /* ─── Design tokens ─── */
 const C = {
-  bg:         '#0E1117',
-  bgLayer:    '#12151F',
-  surface:    '#1A1E2E',
-  border:     '#1F2540',
-  accent:     '#00C2C7',
-  accentText: '#00E5EB',
-  mint:       '#3DFFC0',
-  text:       '#E8EDF5',
-  textSub:    '#7A859E',
-  textDim:    '#2B3247',
+  bg:         '#1a0204',
+  bgLayer:    '#200305',
+  surface:    '#2a0508',
+  border:     '#3d0a0d',
+  accent:     '#800007',
+  accentText: '#c0000a',
+  mint:       '#996250',
+  text:       '#F9F9F9',
+  textSub:    '#996250',
+  textDim:    '#4a2020',
   danger:     '#FF5A6E',
   dangerBg:   'rgba(255,90,110,0.10)',
   warning:    '#FFB347',
   warningBg:  'rgba(255,179,71,0.12)',
-  success:    '#3DFFC0',
-  successBg:  'rgba(61,255,192,0.10)',
-  info:       '#6EA8FE',
-  infoBg:     'rgba(110,168,254,0.12)',
+  success:    '#996250',
+  successBg:  'rgba(153,98,80,0.12)',
+  info:       '#c0000a',
+  infoBg:     'rgba(192,0,10,0.10)',
 } as const;
 
 /* ─── Status config ─── */
@@ -130,7 +130,6 @@ const OrderCard = ({ order, onPress }: { order: Order; onPress: () => void }) =>
         onPressIn={pressIn}
         onPressOut={pressOut}
       >
-        {/* Card top row */}
         <View style={styles.cardTop}>
           <View style={{ flex: 1 }}>
             <Text style={styles.orderId} numberOfLines={1}>
@@ -141,23 +140,16 @@ const OrderCard = ({ order, onPress }: { order: Order; onPress: () => void }) =>
           <StatusBadge status={order.orderStatus} />
         </View>
 
-        {/* First item preview */}
         <View style={styles.cardItemRow}>
           {firstItem?.image ? (
-            <Image
-              source={{ uri: firstItem.image }}
-              style={styles.itemThumb}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: firstItem.image }} style={styles.itemThumb} resizeMode="cover" />
           ) : (
             <View style={[styles.itemThumb, styles.thumbPlaceholder]}>
               <Text style={{ fontSize: 22 }}>📦</Text>
             </View>
           )}
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={styles.itemName} numberOfLines={2}>
-              {firstItem?.name ?? '—'}
-            </Text>
+            <Text style={styles.itemName} numberOfLines={2}>{firstItem?.name ?? '—'}</Text>
             {order.orderItems.length > 1 && (
               <Text style={styles.moreItems}>
                 +{order.orderItems.length - 1} more item{order.orderItems.length - 1 > 1 ? 's' : ''}
@@ -166,7 +158,6 @@ const OrderCard = ({ order, onPress }: { order: Order; onPress: () => void }) =>
           </View>
         </View>
 
-        {/* Footer */}
         <View style={styles.cardFooter}>
           <View>
             <Text style={styles.totalLabel}>TOTAL</Text>
@@ -175,7 +166,6 @@ const OrderCard = ({ order, onPress }: { order: Order; onPress: () => void }) =>
           <Text style={styles.cardCta}>View details →</Text>
         </View>
 
-        {/* Corner accents */}
         <View style={[styles.corner, styles.cornerTL]} />
         <View style={[styles.corner, styles.cornerBR]} />
       </TouchableOpacity>
@@ -184,13 +174,7 @@ const OrderCard = ({ order, onPress }: { order: Order; onPress: () => void }) =>
 };
 
 /* ─── Expanded Order Detail Modal ─── */
-const OrderDetail = ({
-  order,
-  onClose,
-}: {
-  order: Order;
-  onClose: () => void;
-}) => {
+const OrderDetail = ({ order, onClose }: { order: Order; onClose: () => void }) => {
   const slideY = useRef(new Animated.Value(50)).current;
   const fade   = useRef(new Animated.Value(0)).current;
 
@@ -214,7 +198,6 @@ const OrderDetail = ({
     <Animated.View style={[styles.detailOverlay, { opacity: fade }]}>
       <TouchableOpacity style={styles.detailBackdrop} activeOpacity={1} onPress={close} />
       <Animated.View style={[styles.detailSheet, { transform: [{ translateY: slideY }] }]}>
-        {/* Header */}
         <View style={styles.detailHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.detailTitle}>Order Details</Text>
@@ -231,7 +214,6 @@ const OrderDetail = ({
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
           ListHeaderComponent={
             <>
-              {/* Status timeline */}
               <View style={[styles.statusBanner, { backgroundColor: cfg.bg, borderColor: cfg.color }]}>
                 <Text style={{ fontSize: 22 }}>{cfg.icon}</Text>
                 <View style={{ flex: 1 }}>
@@ -251,19 +233,13 @@ const OrderDetail = ({
                 </View>
               </View>
 
-              {/* Shipping info */}
               <View style={styles.detailSection}>
                 <Text style={styles.sectionTitle}>SHIPPING ADDRESS</Text>
-                <Text style={styles.detailText}>
-                  {order.shippingInfo.address}, {order.shippingInfo.city}
-                </Text>
-                <Text style={styles.detailText}>
-                  {order.shippingInfo.postalCode}, {order.shippingInfo.country}
-                </Text>
+                <Text style={styles.detailText}>{order.shippingInfo.address}, {order.shippingInfo.city}</Text>
+                <Text style={styles.detailText}>{order.shippingInfo.postalCode}, {order.shippingInfo.country}</Text>
                 <Text style={styles.detailText}>📞 {order.shippingInfo.phoneNo}</Text>
               </View>
 
-              {/* Items header */}
               <Text style={styles.sectionTitle}>ORDER ITEMS</Text>
             </>
           }
@@ -278,13 +254,9 @@ const OrderDetail = ({
               )}
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.detailItemName} numberOfLines={2}>{item.name}</Text>
-                <Text style={styles.detailItemMeta}>
-                  {formatPrice(item.price)} × {item.quantity}
-                </Text>
+                <Text style={styles.detailItemMeta}>{formatPrice(item.price)} × {item.quantity}</Text>
               </View>
-              <Text style={styles.detailItemTotal}>
-                {formatPrice(item.price * item.quantity)}
-              </Text>
+              <Text style={styles.detailItemTotal}>{formatPrice(item.price * item.quantity)}</Text>
             </View>
           )}
           ListFooterComponent={
@@ -343,7 +315,6 @@ export default function Orders() {
     }
   }, [orders, deepLinkOrderId]);
 
-  /* Stats */
   const stats = {
     total:     orders.length,
     delivered: orders.filter(o => o.orderStatus === 'Delivered').length,
@@ -355,6 +326,7 @@ export default function Orders() {
   if (!loading && needsAuth) {
     return (
       <View style={styles.center}>
+        <Stack.Screen options={{ headerShown: false }} />
         <StatusBar barStyle="light-content" backgroundColor={C.bg} />
         <Text style={{ fontSize: 36, marginBottom: 16 }}>🔒</Text>
         <Text style={styles.emptyTitle}>Sign in to see orders</Text>
@@ -366,10 +338,11 @@ export default function Orders() {
     );
   }
 
-  /* ── Loading State ── */
+  /* ── Loading ── */
   if (loading) {
     return (
       <View style={styles.center}>
+        <Stack.Screen options={{ headerShown: false }} />
         <StatusBar barStyle="light-content" backgroundColor={C.bg} />
         <ActivityIndicator size="large" color={C.accent} />
         <Text style={styles.loadingText}>Loading your orders…</Text>
@@ -379,21 +352,18 @@ export default function Orders() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
       {/* Header */}
       <Animated.View style={[styles.header, { opacity: headerFade }]}>
         <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Text style={styles.backBtnTxt}>←</Text>
-          </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>◈ ROMEROS</Text>
+            <Text style={styles.eyebrow}>◈ DRIFT N' DASH</Text>
             <Text style={styles.title}>My Account</Text>
           </View>
         </View>
 
-        {/* Tab bar */}
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'orders' && styles.tabActive]}
@@ -410,9 +380,7 @@ export default function Orders() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'reviews' && styles.tabActive]}
-            onPress={() => {
-              router.push('/(user)/review');
-            }}
+            onPress={() => router.push('/(user)/review')}
           >
             <Text style={[styles.tabText, activeTab === 'reviews' && styles.tabTextActive]}>
               ★  Reviews
@@ -423,10 +391,10 @@ export default function Orders() {
 
       {/* Summary pills */}
       <View style={styles.pillRow}>
-        <SummaryPill label="Total Orders"  value={stats.total} />
-        <SummaryPill label="Delivered"     value={stats.delivered} accent />
-        <SummaryPill label="Active"        value={stats.active} />
-        <SummaryPill label="Total Spent"   value={formatPrice(stats.spent)} />
+        <SummaryPill label="Total Orders" value={stats.total} />
+        <SummaryPill label="Delivered"    value={stats.delivered} accent />
+        <SummaryPill label="Active"       value={stats.active} />
+        <SummaryPill label="Total Spent"  value={formatPrice(stats.spent)} />
       </View>
 
       {error ? (
@@ -454,13 +422,8 @@ export default function Orders() {
             <View style={styles.emptyBox}>
               <Text style={{ fontSize: 48, marginBottom: 12 }}>🛒</Text>
               <Text style={styles.emptyTitle}>No orders yet</Text>
-              <Text style={styles.emptyText}>
-                Start shopping and your orders will appear here.
-              </Text>
-              <TouchableOpacity
-                style={styles.secondaryBtn}
-                onPress={() => router.push('/(tabs)')}
-              >
+              <Text style={styles.emptyText}>Start shopping and your orders will appear here.</Text>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/(tabs)')}>
                 <Text style={styles.secondaryBtnText}>Browse Products</Text>
               </TouchableOpacity>
             </View>
@@ -471,7 +434,6 @@ export default function Orders() {
         />
       )}
 
-      {/* Detail overlay */}
       {selected && (
         <OrderDetail order={selected} onClose={() => setSelected(null)} />
       )}
@@ -482,17 +444,9 @@ export default function Orders() {
 /* ─── Styles ─── */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  center: {
-    flex: 1,
-    backgroundColor: C.bg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    gap: 8,
-  },
-  loadingText: { color: C.text, marginTop: 12, fontSize: 14 },
+  center: { flex: 1, backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 8 },
+  loadingText: { color: C.textSub, marginTop: 12, fontSize: 14 },
 
-  /* Header */
   header: {
     backgroundColor: C.bgLayer,
     paddingTop: Platform.OS === 'ios' ? 56 : 40,
@@ -501,285 +455,89 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 18,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backBtnTxt: { color: C.text, fontSize: 20 },
-  eyebrow: { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700' },
-  title: { color: C.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
+  eyebrow:   { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700' },
+  title:     { color: C.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
 
-  /* Tabs */
-  tabBar: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderBottomWidth: 2.5,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: C.accent,
-  },
-  tabText: {
-    color: C.textSub,
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
+  tabBar:        { flexDirection: 'row', gap: 4 },
+  tab:           { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 2.5, borderBottomColor: 'transparent' },
+  tabActive:     { borderBottomColor: C.accent },
+  tabText:       { color: C.textSub, fontSize: 14, fontWeight: '600', letterSpacing: 0.3 },
   tabTextActive: { color: C.accentText, fontWeight: '700' },
-  tabBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: C.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  tabBadgeTxt: { color: C.bg, fontSize: 9, fontWeight: '800' },
+  tabBadge:      { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: C.accent, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  tabBadgeTxt:   { color: C.text, fontSize: 9, fontWeight: '800' },
 
-  /* Pills */
-  pillRow: {
-    flexDirection: 'row',
-    padding: 14,
-    gap: 8,
-  },
-  pill: {
-    flex: 1,
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: 10,
-    alignItems: 'center',
-  },
+  pillRow:   { flexDirection: 'row', padding: 14, gap: 8 },
+  pill:      { flex: 1, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 10, alignItems: 'center' },
   pillValue: { color: C.accent, fontSize: 15, fontWeight: '800' },
   pillLabel: { color: C.textSub, fontSize: 9, marginTop: 3, textAlign: 'center' },
 
-  /* List */
   list: { paddingHorizontal: 16, paddingBottom: 60, paddingTop: 4 },
 
-  /* Order Card */
-  card: {
-    backgroundColor: C.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: 16,
-    gap: 12,
-    overflow: 'hidden',
-  },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  orderId: {
-    color: C.text,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  orderDate: { color: C.textSub, fontSize: 11, marginTop: 3 },
+  card:        { backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 16, gap: 12, overflow: 'hidden' },
+  cardTop:     { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  orderId:     { color: C.text, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  orderDate:   { color: C.textSub, fontSize: 11, marginTop: 3 },
 
-  /* Status badge */
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
+  statusText:  { fontSize: 11, fontWeight: '700' },
 
-  /* Item row in card */
-  cardItemRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  itemThumb: {
-    width: 58,
-    height: 58,
-    borderRadius: 10,
-    backgroundColor: C.bgLayer,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  thumbPlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  itemName: { color: C.text, fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  moreItems: { color: C.textSub, fontSize: 11 },
+  cardItemRow:     { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  itemThumb:       { width: 58, height: 58, borderRadius: 10, backgroundColor: C.bgLayer, borderWidth: 1, borderColor: C.border },
+  thumbPlaceholder:{ justifyContent: 'center', alignItems: 'center' },
+  itemName:        { color: C.text, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  moreItems:       { color: C.textSub, fontSize: 11 },
 
-  /* Card footer */
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-    paddingTop: 10,
-  },
-  totalLabel: {
-    color: C.textSub,
-    fontSize: 8,
-    letterSpacing: 2,
-    fontWeight: '700',
-  },
-  totalAmount: { color: '#3DFFC0', fontSize: 16, fontWeight: '800' },
-  cardCta: { color: C.accent, fontSize: 12, fontWeight: '700' },
+  cardFooter:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', borderTopWidth: 1, borderTopColor: C.border, paddingTop: 10 },
+  totalLabel:  { color: C.textSub, fontSize: 8, letterSpacing: 2, fontWeight: '700' },
+  totalAmount: { color: C.mint, fontSize: 16, fontWeight: '800' },
+  cardCta:     { color: C.accent, fontSize: 12, fontWeight: '700' },
 
-  /* Corner accents */
-  corner: { position: 'absolute', backgroundColor: C.accent, opacity: 0.4 },
+  corner:   { position: 'absolute', backgroundColor: C.accent, opacity: 0.4 },
   cornerTL: { top: 0, left: 0, width: 14, height: 1.5 },
   cornerBR: { bottom: 0, right: 0, width: 14, height: 1.5 },
 
-  /* Error */
-  errorBox: { margin: 20, padding: 20, backgroundColor: C.dangerBg, borderRadius: 14, borderWidth: 1, borderColor: C.danger, alignItems: 'center', gap: 10 },
+  errorBox:  { margin: 20, padding: 20, backgroundColor: C.dangerBg, borderRadius: 14, borderWidth: 1, borderColor: C.danger, alignItems: 'center', gap: 10 },
   errorText: { color: C.danger, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: C.danger, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
-  retryTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  retryBtn:  { backgroundColor: C.danger, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
+  retryTxt:  { color: '#fff', fontWeight: '700', fontSize: 12 },
 
-  /* Empty */
-  emptyBox: { marginTop: 40, alignItems: 'center', gap: 8, paddingHorizontal: 20 },
-  emptyTitle: { color: C.text, fontSize: 18, fontWeight: '700' },
-  emptyText: { color: C.textSub, textAlign: 'center', lineHeight: 20 },
-  primaryBtn: { marginTop: 12, backgroundColor: C.accent, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 12 },
-  primaryBtnText: { color: C.bg, fontWeight: '800', fontSize: 14 },
-  secondaryBtn: { marginTop: 10, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, borderColor: C.accent, borderWidth: 1 },
+  emptyBox:         { marginTop: 40, alignItems: 'center', gap: 8, paddingHorizontal: 20 },
+  emptyTitle:       { color: C.text, fontSize: 18, fontWeight: '700' },
+  emptyText:        { color: C.textSub, textAlign: 'center', lineHeight: 20 },
+  primaryBtn:       { marginTop: 12, backgroundColor: C.accent, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 12, shadowColor: C.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
+  primaryBtnText:   { color: C.text, fontWeight: '800', fontSize: 14 },
+  secondaryBtn:     { marginTop: 10, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, borderColor: C.accent, borderWidth: 1 },
   secondaryBtnText: { color: C.accent, fontWeight: '700' },
 
-  /* ─── Order Detail Sheet ─── */
-  detailOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    justifyContent: 'flex-end',
-    zIndex: 100,
-  },
-  detailBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  detailSheet: {
-    backgroundColor: C.bgLayer,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: C.border,
-    maxHeight: '85%',
-  },
-  detailHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    gap: 12,
-  },
-  detailTitle: { color: C.text, fontSize: 17, fontWeight: '800' },
-  detailId: { color: C.textSub, fontSize: 12, marginTop: 2 },
-  detailCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  detailOverlay:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', zIndex: 100 },
+  detailBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },
+  detailSheet:    { backgroundColor: C.bgLayer, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: C.border, maxHeight: '85%' },
+  detailHeader:   { flexDirection: 'row', alignItems: 'center', padding: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: C.border, gap: 12 },
+  detailTitle:    { color: C.text, fontSize: 17, fontWeight: '800' },
+  detailId:       { color: C.textSub, fontSize: 12, marginTop: 2 },
+  detailCloseBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
   detailCloseTxt: { color: C.textSub, fontSize: 14, fontWeight: '700' },
 
-  /* Status banner */
-  statusBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    marginVertical: 14,
-  },
+  statusBanner:      { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, padding: 14, marginVertical: 14 },
   statusBannerTitle: { fontSize: 15, fontWeight: '800', letterSpacing: 0.3 },
-  statusBannerSub: { color: C.textSub, fontSize: 12, marginTop: 2 },
+  statusBannerSub:   { color: C.textSub, fontSize: 12, marginTop: 2 },
 
-  /* Detail section */
-  detailSection: {
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: 14,
-    gap: 4,
-    marginBottom: 14,
-  },
-  sectionTitle: {
-    color: C.textSub,
-    fontSize: 9,
-    letterSpacing: 2,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  detailText: { color: C.text, fontSize: 13, lineHeight: 20 },
+  detailSection: { backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, gap: 4, marginBottom: 14 },
+  sectionTitle:  { color: C.textSub, fontSize: 9, letterSpacing: 2, fontWeight: '700', marginBottom: 10 },
+  detailText:    { color: C.text, fontSize: 13, lineHeight: 20 },
 
-  /* Detail item rows */
-  detailItemRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  detailItemImg: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  detailItemName: { color: C.text, fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  detailItemMeta: { color: C.textSub, fontSize: 12 },
+  detailItemRow:   { flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+  detailItemImg:   { width: 52, height: 52, borderRadius: 10, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  detailItemName:  { color: C.text, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  detailItemMeta:  { color: C.textSub, fontSize: 12 },
   detailItemTotal: { color: C.mint, fontSize: 13, fontWeight: '800' },
 
-  /* Price summary */
-  detailPriceBox: {
-    marginTop: 16,
-    backgroundColor: C.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: 16,
-    gap: 8,
-  },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  priceLabel: { color: C.textSub, fontSize: 13 },
-  priceValue: { color: C.text, fontSize: 13 },
-  priceDivider: { height: 1, backgroundColor: C.border, marginVertical: 4 },
+  detailPriceBox:  { marginTop: 16, backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16, gap: 8 },
+  priceRow:        { flexDirection: 'row', justifyContent: 'space-between' },
+  priceLabel:      { color: C.textSub, fontSize: 13 },
+  priceValue:      { color: C.text, fontSize: 13 },
+  priceDivider:    { height: 1, backgroundColor: C.border, marginVertical: 4 },
   priceTotalValue: { color: C.mint, fontSize: 16, fontWeight: '800' },
-  paidText: { color: C.textSub, fontSize: 11, marginTop: 4, textAlign: 'right' },
+  paidText:        { color: C.textSub, fontSize: 11, marginTop: 4, textAlign: 'right' },
 });

@@ -13,7 +13,7 @@ import {
 } from 'react-native'
 import axios from 'axios'
 import Constants from 'expo-constants'
-import { useRouter } from 'expo-router'
+import { useRouter, Stack } from 'expo-router'
 import { getItem } from '@/utils/storage'
 
 /* ─── API URL ─── */
@@ -32,27 +32,27 @@ if (debuggerHost && debuggerHost !== 'localhost') {
 
 /* ─── Design tokens ─── */
 const C = {
-  bg:         '#0E1117',
-  bgLayer:    '#12151F',
-  surface:    '#1A1E2E',
-  border:     '#1F2540',
-  accent:     '#00C2C7',
-  accentText: '#00E5EB',
-  text:       '#E8EDF5',
-  textSub:    '#7A859E',
-  textBody:   '#C6CCDC',
+  bg:         '#1a0204',
+  bgLayer:    '#200305',
+  surface:    '#2a0508',
+  border:     '#3d0a0d',
+  accent:     '#800007',
+  accentText: '#c0000a',
+  text:       '#F9F9F9',
+  textSub:    '#996250',
+  textBody:   '#c8a090',
   danger:     '#FF5A6E',
   warning:    '#FFB347',
-  mint:       '#3DFFC0',
-  info:       '#6EA8FE',
+  mint:       '#996250',
+  info:       '#c0000a',
 } as const
 
 /* ─── Type icons / colours per notification type ─── */
 const TYPE_META: Record<string, { icon: string; color: string; bg: string }> = {
-  order:   { icon: '📦', color: C.info,    bg: 'rgba(110,168,254,0.12)' },
-  review:  { icon: '★',  color: C.mint,    bg: 'rgba(61,255,192,0.10)'  },
-  product: { icon: '🛍',  color: C.accent,  bg: 'rgba(0,194,199,0.10)'   },
-  system:  { icon: '🔔', color: C.warning, bg: 'rgba(255,179,71,0.12)'  },
+  order:   { icon: '📦', color: C.info,    bg: 'rgba(192,0,10,0.1)'    },
+  review:  { icon: '★',  color: C.mint,    bg: 'rgba(153,98,80,0.1)'   },
+  product: { icon: '🛍',  color: C.accent,  bg: 'rgba(128,0,7,0.1)'    },
+  system:  { icon: '🔔', color: C.warning, bg: 'rgba(255,179,71,0.1)'  },
 }
 function getMeta(type: string) {
   return TYPE_META[type] ?? TYPE_META.system
@@ -110,16 +110,9 @@ const DetailSheet = ({
 
   return (
     <Animated.View style={[ds.overlay, { opacity }]}>
-      {/* Backdrop */}
       <TouchableOpacity style={ds.backdrop} activeOpacity={1} onPress={close} />
-
-      {/* Sheet */}
       <Animated.View style={[ds.sheet, { transform: [{ translateY: slideY }] }]}>
-
-        {/* Handle */}
         <View style={ds.handle} />
-
-        {/* Type banner */}
         <View style={[ds.banner, { backgroundColor: meta.bg, borderColor: meta.color }]}>
           <Text style={ds.bannerIcon}>{meta.icon}</Text>
           <View style={{ flex: 1 }}>
@@ -132,23 +125,15 @@ const DetailSheet = ({
           </View>
           {!item.isRead && <View style={ds.unreadDot} />}
         </View>
-
-        {/* Title */}
         <Text style={ds.detailTitle}>{item.title}</Text>
-
-        {/* Message body */}
         <View style={ds.msgBox}>
           <Text style={ds.msgText}>{item.message}</Text>
         </View>
-
-        {/* Deep-link CTA */}
         {hasDeepLink && deepLinkLabel && (
           <TouchableOpacity style={[ds.ctaBtn, { borderColor: meta.color }]} onPress={onNavigate}>
             <Text style={[ds.ctaTxt, { color: meta.color }]}>{deepLinkLabel}</Text>
           </TouchableOpacity>
         )}
-
-        {/* Close */}
         <TouchableOpacity style={ds.closeBtn} onPress={close}>
           <Text style={ds.closeTxt}>Close</Text>
         </TouchableOpacity>
@@ -162,12 +147,12 @@ const DetailSheet = ({
 ───────────────────────────────────────── */
 export default function UserNotifications() {
   const router = useRouter()
-  const [items, setItems]         = useState<NotificationItem[]>([])
-  const [loading, setLoading]     = useState(true)
+  const [items, setItems]           = useState<NotificationItem[]>([])
+  const [loading, setLoading]       = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError]         = useState<string | null>(null)
-  const [needsAuth, setNeedsAuth] = useState(false)
-  const [selected, setSelected]   = useState<NotificationItem | null>(null)
+  const [error, setError]           = useState<string | null>(null)
+  const [needsAuth, setNeedsAuth]   = useState(false)
+  const [selected, setSelected]     = useState<NotificationItem | null>(null)
 
   const headerFade = useRef(new Animated.Value(0)).current
 
@@ -217,13 +202,11 @@ export default function UserNotifications() {
     } catch { /* non-blocking */ }
   }
 
-  /* Open the sheet and mark as read */
   const openDetail = (item: NotificationItem) => {
     setSelected(item)
     if (!item.isRead) markRead(item._id)
   }
 
-  /* Navigate away from detail sheet */
   const handleNavigate = (item: NotificationItem) => {
     setSelected(null)
     if (item.refModel === 'Order' && item.refId) {
@@ -262,16 +245,14 @@ export default function UserNotifications() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
       {/* Header */}
       <Animated.View style={[styles.header, { opacity: headerFade }]}>
         <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Text style={styles.backBtnTxt}>←</Text>
-          </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>◈ ROMEROS</Text>
+            <Text style={styles.eyebrow}>◈ DRIFT N' DASH</Text>
             <Text style={styles.pageTitle}>Notifications</Text>
           </View>
           {unreadCount > 0 && (
@@ -281,7 +262,6 @@ export default function UserNotifications() {
           )}
         </View>
 
-        {/* Unread pill */}
         {unreadCount > 0 && (
           <View style={styles.unreadBanner}>
             <Text style={styles.unreadBannerTxt}>
@@ -324,23 +304,16 @@ export default function UserNotifications() {
               activeOpacity={0.88}
               onPress={() => openDetail(item)}
             >
-              {/* Left colour strip */}
               <View style={[styles.typeStrip, { backgroundColor: meta.color }]} />
-
               <View style={styles.cardInner}>
                 <View style={styles.cardTop}>
-                  {/* Icon + title */}
                   <View style={styles.cardTitleRow}>
                     <Text style={styles.typeIcon}>{meta.icon}</Text>
                     <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
                   </View>
-
-                  {/* Unread dot */}
                   {!item.isRead && <View style={[styles.unreadDot, { backgroundColor: meta.color }]} />}
                 </View>
-
                 <Text style={styles.cardMessage} numberOfLines={2}>{item.message}</Text>
-
                 <View style={styles.cardFooter}>
                   <View style={[styles.typeBadge, { backgroundColor: meta.bg, borderColor: meta.color }]}>
                     <Text style={[styles.typeBadgeTxt, { color: meta.color }]}>
@@ -351,7 +324,6 @@ export default function UserNotifications() {
                     {new Date(item.createdAt).toLocaleString()}
                   </Text>
                 </View>
-
                 {(item.refModel === 'Order' || item.refModel === 'Product') && (
                   <Text style={[styles.tapHint, { color: meta.color }]}>
                     Tap to view details →
@@ -363,7 +335,6 @@ export default function UserNotifications() {
         }}
       />
 
-      {/* Detail sheet */}
       {selected && (
         <DetailSheet
           item={selected}
@@ -382,7 +353,6 @@ const styles = StyleSheet.create({
   container:  { flex: 1, backgroundColor: C.bg },
   center:     { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
 
-  /* Header */
   header: {
     backgroundColor: C.bgLayer,
     paddingTop: Platform.OS === 'ios' ? 56 : 40,
@@ -391,17 +361,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
-  headerTop:   { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 },
-  backBtn:     { width: 40, height: 40, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
-  backBtnTxt:  { color: C.text, fontSize: 20 },
-  eyebrow:     { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700' },
-  pageTitle:   { color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
-  markAllBtn:  { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: C.accent },
-  markAllTxt:  { color: C.accent, fontWeight: '700', fontSize: 12 },
-  unreadBanner: { backgroundColor: 'rgba(0,194,199,0.10)', borderRadius: 10, borderWidth: 1, borderColor: C.accent, paddingHorizontal: 14, paddingVertical: 8 },
+  headerTop:       { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 },
+  eyebrow:         { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700' },
+  pageTitle:       { color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
+  markAllBtn:      { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: C.accent },
+  markAllTxt:      { color: C.accent, fontWeight: '700', fontSize: 12 },
+  unreadBanner:    { backgroundColor: 'rgba(128,0,7,0.1)', borderRadius: 10, borderWidth: 1, borderColor: C.accent, paddingHorizontal: 14, paddingVertical: 8 },
   unreadBannerTxt: { color: C.accentText, fontSize: 13, fontWeight: '600' },
 
-  /* Card */
   card: {
     backgroundColor: C.surface,
     borderRadius: 14,
@@ -410,35 +377,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
   },
-  cardRead:    { opacity: 0.65 },
-  typeStrip:   { width: 4 },
-  cardInner:   { flex: 1, padding: 14, gap: 6 },
-  cardTop:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitleRow:{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  typeIcon:    { fontSize: 16 },
-  cardTitle:   { color: C.text, fontSize: 15, fontWeight: '700', flex: 1 },
-  unreadDot:   { width: 9, height: 9, borderRadius: 5, marginLeft: 6 },
-  cardMessage: { color: C.textBody, fontSize: 13, lineHeight: 19 },
-  cardFooter:  { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
-  typeBadge:   { borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  typeBadgeTxt:{ fontSize: 10, fontWeight: '700' },
-  cardTime:    { color: C.textSub, fontSize: 11, flex: 1, textAlign: 'right' },
-  tapHint:     { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  cardRead:     { opacity: 0.55 },
+  typeStrip:    { width: 4 },
+  cardInner:    { flex: 1, padding: 14, gap: 6 },
+  cardTop:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  typeIcon:     { fontSize: 16 },
+  cardTitle:    { color: C.text, fontSize: 15, fontWeight: '700', flex: 1 },
+  unreadDot:    { width: 9, height: 9, borderRadius: 5, marginLeft: 6 },
+  cardMessage:  { color: C.textBody, fontSize: 13, lineHeight: 19 },
+  cardFooter:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  typeBadge:    { borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
+  typeBadgeTxt: { fontSize: 10, fontWeight: '700' },
+  cardTime:     { color: C.textSub, fontSize: 11, flex: 1, textAlign: 'right' },
+  tapHint:      { fontSize: 11, fontWeight: '700', marginTop: 2 },
 
-  /* Empty */
   emptyBox:    { alignItems: 'center', marginTop: 60, gap: 6 },
   emptyTitle:  { color: C.text, fontSize: 18, fontWeight: '700' },
   muted:       { color: C.textSub, fontSize: 13 },
 
-  error: { color: C.danger, paddingHorizontal: 16, paddingVertical: 8 },
-  primaryBtn:  { backgroundColor: C.accent, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-  primaryBtnText: { color: C.bg, fontWeight: '800', fontSize: 14 },
+  error:          { color: C.danger, paddingHorizontal: 16, paddingVertical: 8 },
+  primaryBtn:     { backgroundColor: C.accent, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, shadowColor: C.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
+  primaryBtnText: { color: C.text, fontWeight: '800', fontSize: 14 },
 
-  /* unused — kept to avoid missing ref if imported elsewhere */
   surface: {},
 })
 
-/* ─── Detail sheet styles (separate to avoid name collision) ─── */
 const ds = StyleSheet.create({
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -447,7 +411,7 @@ const ds = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
   },
   sheet: {
     backgroundColor: C.bgLayer,
@@ -487,14 +451,14 @@ const ds = StyleSheet.create({
     borderColor: C.border,
     padding: 16,
   },
-  msgText: { color: C.textBody, fontSize: 14, lineHeight: 22 },
+  msgText:  { color: C.textBody, fontSize: 14, lineHeight: 22 },
   ctaBtn: {
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1.5,
     alignItems: 'center',
   },
-  ctaTxt:  { fontWeight: '800', fontSize: 14 },
+  ctaTxt:   { fontWeight: '800', fontSize: 14 },
   closeBtn: {
     paddingVertical: 12,
     borderRadius: 12,

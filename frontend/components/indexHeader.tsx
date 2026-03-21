@@ -23,109 +23,43 @@ import Svg, {
 
 /* ── Design tokens ── */
 const C = {
-  bg:         '#0E1117',
-  bgLayer:    '#12151F',
-  surface:    '#1A1E2E',
-  border:     '#262D42',
-  accent:     '#00C2C7',
-  accentGlow: 'rgba(0,194,199,0.12)',
-  accentText: '#00E5EB',
-  text:       '#E8EDF5',
-  textSub:    '#7A859E',
-  textDim:    '#353D52',
+  bg:         '#1a0204',
+  bgLayer:    '#200305',
+  surface:    '#2a0508',
+  border:     '#3d0a0d',
+  accent:     '#800007',
+  accentGlow: 'rgba(128,0,7,0.14)',
+  accentText: '#c0000a',
+  text:       '#F9F9F9',
+  textSub:    '#996250',
+  textDim:    '#4a2020',
 } as const;
 
 const SIDE_PAD = 16;
 
 /* ════════════════════════════════════════
-   ROBOT LOGO — SVG
-   Futuristic toy-robot head with:
-   glowing visor eyes, angular helmet,
-   antenna, grille mouth, panel rivets
+   CAR LOGO — SVG (side profile silhouette)
 ════════════════════════════════════════ */
-const RobotLogo = ({ size = 44 }: { size?: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 44 44">
-    <Defs>
-      <LinearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
-        <Stop offset="0" stopColor="#1E2740" stopOpacity="1" />
-        <Stop offset="1" stopColor="#0E1117" stopOpacity="1" />
-      </LinearGradient>
-      <LinearGradient id="visorL" x1="0" y1="0" x2="1" y2="1">
-        <Stop offset="0"   stopColor="#00E5EB" stopOpacity="1"   />
-        <Stop offset="1"   stopColor="#00C2C7" stopOpacity="0.7" />
-      </LinearGradient>
-      <LinearGradient id="antennaGrad" x1="0" y1="0" x2="0" y2="1">
-        <Stop offset="0" stopColor="#00E5EB" stopOpacity="1"   />
-        <Stop offset="1" stopColor="#00C2C7" stopOpacity="0.2" />
-      </LinearGradient>
-    </Defs>
-
-    {/* ── Antenna ── */}
-    <Rect x="20.5" y="1.5" width="3" height="6.5" rx="1.5" fill="url(#antennaGrad)" />
-    <Circle cx="22" cy="1.8" r="2.2" fill="#00E5EB" opacity="0.95" />
-    <Circle cx="22" cy="1.8" r="1"   fill="#fff"    opacity="0.7"  />
-
-    {/* ── Head outer shell (bevel) ── */}
-    <Rect x="4.5" y="8" width="35" height="29" rx="5.5" fill={C.border} />
-    {/* Head fill */}
-    <Rect x="5.5" y="9" width="33" height="27" rx="4.5" fill="url(#bodyGrad)" />
-
-    {/* ── Helmet top ridge ── */}
-    <Rect x="10" y="11" width="24" height="1.5" rx="0.75" fill={C.accent} opacity="0.35" />
-
-    {/* ── Ear vents ── */}
-    {/* Left */}
-    <Rect x="1.5" y="17" width="4"   height="11" rx="2"   fill={C.border}  />
-    <Rect x="2.5" y="18" width="2"   height="3"  rx="1"   fill={C.accent}  opacity="0.55" />
-    <Rect x="2.5" y="23" width="2"   height="2"  rx="1"   fill={C.accent}  opacity="0.25" />
-    {/* Right */}
-    <Rect x="38.5" y="17" width="4"  height="11" rx="2"   fill={C.border}  />
-    <Rect x="39.5" y="18" width="2"  height="3"  rx="1"   fill={C.accent}  opacity="0.55" />
-    <Rect x="39.5" y="23" width="2"  height="2"  rx="1"   fill={C.accent}  opacity="0.25" />
-
-    {/* ── Visor housing ── */}
-    <Rect x="8.5" y="15.5" width="27" height="10" rx="3" fill="#060A10" />
-    {/* Visor inner ambient glow strip */}
-    <Rect x="9.5" y="16.5" width="25" height="8" rx="2" fill={C.accent} opacity="0.05" />
-
-    {/* Left eye */}
-    <Rect x="10.5" y="17.5" width="10" height="6" rx="2" fill="url(#visorL)" opacity="0.95" />
-    {/* Left eye glint */}
-    <Rect x="11.5" y="18.5" width="4.5" height="2" rx="1" fill="#fff" opacity="0.4" />
-    {/* Left eye scan line */}
-    <Rect x="10.5" y="22"   width="10"  height="0.8" rx="0.4" fill="#00E5EB" opacity="0.3" />
-
-    {/* Right eye */}
-    <Rect x="23.5" y="17.5" width="10" height="6" rx="2" fill="url(#visorL)" opacity="0.95" />
-    {/* Right eye glint */}
-    <Rect x="24.5" y="18.5" width="4.5" height="2" rx="1" fill="#fff" opacity="0.4" />
-    {/* Right eye scan line */}
-    <Rect x="23.5" y="22"   width="10"  height="0.8" rx="0.4" fill="#00E5EB" opacity="0.3" />
-
-    {/* Bridge between eyes */}
-    <Rect x="21.5" y="18.5" width="1" height="4" rx="0.5" fill="#060A10" opacity="0.9" />
-
-    {/* ── Mouth grille ── */}
-    <Rect x="11" y="28" width="22" height="6" rx="2.5" fill="#080C15" />
-    {/* Grille bars */}
-    <Line x1="14"  y1="29.5" x2="14"  y2="32.5" stroke={C.accent} strokeWidth="1.2" opacity="0.45" strokeLinecap="round" />
-    <Line x1="17"  y1="29.5" x2="17"  y2="32.5" stroke={C.accent} strokeWidth="1.2" opacity="0.45" strokeLinecap="round" />
-    <Line x1="20"  y1="29.5" x2="20"  y2="32.5" stroke={C.accent} strokeWidth="1.2" opacity="0.7"  strokeLinecap="round" />
-    <Line x1="23"  y1="29.5" x2="23"  y2="32.5" stroke={C.accent} strokeWidth="1.2" opacity="0.7"  strokeLinecap="round" />
-    <Line x1="26"  y1="29.5" x2="26"  y2="32.5" stroke={C.accent} strokeWidth="1.2" opacity="0.45" strokeLinecap="round" />
-    <Line x1="29"  y1="29.5" x2="29"  y2="32.5" stroke={C.accent} strokeWidth="1.2" opacity="0.45" strokeLinecap="round" />
-
-    {/* ── Status dot (chin) ── */}
-    <Circle cx="22" cy="35.5" r="1.2" fill={C.accent} opacity="0.7" />
-
-    {/* ── Bottom panel line ── */}
-    <Rect x="7" y="34" width="30" height="1" rx="0.5" fill={C.accent} opacity="0.12" />
-
-    {/* ── Corner rivets ── */}
-    <Circle cx="9"  cy="12"   r="1.1" fill={C.accent} opacity="0.3" />
-    <Circle cx="35" cy="12"   r="1.1" fill={C.accent} opacity="0.3" />
-    <Circle cx="9"  cy="33.5" r="1.1" fill={C.accent} opacity="0.3" />
-    <Circle cx="35" cy="33.5" r="1.1" fill={C.accent} opacity="0.3" />
+const CarLogo = ({ size = 44 }: { size?: number }) => (
+  <Svg width={size} height={size * 0.75} viewBox="0 0 120 70" fill="none">
+    <Path d="M6 46 Q6 54 14 54 L106 54 Q114 54 114 46 L114 40 L6 40 Z" fill="#800007" />
+    <Path d="M28 40 Q32 22 42 16 Q52 10 60 10 Q72 10 82 16 Q90 22 94 40 Z" fill="#800007" />
+    <Path d="M76 40 Q80 26 86 20 Q90 16 93 18 L94 40 Z" fill="#3d0003" opacity="0.85" />
+    <Path d="M28 40 Q30 26 36 19 Q40 14 44 14 Q48 12 52 11 L58 11 Q56 20 54 40 Z" fill="#3d0003" opacity="0.85" />
+    <Path d="M56 40 Q57 18 62 11 Q70 10 78 14 Q82 22 80 40 Z" fill="#3d0003" opacity="0.7" />
+    <Path d="M42 16 Q60 8 82 16" stroke="#996250" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.8" />
+    <Path d="M10 43 Q60 39 110 43" stroke="#996250" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.5" />
+    <Path d="M100 54 Q114 54 116 50 Q117 47 114 46 L114 54 Z" fill="#3d0003" />
+    <Path d="M20 54 Q6 54 4 50 Q3 47 6 46 L6 54 Z" fill="#3d0003" />
+    <Path d="M104 38 Q108 37 112 39 Q113 41 110 42 L104 42 Z" fill="#F9F9F9" opacity="0.95" />
+    <Path d="M16 38 Q12 37 8 39 Q7 41 10 42 L16 42 Z" fill="#996250" opacity="0.9" />
+    <Path d="M82 54 Q82 64 92 64 Q102 64 102 54 Z" fill="#1a0204" />
+    <Path d="M84 54 Q84 62 92 62 Q100 62 100 54 Z" fill="#2a0508" />
+    <Path d="M87 54 Q87 59 92 59 Q97 59 97 54 Z" fill="#800007" opacity="0.6" />
+    <Path d="M18 54 Q18 64 28 64 Q38 64 38 54 Z" fill="#1a0204" />
+    <Path d="M20 54 Q20 62 28 62 Q36 62 36 54 Z" fill="#2a0508" />
+    <Path d="M23 54 Q23 59 28 59 Q33 59 33 54 Z" fill="#800007" opacity="0.6" />
+    <Path d="M58 43 Q64 42 70 43 Q70 45 64 45 Q58 45 58 43 Z" fill="#996250" opacity="0.7" />
   </Svg>
 );
 
@@ -247,6 +181,27 @@ export default function IndexHeader({
   notifCount,
   headerFade,
 }: IndexHeaderProps) {
+  const normalizedCategories = React.useMemo(() => {
+    const raw = Array.isArray(categories) ? categories : [];
+    const cleaned = raw
+      .map((c) => String(c ?? '').trim())
+      .filter(Boolean);
+
+    const withAll = cleaned.some((c) => c.toLowerCase() === 'all')
+      ? cleaned
+      : ['All', ...cleaned];
+
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const c of withAll) {
+      const key = c.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(c);
+    }
+    return result;
+  }, [categories]);
+
   return (
     <Animated.View style={[s.mobileHeader, { opacity: headerFade }]}>
 
@@ -256,21 +211,19 @@ export default function IndexHeader({
         {/* ── Brand lockup ── */}
         <View style={s.brandLockup}>
 
-          {/* Robot logo with glow ring */}
+          {/* Car logo with glow ring */}
           <View style={s.logoWrap}>
             <View style={s.logoGlowRing} />
-            <RobotLogo size={44} />
+            <CarLogo size={44} />
           </View>
 
           {/* Wordmark */}
           <View style={s.wordmark}>
-            {/* ROMEROS line with leading accent bar */}
             <View style={s.eyebrowRow}>
               <View style={s.accentBar} />
-              <Text style={s.eyebrowText}>ROMEROS</Text>
+              <Text style={s.eyebrowText}>DRIFT N'</Text>
             </View>
-            {/* KINGDOM — the big title, indented past the bar */}
-            <Text style={s.titleText}>KINGDOM</Text>
+            <Text style={s.titleText}>DASH</Text>
           </View>
         </View>
 
@@ -308,7 +261,7 @@ export default function IndexHeader({
           <Feather name="search" size={15} color={C.accent} />
           <TextInput
             style={s.searchInput}
-            placeholder="Search products..."
+            placeholder="Search hot wheels..."
             placeholderTextColor={C.textDim}
             value={searchQuery}
             onChangeText={onSearchChange}
@@ -354,7 +307,7 @@ export default function IndexHeader({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.chipRow}
       >
-        {categories.map((cat) => (
+        {normalizedCategories.map((cat) => (
           <Chip
             key={cat}
             label={cat}
@@ -381,7 +334,6 @@ const s = StyleSheet.create({
     borderBottomColor: C.border,
   },
 
-  /* Top row */
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,36 +341,33 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
 
-  /* Brand */
   brandLockup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
 
-  /* Logo */
   logoWrap: {
-    width: 48,
+    width: 64,
     height: 48,
     justifyContent: 'center',
     alignItems: 'center',
   },
   logoGlowRing: {
     position: 'absolute',
-    width: 48,
+    width: 64,
     height: 48,
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: 'rgba(0,194,199,0.4)',
-    backgroundColor: 'rgba(0,194,199,0.07)',
-    shadowColor: C.accent,
+    borderColor: 'rgba(128,0,7,0.5)',
+    backgroundColor: 'rgba(128,0,7,0.08)',
+    shadowColor: '#800007',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.55,
     shadowRadius: 10,
     elevation: 6,
   },
 
-  /* Wordmark */
   wordmark: {
     justifyContent: 'center',
   },
@@ -446,7 +395,7 @@ const s = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.8,
     lineHeight: 25,
-    marginLeft: 9,  // visual alignment past the accentBar
+    marginLeft: 9,
   },
   tagText: {
     color: C.textDim,
@@ -457,7 +406,6 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* Actions */
   actions: {
     flexDirection: 'row',
     gap: 8,
@@ -488,12 +436,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  badgeTxt: { color: C.bg, fontSize: 8, fontWeight: '800' },
+  badgeTxt: { color: C.text, fontSize: 8, fontWeight: '800' },
 
   hamburgerLines: { gap: 4, alignItems: 'flex-end' },
   hamburgerLine:  { width: 20, height: 2, borderRadius: 2, backgroundColor: C.text },
 
-  /* Search */
   searchRow: { marginBottom: 12 },
   searchBox: {
     flexDirection: 'row',
@@ -508,7 +455,6 @@ const s = StyleSheet.create({
   },
   searchInput: { flex: 1, color: C.text, fontSize: 14, paddingVertical: 0 },
 
-  /* Filter */
   filterPanel: {
     backgroundColor: C.surface,
     borderRadius: 12,
@@ -521,10 +467,9 @@ const s = StyleSheet.create({
   filterLabel: { color: C.accent, fontSize: 9, letterSpacing: 3, fontWeight: '700' },
   filterValue: { color: C.text, fontSize: 13, fontWeight: '600', marginTop: 3 },
 
-  /* Chips */
   chipRow:        { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingHorizontal: 2 },
   chip:           { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 22, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
-  chipActive:     { backgroundColor: 'rgba(0,194,199,0.18)', borderColor: C.accent, shadowColor: C.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 4 },
+  chipActive:     { backgroundColor: 'rgba(128,0,7,0.18)', borderColor: C.accent, shadowColor: C.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 6, elevation: 4 },
   chipActiveDot:  { width: 5, height: 5, borderRadius: 3, backgroundColor: C.accent, marginLeft: 2 },
   chipText:       { color: C.textSub,    fontSize: 11, fontWeight: '600', letterSpacing: 0.8 },
   chipTextActive: { color: C.accentText, fontWeight: '700' },

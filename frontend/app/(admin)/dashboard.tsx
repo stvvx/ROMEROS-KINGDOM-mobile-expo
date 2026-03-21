@@ -43,21 +43,21 @@ if (debuggerHost && debuggerHost !== 'localhost') {
 }
 
 // ─────────────────────────────────────────────────────────────
-// DESIGN TOKENS
+// DESIGN TOKENS — Drift N' Dash, slightly lighter for admin
 // ─────────────────────────────────────────────────────────────
 const C = {
-  bg:         '#0E1117',
-  bgLayer:    '#12151F',
-  surface:    '#1A1E2E',
-  border:     '#262D42',
-  accent:     '#00C2C7',
-  accentDim:  '#007F84',
-  accentGlow: 'rgba(0,194,199,0.12)',
-  accentText: '#00E5EB',
-  mint:       '#3DFFC0',
-  text:       '#E8EDF5',
-  textSub:    '#7A859E',
-  textDim:    '#353D52',
+  bg:         '#2a0508',   // lighter than user screens
+  bgLayer:    '#350709',
+  surface:    '#420a0e',
+  border:     '#5a1015',
+  accent:     '#800007',
+  accentDim:  '#5a0005',
+  accentGlow: 'rgba(128,0,7,0.14)',
+  accentText: '#c0000a',
+  mint:       '#996250',
+  text:       '#F9F9F9',
+  textSub:    '#c8a090',
+  textDim:    '#7a3030',
   danger:     '#FF5A6E',
   dangerBg:   'rgba(255,90,110,0.10)',
   white:      '#FFFFFF',
@@ -67,11 +67,16 @@ const screenWidth = Dimensions.get('window').width - 32
 
 const chartConfig = {
   backgroundGradientFrom: C.surface,
-  backgroundGradientTo: C.surface,
+  backgroundGradientTo:   C.surface,
   decimalPlaces: 0,
-  color: (opacity = 1) => `rgba(0, 194, 199, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(232, 237, 245, ${opacity})`,
+  color: (opacity = 1) => `rgba(255, 80, 60, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(249, 249, 249, ${opacity})`,
   style: { borderRadius: 12 },
+  propsForDots: {
+    r: '4',
+    strokeWidth: '2',
+    stroke: '#ff9070',
+  },
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -83,13 +88,13 @@ const getOrderStatusStyle = (status: string) => {
     case 'Processing':
       return { backgroundColor: 'rgba(255,202,40,0.12)', borderColor: 'rgba(255,202,40,0.25)' }
     case 'Shipped':
-      return { backgroundColor: 'rgba(33,150,243,0.12)', borderColor: 'rgba(33,150,243,0.25)' }
+      return { backgroundColor: 'rgba(192,0,10,0.12)',   borderColor: 'rgba(192,0,10,0.25)'   }
     case 'Delivered':
-      return { backgroundColor: 'rgba(76,175,80,0.12)', borderColor: 'rgba(76,175,80,0.25)' }
+      return { backgroundColor: 'rgba(153,98,80,0.15)',  borderColor: 'rgba(153,98,80,0.3)'   }
     case 'Cancelled':
       return { backgroundColor: 'rgba(255,107,107,0.12)', borderColor: 'rgba(255,107,107,0.25)' }
     default:
-      return { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.07)' }
+      return { backgroundColor: 'rgba(249,249,249,0.04)', borderColor: 'rgba(249,249,249,0.07)' }
   }
 }
 
@@ -100,24 +105,11 @@ const getOrderStatusStyle = (status: string) => {
 const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true)
 
-  const [revenue, setRevenue] = useState<{
-    labels: string[]
-    data: number[]
-  }>({ labels: [], data: [] })
-
-  const [productSales, setProductSales] = useState<{
-    labels: string[]
-    data: number[]
-  }>({ labels: [], data: [] })
-
-  const [categories, setCategories] = useState<
-    { category: string; count: number }[]
-  >([])
-
+  const [revenue, setRevenue] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] })
+  const [productSales, setProductSales] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] })
+  const [categories, setCategories] = useState<{ category: string; count: number }[]>([])
   const [pieData, setPieData] = useState<any[]>([])
-  const [totals, setTotals] = useState<{ orders: number; sales: number }>(
-    { orders: 0, sales: 0 }
-  )
+  const [totals, setTotals] = useState<{ orders: number; sales: number }>({ orders: 0, sales: 0 })
   const [recentOrders, setRecentOrders] = useState<any[]>([])
 
   const getAuthHeader = async () => {
@@ -132,13 +124,8 @@ const Dashboard: React.FC = () => {
       try {
         const headers = await getAuthHeader()
         const [
-          monthsRes,
-          productRes,
-          customerRes,
-          categoryRes,
-          ordersRes,
-          totalOrdersRes,
-          totalSalesRes,
+          monthsRes, productRes, customerRes, categoryRes,
+          ordersRes, totalOrdersRes, totalSalesRes,
         ] = await Promise.all([
           axios.get(`${API_URL}/admin/sales-per-month`, { headers }),
           axios.get(`${API_URL}/admin/product-sales`, { headers }),
@@ -151,55 +138,42 @@ const Dashboard: React.FC = () => {
 
         if (!mounted) return
 
-        // Monthly revenue
         const months = monthsRes.data.salesPerMonth ?? []
         setRevenue({
           labels: months.map((m: any) => m.month),
-          data: months.map((m: any) => Number(m.total)),
+          data:   months.map((m: any) => Number(m.total)),
         })
 
-        // Product sales
         const sales = productRes.data.sales ?? []
         const totalSales = Number(productRes.data.totalSales || 0)
         setProductSales({
-          labels: sales.map((p: any) => {
-            const name = p?._id || p?.name || 'Product'
-            return name
-          }),
-          data: sales.map((p: any) =>
-            totalSales && p?.total
-              ? Number(((p.total / totalSales) * 100).toFixed(1))
-              : 0
+          labels: sales.map((p: any) => p?._id || p?.name || 'Product'),
+          data:   sales.map((p: any) =>
+            totalSales && p?.total ? Number(((p.total / totalSales) * 100).toFixed(1)) : 0
           ),
         })
 
-        // Top customers pie
         const customers = customerRes.data.customerSales ?? []
         setPieData(
           customers.slice(0, 5).map((c: any, i: number) => ({
-            name: c.userDetails?.name || `User ${i + 1}`,
-            population: Number(c.total),
-            color: ['#4caf50', '#ffca28', '#f44336', '#42a5f5', '#9c27b0'][i % 5],
-            legendFontColor: '#E8EDF5',
-            legendFontSize: 12,
+            name:            c.userDetails?.name || `User ${i + 1}`,
+            population:      Number(c.total),
+            color: ['#800007','#996250','#c0000a','#5a0005','#ffca28'][i % 5],
+            legendFontColor: '#F9F9F9',
+            legendFontSize:  12,
           }))
         )
 
-        // Categories
         const cats = categoryRes.data.categories ?? []
         setCategories(
           cats.map((c: any) =>
             typeof c === 'string'
               ? { category: c, count: 1 }
-              : {
-                  category: c.category || String(c._id),
-                  count: c.count || 1,
-                }
+              : { category: c.category || String(c._id), count: c.count || 1 }
           )
         )
 
-        // Orders summary
-        const ordersCount = totalOrdersRes?.data?.totalOrders?.[0]?.count || 0
+        const ordersCount    = totalOrdersRes?.data?.totalOrders?.[0]?.count || 0
         const totalSalesValue = totalSalesRes?.data?.totalSales?.[0]?.totalSales || 0
         setTotals({ orders: Number(ordersCount), sales: Number(totalSalesValue) })
 
@@ -213,9 +187,7 @@ const Dashboard: React.FC = () => {
     }
 
     fetchDashboard()
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
   }, [])
 
   if (loading) {
@@ -234,6 +206,7 @@ const Dashboard: React.FC = () => {
       <AdminHeader title="Dashboard" icon="chart-timeline" />
 
       <ScrollView contentContainerStyle={styles.container}>
+
         {/* Page Header */}
         <View style={styles.pageHeader}>
           <View>
@@ -245,18 +218,20 @@ const Dashboard: React.FC = () => {
         {/* KPI Cards */}
         <View style={styles.kpiRow}>
           <View style={styles.kpiCard}>
-            <View style={styles.kpiIconWrap}>
-              <MaterialCommunityIcons name="shopping-outline" size={24} color="#2196F3" />
+            <View style={[styles.kpiIconWrap, { backgroundColor: 'rgba(128,0,7,0.15)' }]}>
+              <MaterialCommunityIcons name="shopping-outline" size={24} color="#c0000a" />
             </View>
             <Text style={styles.kpiLabel}>Total Orders</Text>
             <Text style={styles.kpiValue}>{totals.orders}</Text>
           </View>
           <View style={styles.kpiCard}>
-            <View style={styles.kpiIconWrap}>
-              <MaterialCommunityIcons name="cash-multiple" size={24} color="#4caf50" />
+            <View style={[styles.kpiIconWrap, { backgroundColor: 'rgba(153,98,80,0.15)' }]}>
+              <MaterialCommunityIcons name="cash-multiple" size={24} color="#996250" />
             </View>
             <Text style={styles.kpiLabel}>Total Sales</Text>
-            <Text style={styles.kpiValue}>₱{Number(totals.sales).toLocaleString('en-PH', { maximumFractionDigits: 0 })}</Text>
+            <Text style={[styles.kpiValue, { color: C.mint }]}>
+              ₱{Number(totals.sales).toLocaleString('en-PH', { maximumFractionDigits: 0 })}
+            </Text>
           </View>
         </View>
 
@@ -267,15 +242,12 @@ const Dashboard: React.FC = () => {
               <Text style={styles.cardTitle}>Monthly Revenue</Text>
               <Text style={styles.cardSub}>Sales trends over time</Text>
             </View>
-            <MaterialCommunityIcons name="chart-line" size={20} color="#00C2C7" />
+            <MaterialCommunityIcons name="chart-line" size={20} color={C.accent} />
           </View>
           {revenue.labels.length ? (
             <View style={styles.chartWrap}>
               <LineChart
-                data={{
-                  labels: revenue.labels,
-                  datasets: [{ data: revenue.data }],
-                }}
+                data={{ labels: revenue.labels, datasets: [{ data: revenue.data }] }}
                 width={screenWidth - 32}
                 height={200}
                 chartConfig={chartConfig}
@@ -295,7 +267,7 @@ const Dashboard: React.FC = () => {
               <Text style={styles.cardTitle}>Top Product Sales</Text>
               <Text style={styles.cardSub}>Performance by product</Text>
             </View>
-            <MaterialCommunityIcons name="chart-bar" size={20} color="#00C2C7" />
+            <MaterialCommunityIcons name="chart-bar" size={20} color={C.accent} />
           </View>
           {productSales.labels.length ? (
             <View style={styles.chartWrap}>
@@ -307,10 +279,7 @@ const Dashboard: React.FC = () => {
                   }}
                   width={Math.max(screenWidth, productSales.labels.length * 80)}
                   height={300}
-                  chartConfig={{
-                    ...chartConfig,
-                    labelColor: (opacity = 1) => `rgba(232, 237, 245, ${opacity})`,
-                  }}
+                  chartConfig={{ ...chartConfig, labelColor: (opacity = 1) => `rgba(249, 249, 249, ${opacity})` }}
                   fromZero
                   showValuesOnTopOfBars
                   yAxisLabel=""
@@ -332,7 +301,7 @@ const Dashboard: React.FC = () => {
               <Text style={styles.cardTitle}>Top Customers</Text>
               <Text style={styles.cardSub}>Best performing customers</Text>
             </View>
-            <MaterialCommunityIcons name="account-multiple" size={20} color="#00C2C7" />
+            <MaterialCommunityIcons name="account-multiple" size={20} color={C.accent} />
           </View>
           {pieData.length ? (
             <View style={styles.chartWrap}>
@@ -348,20 +317,11 @@ const Dashboard: React.FC = () => {
                   chartConfig={chartConfig}
                 />
               </View>
-              <View style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                gap: 10,
-                paddingTop: 8,
-                borderTopWidth: 1,
-                borderTopColor: 'rgba(255,255,255,0.06)'
-              }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(153,98,80,0.15)' }}>
                 {pieData.map((item, idx) => (
                   <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
-                    <Text style={{ fontSize: 11, color: '#E8EDF5', fontWeight: '500' }}>
-                      {item.name}
-                    </Text>
+                    <Text style={{ fontSize: 11, color: C.text, fontWeight: '500' }}>{item.name}</Text>
                   </View>
                 ))}
               </View>
@@ -378,7 +338,7 @@ const Dashboard: React.FC = () => {
               <Text style={styles.cardTitle}>Recent Orders</Text>
               <Text style={styles.cardSub}>Latest transactions</Text>
             </View>
-            <MaterialCommunityIcons name="package-variant" size={20} color="#00C2C7" />
+            <MaterialCommunityIcons name="package-variant" size={20} color={C.accent} />
           </View>
 
           {recentOrders.length ? (
@@ -386,7 +346,7 @@ const Dashboard: React.FC = () => {
               {recentOrders.map((o) => (
                 <TouchableOpacity key={o._id} style={styles.orderCard} activeOpacity={0.7}>
                   <View style={styles.orderIconWrap}>
-                    <MaterialCommunityIcons name="package-variant" size={16} color="#2280b0" />
+                    <MaterialCommunityIcons name="package-variant" size={16} color={C.accent} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.orderId}>Order #{String(o._id).slice(-6).toUpperCase()}</Text>
@@ -395,7 +355,9 @@ const Dashboard: React.FC = () => {
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.orderPrice}>₱{Number(o.totalPrice).toLocaleString('en-PH', { maximumFractionDigits: 2 })}</Text>
+                    <Text style={styles.orderPrice}>
+                      ₱{Number(o.totalPrice).toLocaleString('en-PH', { maximumFractionDigits: 2 })}
+                    </Text>
                     <View style={[styles.orderStatusBadge, getOrderStatusStyle(o.orderStatus)]}>
                       <Text style={styles.orderStatusText}>{o.orderStatus || 'Pending'}</Text>
                     </View>
@@ -415,7 +377,7 @@ const Dashboard: React.FC = () => {
               <Text style={styles.cardTitle}>Categories</Text>
               <Text style={styles.cardSub}>{categories.length} categories available</Text>
             </View>
-            <MaterialCommunityIcons name="folder-multiple" size={20} color="#00C2C7" />
+            <MaterialCommunityIcons name="folder-multiple" size={20} color={C.accent} />
           </View>
           {categories.length ? (
             <View style={styles.categoryGrid}>
@@ -430,6 +392,7 @@ const Dashboard: React.FC = () => {
             <Text style={styles.noData}>No categories found</Text>
           )}
         </View>
+
       </ScrollView>
     </View>
   )
@@ -442,22 +405,21 @@ const Dashboard: React.FC = () => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: C.bg,
   },
   centerWrap: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: C.bg,
   },
   container: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 40,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: C.bg,
   },
 
-  // Page Header
   pageHeader: {
     paddingBottom: 16,
     marginBottom: 8,
@@ -465,16 +427,16 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#fff',
+    color: C.text,
     letterSpacing: 0.3,
     marginBottom: 4,
   },
   pageSubtitle: {
     fontSize: 12,
-    color: 'rgba(160,174,192,0.6)',
+    color: C.textSub,
+    opacity: 0.8,
   },
 
-  // KPI Cards
   kpiRow: {
     flexDirection: 'row',
     gap: 12,
@@ -482,9 +444,9 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: C.border,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -493,14 +455,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   kpiLabel: {
     fontSize: 11,
-    color: 'rgba(160,174,192,0.6)',
+    color: C.textSub,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -509,14 +470,13 @@ const styles = StyleSheet.create({
   kpiValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#00C2C7',
+    color: C.accent,
   },
 
-  // Card
   card: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: C.border,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -530,17 +490,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#fff',
+    color: C.text,
     marginBottom: 4,
   },
   cardSub: {
     fontSize: 12,
-    color: 'rgba(160,174,192,0.5)',
+    color: C.textSub,
+    opacity: 0.8,
   },
 
-  // Chart
   chartWrap: {
-    backgroundColor: '#16213e',
+    backgroundColor: C.bgLayer,
     borderRadius: 12,
     padding: 8,
     marginBottom: 12,
@@ -550,33 +510,32 @@ const styles = StyleSheet.create({
   },
   chartNote: {
     fontSize: 10,
-    color: 'rgba(160,174,192,0.4)',
+    color: C.textDim,
     textAlign: 'center',
     marginTop: 8,
   },
   noData: {
-    color: 'rgba(160,174,192,0.5)',
+    color: C.textSub,
     fontSize: 14,
     textAlign: 'center',
     paddingVertical: 20,
   },
 
-  // Order Card
   orderCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16213e',
+    backgroundColor: C.bgLayer,
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: C.border,
   },
   orderIconWrap: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: 'rgba(34,128,176,0.15)',
+    backgroundColor: 'rgba(128,0,7,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -584,17 +543,18 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#fff',
+    color: C.text,
   },
   orderDate: {
     fontSize: 11,
-    color: 'rgba(160,174,192,0.5)',
+    color: C.textSub,
     marginTop: 2,
+    opacity: 0.8,
   },
   orderPrice: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#00C2C7',
+    color: C.mint,
     marginBottom: 6,
   },
   orderStatusBadge: {
@@ -606,35 +566,34 @@ const styles = StyleSheet.create({
   orderStatusText: {
     fontSize: 10,
     fontWeight: '700',
-    color: 'rgba(160,174,192,0.7)',
+    color: C.textSub,
   },
 
-  // Category
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
   categoryBadge: {
-    backgroundColor: '#16213e',
+    backgroundColor: C.bgLayer,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: C.border,
     alignItems: 'center',
     gap: 4,
   },
   categoryName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#fff',
+    color: C.text,
     textAlign: 'center',
   },
   categoryCount: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#00C2C7',
+    color: C.accent,
     textAlign: 'center',
   },
 })

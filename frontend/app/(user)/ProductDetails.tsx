@@ -15,14 +15,13 @@ import {
   Pressable,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import axios from 'axios';
 import { getItem } from '@/utils/storage';
 import { initCartDb, getCartItemsSync, saveCartItemsSync, CartItem as DbCartItem } from '@/utils/cartDb';
 import Constants from 'expo-constants';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-// Resolve API URL for device/emulator/web
 let API_URL =
   process.env.NGROK_URL ||
   process.env.EXPO_PUBLIC_API_URL ||
@@ -30,7 +29,6 @@ let API_URL =
 
 const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig;
 const debuggerHost = manifest?.debuggerHost?.split(':')[0];
-
 if (debuggerHost && debuggerHost !== 'localhost') {
   API_URL = API_URL.replace('localhost', debuggerHost);
 } else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
@@ -57,6 +55,7 @@ interface IReview {
   rating: number;
   comment: string;
   _id: string;
+  images?: { public_id?: string; url: string }[];
 }
 
 interface IUser {
@@ -76,10 +75,10 @@ interface ThemedAlertProps {
 
 const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message, onClose }) => {
   const config = {
-    success: { icon: 'checkmark-circle' as const, color: '#4caf50', bg: 'rgba(76,175,80,0.12)',    border: 'rgba(76,175,80,0.3)',    btn: '#4caf50', label: 'Great!'  },
-    error:   { icon: 'alert-circle'     as const, color: '#ff6b6b', bg: 'rgba(255,107,107,0.12)',  border: 'rgba(255,107,107,0.3)',  btn: '#ff6b6b', label: 'Got it' },
-    warning: { icon: 'warning'          as const, color: '#ffca28', bg: 'rgba(255,202,40,0.12)',   border: 'rgba(255,202,40,0.3)',   btn: '#e6b800', label: 'Okay'   },
-    info:    { icon: 'information-circle' as const, color: '#2280b0', bg: 'rgba(34,128,176,0.12)', border: 'rgba(34,128,176,0.3)',  btn: '#2280b0', label: 'Got it' },
+    success: { icon: 'checkmark-circle' as const, color: '#996250', bg: 'rgba(153,98,80,0.12)',  border: 'rgba(153,98,80,0.3)',  btn: '#800007', label: 'Great!'  },
+    error:   { icon: 'alert-circle'     as const, color: '#ff6b6b', bg: 'rgba(255,107,107,0.12)', border: 'rgba(255,107,107,0.3)', btn: '#ff6b6b', label: 'Got it' },
+    warning: { icon: 'warning'          as const, color: '#ffca28', bg: 'rgba(255,202,40,0.12)',  border: 'rgba(255,202,40,0.3)',  btn: '#e6b800', label: 'Okay'   },
+    info:    { icon: 'information-circle' as const, color: '#800007', bg: 'rgba(128,0,7,0.12)',   border: 'rgba(128,0,7,0.3)',    btn: '#800007', label: 'Got it' },
   }[type];
 
   return (
@@ -102,14 +101,14 @@ const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message
 };
 
 const al = StyleSheet.create({
-  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
-  card:     { width: '100%', backgroundColor: '#16213e', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
+  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
+  card:     { width: '100%', backgroundColor: '#2a0508', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(153,98,80,0.2)', padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
   iconWrap: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  title:    { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' },
-  message:  { fontSize: 13, color: 'rgba(160,174,192,0.75)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  divider:  { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 20 },
+  title:    { fontSize: 22, fontWeight: '800', color: '#F9F9F9', marginBottom: 8, textAlign: 'center' },
+  message:  { fontSize: 13, color: 'rgba(153,98,80,0.8)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  divider:  { width: '100%', height: 1, backgroundColor: 'rgba(153,98,80,0.15)', marginBottom: 20 },
   btn:      { width: '100%', borderRadius: 13, paddingVertical: 14, alignItems: 'center' },
-  btnText:  { fontSize: 14, fontWeight: '700', color: '#fff' },
+  btnText:  { fontSize: 14, fontWeight: '700', color: '#F9F9F9' },
 });
 
 // ─── MAIN SCREEN ─────────────────────────────────────────────
@@ -131,17 +130,13 @@ export default function ProductDetails() {
   const [hasOrdered, setHasOrdered] = useState(false);
   const [reviewImages, setReviewImages] = useState<Array<{ uri: string; name: string; type: string }>>([]);
 
-  // ── Themed Alert state ──
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
 
   const showAlert = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
-    setAlertType(type);
-    setAlertTitle(title);
-    setAlertMessage(message);
-    setAlertVisible(true);
+    setAlertType(type); setAlertTitle(title); setAlertMessage(message); setAlertVisible(true);
   };
 
   useEffect(() => {
@@ -151,25 +146,18 @@ export default function ProductDetails() {
         const token = await getItem('authToken');
         if (storedUser) setUser(JSON.parse(storedUser));
         setAuthToken(token);
-      } catch (err) {
-        console.warn('Failed to load auth state', err);
-      }
+      } catch (err) { console.warn('Failed to load auth state', err); }
     })();
   }, []);
 
   useEffect(() => {
-    if (!id) {
-      setError('Product ID not found');
-      setLoading(false);
-      return;
-    }
+    if (!id) { setError('Product ID not found'); setLoading(false); return; }
     fetchProductDetails();
   }, [id, authToken, user]);
 
   const fetchProductDetails = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true); setError(null);
       const res = await axios.get(`${API_URL}/product/${id}`, { timeout: 10000 });
       if (res.data.product) {
         setProduct(res.data.product);
@@ -178,14 +166,10 @@ export default function ProductDetails() {
           if (mine) { setRating(mine.rating); setComment(mine.comment); }
         }
         await checkPurchaseStatus(res.data.product._id);
-      } else {
-        setError('Product not found');
-      }
+      } else { setError('Product not found'); }
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || 'Failed to fetch product details');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const checkPurchaseStatus = async (productId: string) => {
@@ -199,13 +183,9 @@ export default function ProductDetails() {
       if (!orderedMatch) { setHasOrdered(false); setHasPurchased(false); return; }
       setHasOrdered(true);
       setHasPurchased(orderedMatch.orderStatus?.toLowerCase() === 'delivered');
-    } catch (err) {
-      console.error('Failed to check purchase status:', err);
-      setHasPurchased(false); setHasOrdered(false);
-    }
+    } catch (err) { setHasPurchased(false); setHasOrdered(false); }
   };
 
-  // Auto-slide images every 3 seconds
   useEffect(() => {
     if (!product?.images || product.images.length <= 1) return;
     const interval = setInterval(() => {
@@ -223,27 +203,16 @@ export default function ProductDetails() {
       initCartDb();
       const cartItems: DbCartItem[] = getCartItemsSync();
       const existingIndex = cartItems.findIndex(item => item._id === product._id);
-      if (existingIndex > -1) {
-        cartItems[existingIndex].quantity += quantity;
-      } else {
-        cartItems.push({ _id: product._id, name: product.name, price: product.price, quantity, images: product.images || [] });
-      }
+      if (existingIndex > -1) { cartItems[existingIndex].quantity += quantity; }
+      else { cartItems.push({ _id: product._id, name: product.name, price: product.price, quantity, images: product.images || [] }); }
       saveCartItemsSync(cartItems);
       showAlert('success', 'Added to Cart', `${quantity} item(s) added to your cart.`);
       setQuantity(1);
-    } catch (err) {
-      console.error('Error adding to cart:', err);
-      showAlert('error', 'Cart Error', 'Failed to add item to cart.');
-    }
+    } catch (err) { showAlert('error', 'Cart Error', 'Failed to add item to cart.'); }
   };
 
-  const handleRatingPress = (value: number) => setRating(value);
-
   const pickOrCapture = async (mode: 'camera' | 'gallery') => {
-    if (reviewImages.length >= 4) {
-      showAlert('warning', 'Max Images', 'You can attach up to 4 images per review.');
-      return;
-    }
+    if (reviewImages.length >= 4) { showAlert('warning', 'Max Images', 'You can attach up to 4 images per review.'); return; }
     try {
       let result: ImagePicker.ImagePickerResult;
       if (mode === 'camera') {
@@ -263,9 +232,7 @@ export default function ProductDetails() {
         });
         setReviewImages((prev) => [...prev, ...newImgs].slice(0, 4));
       }
-    } catch (err) {
-      console.warn('Image picker error', err);
-    }
+    } catch (err) { console.warn('Image picker error', err); }
   };
 
   const openImagePicker = () => {
@@ -274,10 +241,7 @@ export default function ProductDetails() {
         { options: ['Cancel', '📷 Take Photo', '🖼  Choose from Library'], cancelButtonIndex: 0 },
         (idx) => { if (idx === 1) pickOrCapture('camera'); else if (idx === 2) pickOrCapture('gallery'); }
       );
-    } else {
-      // Android: show themed inline choices via two buttons
-      pickOrCapture('gallery');
-    }
+    } else { pickOrCapture('gallery'); }
   };
 
   const removeReviewImage = (idx: number) => setReviewImages((prev) => prev.filter((_, i) => i !== idx));
@@ -285,11 +249,7 @@ export default function ProductDetails() {
   const handleSubmitReview = async () => {
     if (!comment.trim()) { showAlert('warning', 'Missing Comment', 'Please write a comment.'); return; }
     if (rating === 0) { showAlert('warning', 'Missing Rating', 'Please select a star rating.'); return; }
-    if (!authToken) {
-      showAlert('error', 'Sign In Required', 'Please sign in to leave a review.');
-      router.push('/(auth)/login');
-      return;
-    }
+    if (!authToken) { showAlert('error', 'Sign In Required', 'Please sign in to leave a review.'); router.push('/(auth)/login'); return; }
     if (!hasPurchased) { showAlert('error', 'Purchase Required', 'You can only review products you have bought.'); return; }
     try {
       setSubmittingReview(true);
@@ -298,9 +258,7 @@ export default function ProductDetails() {
         formData.append('rating', String(rating));
         formData.append('comment', comment.trim());
         formData.append('productId', id as string);
-        reviewImages.forEach((img) => {
-          formData.append('reviewImages', { uri: img.uri, name: img.name, type: img.type } as any);
-        });
+        reviewImages.forEach((img) => { formData.append('reviewImages', { uri: img.uri, name: img.name, type: img.type } as any); });
         await axios.put(`${API_URL}/review`, formData, {
           headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${authToken}` },
           timeout: 20000,
@@ -315,17 +273,15 @@ export default function ProductDetails() {
       await fetchProductDetails();
     } catch (err: any) {
       showAlert('error', 'Submission Failed', err?.response?.data?.message || 'Failed to submit review.');
-    } finally {
-      setSubmittingReview(false);
-    }
+    } finally { setSubmittingReview(false); }
   };
 
-  // ─── Loading & Error States ────────────────────────────────
   if (loading) {
     return (
       <View style={s.centerContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
         <View style={s.loaderCard}>
-          <ActivityIndicator size="large" color="#2280b0" />
+          <ActivityIndicator size="large" color="#800007" />
           <Text style={s.loadingText}>Loading product...</Text>
         </View>
       </View>
@@ -335,13 +291,14 @@ export default function ProductDetails() {
   if (error || !product) {
     return (
       <View style={s.centerContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
         <View style={s.errorCard}>
           <View style={s.errorIconWrap}>
             <Ionicons name="alert-circle" size={36} color="#ff6b6b" />
           </View>
           <Text style={s.errorText}>{error || 'Product not found'}</Text>
           <TouchableOpacity style={s.retryBtn} onPress={() => router.back()}>
-            <Feather name="arrow-left" size={14} color="#fff" />
+            <Feather name="arrow-left" size={14} color="#F9F9F9" />
             <Text style={s.retryBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -355,73 +312,43 @@ export default function ProductDetails() {
 
   return (
     <View style={s.root}>
-      {/* Themed Alert */}
-      <ThemedAlert
-        visible={alertVisible}
-        type={alertType}
-        title={alertTitle}
-        message={alertMessage}
-        onClose={() => setAlertVisible(false)}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
+      <ThemedAlert visible={alertVisible} type={alertType} title={alertTitle} message={alertMessage} onClose={() => setAlertVisible(false)} />
 
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
 
         {/* ── Image Carousel ── */}
         {hasImages && (
           <View style={s.imageWrapper}>
-            {/* Square image area */}
             <View style={s.imageContainer}>
               {currentImage && typeof currentImage.url === 'string' ? (
                 <Image source={{ uri: currentImage.url }} style={s.mainImage} resizeMode="contain" />
               ) : (
                 <View style={s.imageFallback}>
-                  <MaterialCommunityIcons name="image-off" size={40} color="rgba(160,174,192,0.2)" />
+                  <MaterialCommunityIcons name="image-off" size={40} color="rgba(153,98,80,0.25)" />
                   <Text style={s.imageFallbackText}>Image unavailable</Text>
                 </View>
               )}
-
-              {/* Counter badge */}
               {product.images!.length > 1 && (
                 <View style={s.imageBadge}>
                   <Text style={s.imageBadgeText}>{currentImageIndex + 1} / {product.images!.length}</Text>
                 </View>
               )}
-
-              {/* Arrow buttons */}
               {product.images!.length > 1 && (
                 <>
-                  <TouchableOpacity
-                    style={[s.arrowBtn, s.arrowLeft]}
-                    onPress={() => setCurrentImageIndex(currentImageIndex === 0 ? product.images!.length - 1 : currentImageIndex - 1)}
-                    activeOpacity={0.85}
-                  >
-                    <Feather name="chevron-left" size={20} color="#fff" />
+                  <TouchableOpacity style={[s.arrowBtn, s.arrowLeft]} onPress={() => setCurrentImageIndex(currentImageIndex === 0 ? product.images!.length - 1 : currentImageIndex - 1)} activeOpacity={0.85}>
+                    <Feather name="chevron-left" size={20} color="#F9F9F9" />
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.arrowBtn, s.arrowRight]}
-                    onPress={() => setCurrentImageIndex(currentImageIndex === product.images!.length - 1 ? 0 : currentImageIndex + 1)}
-                    activeOpacity={0.85}
-                  >
-                    <Feather name="chevron-right" size={20} color="#fff" />
+                  <TouchableOpacity style={[s.arrowBtn, s.arrowRight]} onPress={() => setCurrentImageIndex(currentImageIndex === product.images!.length - 1 ? 0 : currentImageIndex + 1)} activeOpacity={0.85}>
+                    <Feather name="chevron-right" size={20} color="#F9F9F9" />
                   </TouchableOpacity>
                 </>
               )}
             </View>
-
-            {/* Thumbnail strip */}
             {product.images!.length > 1 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.thumbStrip}
-              >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.thumbStrip}>
                 {product.images!.map((img, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[s.thumbWrap, index === currentImageIndex && s.thumbWrapActive]}
-                    onPress={() => setCurrentImageIndex(index)}
-                    activeOpacity={0.8}
-                  >
+                  <TouchableOpacity key={index} style={[s.thumbWrap, index === currentImageIndex && s.thumbWrapActive]} onPress={() => setCurrentImageIndex(index)} activeOpacity={0.8}>
                     <Image source={{ uri: img.url }} style={s.thumb} resizeMode="cover" />
                     {index === currentImageIndex && <View style={s.thumbActiveLine} />}
                   </TouchableOpacity>
@@ -434,31 +361,22 @@ export default function ProductDetails() {
         {/* ── Product Info ── */}
         <View style={s.infoContainer}>
 
-          {/* Category + Product ID row */}
           <View style={s.metaRow}>
             {product.category ? (
               <View style={s.categoryBadge}>
-                <MaterialCommunityIcons name="tag-outline" size={11} color="#2280b0" />
+                <MaterialCommunityIcons name="tag-outline" size={11} color="#800007" />
                 <Text style={s.categoryText}>{product.category}</Text>
               </View>
             ) : null}
             <Text style={s.productId}>#{product._id.slice(-8).toUpperCase()}</Text>
           </View>
 
-          {/* Product Name */}
           <Text style={s.productName}>{product.name}</Text>
 
-          {/* Rating + Stock inline */}
           <View style={s.ratingStockRow}>
             <View style={s.starsRow}>
               {[1,2,3,4,5].map(star => (
-                <Ionicons
-                  key={star}
-                  name={star <= Math.round(product.ratings || 0) ? 'star' : 'star-outline'}
-                  size={13}
-                  color="#ffca28"
-                  style={{ marginRight: 1 }}
-                />
+                <Ionicons key={star} name={star <= Math.round(product.ratings || 0) ? 'star' : 'star-outline'} size={13} color="#ffca28" style={{ marginRight: 1 }} />
               ))}
             </View>
             <Text style={s.ratingText}>{product.ratings || 0}</Text>
@@ -472,49 +390,38 @@ export default function ProductDetails() {
             </View>
           </View>
 
-          {/* Price */}
           <Text style={s.price}>₱{product.price}</Text>
-
           <View style={s.divider} />
 
-          {/* Quantity + Add to Cart combined row */}
           <View style={s.cartRow}>
             <View style={s.quantityRow}>
               <TouchableOpacity style={s.qtyBtn} onPress={handleDecreaseQty} disabled={quantity <= 1}>
-                <Feather name="minus" size={15} color={quantity <= 1 ? 'rgba(160,174,192,0.3)' : '#fff'} />
+                <Feather name="minus" size={15} color={quantity <= 1 ? 'rgba(153,98,80,0.3)' : '#F9F9F9'} />
               </TouchableOpacity>
               <View style={s.qtyDisplay}>
                 <Text style={s.qtyText}>{quantity}</Text>
               </View>
               <TouchableOpacity style={s.qtyBtn} onPress={handleIncreaseQty} disabled={!!product.stock && quantity >= product.stock}>
-                <Feather name="plus" size={15} color={!!product.stock && quantity >= product.stock ? 'rgba(160,174,192,0.3)' : '#fff'} />
+                <Feather name="plus" size={15} color={!!product.stock && quantity >= product.stock ? 'rgba(153,98,80,0.3)' : '#F9F9F9'} />
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={[s.addToCartBtn, !inStock && s.addToCartBtnDisabled]}
-              onPress={handleAddToCart}
-              disabled={!inStock}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons name="cart-plus" size={17} color={!inStock ? 'rgba(160,174,192,0.4)' : '#fff'} />
+            <TouchableOpacity style={[s.addToCartBtn, !inStock && s.addToCartBtnDisabled]} onPress={handleAddToCart} disabled={!inStock} activeOpacity={0.85}>
+              <MaterialCommunityIcons name="cart-plus" size={17} color={!inStock ? 'rgba(153,98,80,0.4)' : '#F9F9F9'} />
               <Text style={[s.addToCartText, !inStock && s.addToCartTextDisabled]}>
                 {inStock ? 'Add to Cart' : 'Out of Stock'}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Seller */}
           {product.seller && (
             <View style={s.sellerRow}>
-              <Feather name="package" size={12} color="rgba(160,174,192,0.4)" />
+              <Feather name="package" size={12} color="rgba(153,98,80,0.4)" />
               <Text style={s.sellerText}>Sold by: {product.seller}</Text>
             </View>
           )}
 
           <View style={s.divider} />
 
-          {/* Description */}
           <Text style={s.sectionLabel}>Description</Text>
           <View style={s.descriptionBox}>
             <Text style={s.description}>{product.description}</Text>
@@ -524,78 +431,57 @@ export default function ProductDetails() {
           <View style={s.divider} />
           <Text style={s.sectionLabel}>Reviews</Text>
 
-          {/* Write a Review */}
           {hasPurchased ? (
             <View style={s.reviewCard}>
               <View style={s.reviewCardHeader}>
                 <View style={s.reviewCardIconWrap}>
-                  <Ionicons name="create-outline" size={18} color="#2280b0" />
+                  <Ionicons name="create-outline" size={18} color="#800007" />
                 </View>
                 <Text style={s.reviewCardTitle}>Your Review</Text>
               </View>
-
-              {/* Star Rating Input */}
               <View style={s.starInputRow}>
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity key={star} onPress={() => handleRatingPress(star)} style={s.starBtn}>
-                    <Ionicons
-                      name={star <= rating ? 'star' : 'star-outline'}
-                      size={30}
-                      color={star <= rating ? '#ffca28' : 'rgba(160,174,192,0.25)'}
-                    />
+                  <TouchableOpacity key={star} onPress={() => setRating(star)} style={s.starBtn}>
+                    <Ionicons name={star <= rating ? 'star' : 'star-outline'} size={30} color={star <= rating ? '#ffca28' : 'rgba(153,98,80,0.25)'} />
                   </TouchableOpacity>
                 ))}
                 {rating > 0 && (
-                  <Text style={s.ratingSelectedText}>
-                    {['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'][rating]}
-                  </Text>
+                  <Text style={s.ratingSelectedText}>{['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'][rating]}</Text>
                 )}
               </View>
-
-              {/* Comment Input */}
               <TextInput
                 style={s.commentInput}
                 placeholder="Share your experience with this product..."
-                placeholderTextColor="rgba(160,174,192,0.35)"
+                placeholderTextColor="rgba(153,98,80,0.4)"
                 multiline
                 numberOfLines={4}
                 value={comment}
                 onChangeText={setComment}
               />
-
-              {/* Image Thumbnails */}
               {reviewImages.length > 0 && (
                 <View style={s.imgPreviewRow}>
                   {reviewImages.map((img, idx) => (
                     <View key={idx} style={s.imgThumbWrap}>
                       <Image source={{ uri: img.uri }} style={s.imgThumb} resizeMode="cover" />
                       <TouchableOpacity style={s.imgRemoveBtn} onPress={() => removeReviewImage(idx)}>
-                        <Feather name="x" size={10} color="#fff" />
+                        <Feather name="x" size={10} color="#F9F9F9" />
                       </TouchableOpacity>
                     </View>
                   ))}
                 </View>
               )}
-
-              {/* Add Photo Button */}
-              <TouchableOpacity
-                style={[s.addPhotoBtn, reviewImages.length >= 4 && s.addPhotoBtnDisabled]}
-                onPress={openImagePicker}
-                disabled={reviewImages.length >= 4}
-              >
-                <Feather name="camera" size={14} color={reviewImages.length >= 4 ? 'rgba(160,174,192,0.3)' : '#2280b0'} />
+              <TouchableOpacity style={[s.addPhotoBtn, reviewImages.length >= 4 && s.addPhotoBtnDisabled]} onPress={openImagePicker} disabled={reviewImages.length >= 4}>
+                <Feather name="camera" size={14} color={reviewImages.length >= 4 ? 'rgba(153,98,80,0.3)' : '#800007'} />
                 <Text style={[s.addPhotoBtnText, reviewImages.length >= 4 && s.addPhotoBtnTextDisabled]}>
                   {reviewImages.length >= 4 ? 'Max 4 photos reached' : `Add Photo (${reviewImages.length}/4)`}
                 </Text>
               </TouchableOpacity>
-
-              {/* Submit */}
               <TouchableOpacity style={s.submitBtn} onPress={handleSubmitReview} disabled={submittingReview} activeOpacity={0.85}>
                 {submittingReview ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color="#F9F9F9" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+                    <Ionicons name="checkmark-circle-outline" size={16} color="#F9F9F9" />
                     <Text style={s.submitBtnText}>Submit Review</Text>
                   </>
                 )}
@@ -607,17 +493,14 @@ export default function ProductDetails() {
                 <MaterialCommunityIcons name="truck-outline" size={28} color="#ffca28" />
               </View>
               <Text style={s.pendingTitle}>Order in Progress</Text>
-              <Text style={s.pendingText}>
-                You'll be able to leave a review once your order is delivered.
-              </Text>
+              <Text style={s.pendingText}>You'll be able to leave a review once your order is delivered.</Text>
             </View>
           ) : null}
 
-          {/* Existing Reviews */}
           {product.reviews && product.reviews.length > 0 && (
             <View style={s.existingReviews}>
               <View style={s.existingReviewsHeader}>
-                <Ionicons name="chatbubbles-outline" size={16} color="rgba(160,174,192,0.6)" />
+                <Ionicons name="chatbubbles-outline" size={16} color="rgba(153,98,80,0.6)" />
                 <Text style={s.existingReviewsTitle}>Customer Reviews ({product.reviews.length})</Text>
               </View>
               <FlatList
@@ -634,18 +517,30 @@ export default function ProductDetails() {
                         <Text style={s.reviewerName}>{item.name}</Text>
                         <View style={s.reviewStarsRow}>
                           {[1,2,3,4,5].map(star => (
-                            <Ionicons
-                              key={star}
-                              name={star <= item.rating ? 'star' : 'star-outline'}
-                              size={12}
-                              color={star <= item.rating ? '#ffca28' : 'rgba(160,174,192,0.25)'}
-                              style={{ marginRight: 1 }}
-                            />
+                            <Ionicons key={star} name={star <= item.rating ? 'star' : 'star-outline'} size={12} color={star <= item.rating ? '#ffca28' : 'rgba(153,98,80,0.25)'} style={{ marginRight: 1 }} />
                           ))}
                         </View>
                       </View>
                     </View>
                     <Text style={s.reviewComment}>{item.comment}</Text>
+
+                    {item.images && item.images.length > 0 && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={{ marginTop: 10 }}
+                        contentContainerStyle={{ gap: 8 }}
+                      >
+                        {item.images.map((img, i) => (
+                          <Image
+                            key={img.public_id || `${item._id}-img-${i}`}
+                            source={{ uri: img.url }}
+                            style={s.reviewImg}
+                            resizeMode="cover"
+                          />
+                        ))}
+                      </ScrollView>
+                    )}
                   </View>
                 )}
               />
@@ -661,137 +556,118 @@ export default function ProductDetails() {
 
 // ─── STYLES ──────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root:            { flex: 1, backgroundColor: '#1a1a2e' },
-  scroll:          { flex: 1 },
+  root:   { flex: 1, backgroundColor: '#1a0204' },
+  scroll: { flex: 1 },
 
-  // ── Center states ──
-  centerContainer: { flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
+  centerContainer: { flex: 1, backgroundColor: '#1a0204', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
   loaderCard:      { alignItems: 'center', gap: 14 },
-  loadingText:     { color: 'rgba(160,174,192,0.6)', fontSize: 14 },
-  errorCard:       { width: '100%', backgroundColor: '#16213e', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 28, alignItems: 'center', gap: 12 },
-  errorIconWrap:   { width: 64, height: 64, borderRadius: 18, backgroundColor: 'rgba(255,107,107,0.12)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)', alignItems: 'center', justifyContent: 'center' },
-  errorText:       { fontSize: 14, color: 'rgba(160,174,192,0.7)', textAlign: 'center', lineHeight: 20 },
-  retryBtn:        { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#2280b0', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 4 },
-  retryBtnText:    { color: '#fff', fontWeight: '700', fontSize: 14 },
+  loadingText:     { color: 'rgba(153,98,80,0.7)', fontSize: 14 },
+  errorCard:       { width: '100%', backgroundColor: '#2a0508', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(153,98,80,0.2)', padding: 28, alignItems: 'center', gap: 12 },
+  errorIconWrap:   { width: 64, height: 64, borderRadius: 18, backgroundColor: 'rgba(255,107,107,0.1)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.28)', alignItems: 'center', justifyContent: 'center' },
+  errorText:       { fontSize: 14, color: 'rgba(153,98,80,0.75)', textAlign: 'center', lineHeight: 20 },
+  retryBtn:        { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#800007', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 4, shadowColor: '#800007', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
+  retryBtnText:    { color: '#F9F9F9', fontWeight: '700', fontSize: 14 },
 
-  // ── Image Carousel ──
-  imageWrapper:      { backgroundColor: '#16213e', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  imageContainer:    { aspectRatio: 1, width: '100%', backgroundColor: '#16213e', position: 'relative', overflow: 'hidden' },
+  imageWrapper:      { backgroundColor: '#200305', borderBottomWidth: 1, borderBottomColor: 'rgba(153,98,80,0.1)' },
+  imageContainer:    { aspectRatio: 1, width: '100%', backgroundColor: '#200305', position: 'relative', overflow: 'hidden' },
   mainImage:         { width: '100%', height: '100%' },
-  imageFallback:     { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, backgroundColor: '#16213e' },
-  imageFallbackText: { color: 'rgba(160,174,192,0.35)', fontSize: 13 },
-  arrowBtn:          { position: 'absolute', top: '50%', transform: [{ translateY: -22 }], width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', zIndex: 10 },
+  imageFallback:     { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, backgroundColor: '#200305' },
+  imageFallbackText: { color: 'rgba(153,98,80,0.4)', fontSize: 13 },
+  arrowBtn:          { position: 'absolute', top: '50%', transform: [{ translateY: -22 }], width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.2)', alignItems: 'center', justifyContent: 'center', zIndex: 10 },
   arrowLeft:         { left: 14 },
   arrowRight:        { right: 14 },
-  imageBadge:        { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  imageBadgeText:    { color: '#fff', fontSize: 11, fontWeight: '600' },
+  imageBadge:        { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(153,98,80,0.2)' },
+  imageBadgeText:    { color: '#F9F9F9', fontSize: 11, fontWeight: '600' },
 
-  // Thumbnail strip
-  thumbStrip:     { paddingHorizontal: 14, paddingVertical: 12, gap: 8, flexDirection: 'row' },
-  thumbWrap:      { width: 56, height: 56, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(255,255,255,0.08)', position: 'relative' },
-  thumbWrapActive:{ borderColor: '#2280b0' },
-  thumb:          { width: '100%', height: '100%' },
-  thumbActiveLine:{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, backgroundColor: '#2280b0' },
+  thumbStrip:      { paddingHorizontal: 14, paddingVertical: 12, gap: 8, flexDirection: 'row' },
+  thumbWrap:       { width: 56, height: 56, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(153,98,80,0.15)', position: 'relative' },
+  thumbWrapActive: { borderColor: '#800007' },
+  thumb:           { width: '100%', height: '100%' },
+  thumbActiveLine: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, backgroundColor: '#800007' },
 
-  // ── Info Container ──
   infoContainer: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 4 },
 
-  // Meta row (category + ID)
   metaRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  categoryBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(34,128,176,0.12)', borderWidth: 1, borderColor: 'rgba(34,128,176,0.28)', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
-  categoryText:  { fontSize: 11, fontWeight: '700', color: '#2280b0', textTransform: 'uppercase', letterSpacing: 0.5 },
-  productId:     { fontSize: 10, color: 'rgba(160,174,192,0.35)', fontWeight: '500' },
-  productName:   { fontSize: 21, fontWeight: '800', color: '#fff', marginBottom: 10, letterSpacing: 0.2, lineHeight: 28 },
+  categoryBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(128,0,7,0.1)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.28)', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
+  categoryText:  { fontSize: 11, fontWeight: '700', color: '#800007', textTransform: 'uppercase', letterSpacing: 0.5 },
+  productId:     { fontSize: 10, color: 'rgba(153,98,80,0.4)', fontWeight: '500' },
+  productName:   { fontSize: 21, fontWeight: '800', color: '#F9F9F9', marginBottom: 10, letterSpacing: 0.2, lineHeight: 28 },
 
-  // Rating + stock inline
   ratingStockRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 14, flexWrap: 'wrap' },
   starsRow:       { flexDirection: 'row' },
   ratingText:     { fontSize: 12, fontWeight: '700', color: '#ffca28' },
-  reviewCountText:{ fontSize: 12, color: 'rgba(160,174,192,0.45)' },
-  metaDot:        { width: 3, height: 3, borderRadius: 2, backgroundColor: 'rgba(160,174,192,0.25)', marginHorizontal: 2 },
+  reviewCountText:{ fontSize: 12, color: 'rgba(153,98,80,0.5)' },
+  metaDot:        { width: 3, height: 3, borderRadius: 2, backgroundColor: 'rgba(153,98,80,0.3)', marginHorizontal: 2 },
 
-  // Price
-  price: { fontSize: 28, fontWeight: '800', color: '#00C2C7', marginBottom: 2 },
+  price:         { fontSize: 28, fontWeight: '800', color: '#800007', marginBottom: 2 },
   stockBadge:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
-  stockBadgeIn:  { backgroundColor: 'rgba(76,175,80,0.12)', borderColor: 'rgba(76,175,80,0.3)' },
-  stockBadgeOut: { backgroundColor: 'rgba(255,107,107,0.12)', borderColor: 'rgba(255,107,107,0.3)' },
+  stockBadgeIn:  { backgroundColor: 'rgba(153,98,80,0.1)', borderColor: 'rgba(153,98,80,0.3)' },
+  stockBadgeOut: { backgroundColor: 'rgba(255,107,107,0.1)', borderColor: 'rgba(255,107,107,0.28)' },
   stockDot:      { width: 6, height: 6, borderRadius: 3 },
-  stockDotIn:    { backgroundColor: '#4caf50' },
+  stockDotIn:    { backgroundColor: '#996250' },
   stockDotOut:   { backgroundColor: '#ff6b6b' },
   stockText:     { fontSize: 11, fontWeight: '700' },
-  stockTextIn:   { color: '#4caf50' },
+  stockTextIn:   { color: '#996250' },
   stockTextOut:  { color: '#ff6b6b' },
 
-  // ── Divider ──
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginVertical: 16 },
+  divider: { height: 1, backgroundColor: 'rgba(153,98,80,0.15)', marginVertical: 16 },
 
-  // ── Section Label ──
-  sectionLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(160,174,192,0.5)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.9 },
+  sectionLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(153,98,80,0.6)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.9 },
 
-  // ── Qty + Cart row ──
-  cartRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  quantityRow:{ flexDirection: 'row', alignItems: 'center' },
-  qtyBtn:     { width: 40, height: 40, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', alignItems: 'center', justifyContent: 'center' },
-  qtyDisplay: { width: 48, height: 40, marginHorizontal: 6, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', alignItems: 'center', justifyContent: 'center' },
-  qtyText:    { fontSize: 15, fontWeight: '800', color: '#fff' },
+  cartRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  quantityRow: { flexDirection: 'row', alignItems: 'center' },
+  qtyBtn:      { width: 40, height: 40, borderRadius: 11, backgroundColor: 'rgba(249,249,249,0.05)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.2)', alignItems: 'center', justifyContent: 'center' },
+  qtyDisplay:  { width: 48, height: 40, marginHorizontal: 6, borderRadius: 11, backgroundColor: 'rgba(128,0,7,0.08)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.2)', alignItems: 'center', justifyContent: 'center' },
+  qtyText:     { fontSize: 15, fontWeight: '800', color: '#F9F9F9' },
 
-  // ── Add to Cart ──
-  addToCartBtn:          { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2280b0', paddingVertical: 14, borderRadius: 13 },
-  addToCartBtnDisabled:  { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  addToCartText:         { color: '#fff', fontSize: 14, fontWeight: '800' },
-  addToCartTextDisabled: { color: 'rgba(160,174,192,0.4)' },
+  addToCartBtn:          { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#800007', paddingVertical: 14, borderRadius: 13, shadowColor: '#800007', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 7 },
+  addToCartBtnDisabled:  { backgroundColor: 'rgba(249,249,249,0.04)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.15)', shadowOpacity: 0, elevation: 0 },
+  addToCartText:         { color: '#F9F9F9', fontSize: 14, fontWeight: '800' },
+  addToCartTextDisabled: { color: 'rgba(153,98,80,0.4)' },
 
-  // ── Seller ──
   sellerRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sellerText: { fontSize: 12, color: 'rgba(160,174,192,0.5)' },
+  sellerText: { fontSize: 12, color: 'rgba(153,98,80,0.5)' },
 
-  // ── Description ──
-  descriptionBox: { backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: 14 },
-  description:    { fontSize: 14, color: 'rgba(160,174,192,0.7)', lineHeight: 22 },
+  descriptionBox: { backgroundColor: 'rgba(249,249,249,0.03)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.12)', borderRadius: 14, padding: 14 },
+  description:    { fontSize: 14, color: 'rgba(153,98,80,0.75)', lineHeight: 22 },
 
-  // ── Review Write Card ──
-  reviewCard:        { backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 16, padding: 16, marginBottom: 20 },
-  reviewCardHeader:  { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  reviewCardIconWrap:{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(34,128,176,0.15)', borderWidth: 1, borderColor: 'rgba(34,128,176,0.3)', alignItems: 'center', justifyContent: 'center' },
-  reviewCardTitle:   { fontSize: 15, fontWeight: '700', color: '#fff' },
+  reviewCard:         { backgroundColor: 'rgba(249,249,249,0.03)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.15)', borderRadius: 16, padding: 16, marginBottom: 20 },
+  reviewCardHeader:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  reviewCardIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(128,0,7,0.12)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.28)', alignItems: 'center', justifyContent: 'center' },
+  reviewCardTitle:    { fontSize: 15, fontWeight: '700', color: '#F9F9F9' },
 
-  // ── Star Input ──
   starInputRow:       { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
   starBtn:            { padding: 2 },
   ratingSelectedText: { marginLeft: 8, fontSize: 12, color: '#ffca28', fontWeight: '600' },
 
-  // ── Comment Input ──
-  commentInput: { backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', borderRadius: 12, padding: 14, height: 110, marginBottom: 12, fontSize: 13, color: '#fff', textAlignVertical: 'top', lineHeight: 20 },
+  commentInput: { backgroundColor: 'rgba(249,249,249,0.04)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.2)', borderRadius: 12, padding: 14, height: 110, marginBottom: 12, fontSize: 13, color: '#F9F9F9', textAlignVertical: 'top', lineHeight: 20 },
 
-  // ── Image Picker ──
-  imgPreviewRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  imgThumbWrap:         { position: 'relative' },
-  imgThumb:             { width: 72, height: 72, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)' },
-  imgRemoveBtn:         { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#ff6b6b', alignItems: 'center', justifyContent: 'center' },
-  addPhotoBtn:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(34,128,176,0.1)', borderWidth: 1, borderColor: 'rgba(34,128,176,0.25)', borderRadius: 12, paddingVertical: 12, marginBottom: 12 },
-  addPhotoBtnDisabled:  { backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' },
-  addPhotoBtnText:      { color: '#2280b0', fontSize: 13, fontWeight: '600' },
-  addPhotoBtnTextDisabled: { color: 'rgba(160,174,192,0.3)' },
+  imgPreviewRow:           { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  imgThumbWrap:            { position: 'relative' },
+  imgThumb:                { width: 72, height: 72, borderRadius: 10, backgroundColor: 'rgba(128,0,7,0.08)' },
+  imgRemoveBtn:            { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#ff6b6b', alignItems: 'center', justifyContent: 'center' },
+  addPhotoBtn:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(128,0,7,0.08)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)', borderRadius: 12, paddingVertical: 12, marginBottom: 12 },
+  addPhotoBtnDisabled:     { backgroundColor: 'rgba(249,249,249,0.03)', borderColor: 'rgba(153,98,80,0.1)' },
+  addPhotoBtnText:         { color: '#800007', fontSize: 13, fontWeight: '600' },
+  addPhotoBtnTextDisabled: { color: 'rgba(153,98,80,0.3)' },
 
-  // ── Submit Button ──
-  submitBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#4caf50', paddingVertical: 14, borderRadius: 13 },
-  submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  submitBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#800007', paddingVertical: 14, borderRadius: 13, shadowColor: '#800007', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 7 },
+  submitBtnText: { color: '#F9F9F9', fontSize: 14, fontWeight: '700' },
 
-  // ── Pending Box ──
-  pendingBox:     { backgroundColor: 'rgba(255,202,40,0.07)', borderWidth: 1, borderColor: 'rgba(255,202,40,0.2)', borderRadius: 16, padding: 20, marginBottom: 20, alignItems: 'center', gap: 8 },
-  pendingIconWrap:{ width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(255,202,40,0.12)', borderWidth: 1, borderColor: 'rgba(255,202,40,0.25)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  pendingTitle:   { color: '#ffca28', fontSize: 14, fontWeight: '800' },
-  pendingText:    { color: 'rgba(255,202,40,0.65)', fontSize: 13, textAlign: 'center', lineHeight: 18 },
+  pendingBox:      { backgroundColor: 'rgba(255,202,40,0.07)', borderWidth: 1, borderColor: 'rgba(255,202,40,0.2)', borderRadius: 16, padding: 20, marginBottom: 20, alignItems: 'center', gap: 8 },
+  pendingIconWrap: { width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(255,202,40,0.1)', borderWidth: 1, borderColor: 'rgba(255,202,40,0.22)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  pendingTitle:    { color: '#ffca28', fontSize: 14, fontWeight: '800' },
+  pendingText:     { color: 'rgba(255,202,40,0.65)', fontSize: 13, textAlign: 'center', lineHeight: 18 },
 
-  // ── Existing Reviews ──
   existingReviews:       { marginTop: 4 },
   existingReviewsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  existingReviewsTitle:  { fontSize: 11, fontWeight: '700', color: 'rgba(160,174,192,0.6)', textTransform: 'uppercase', letterSpacing: 0.8 },
-  reviewItem:            { backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: 14, marginBottom: 10 },
+  existingReviewsTitle:  { fontSize: 11, fontWeight: '700', color: 'rgba(153,98,80,0.65)', textTransform: 'uppercase', letterSpacing: 0.8 },
+  reviewItem:            { backgroundColor: 'rgba(249,249,249,0.03)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.12)', borderRadius: 14, padding: 14, marginBottom: 10 },
   reviewItemHeader:      { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  reviewAvatar:          { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(34,128,176,0.2)', borderWidth: 1, borderColor: 'rgba(34,128,176,0.3)', alignItems: 'center', justifyContent: 'center' },
-  reviewAvatarText:      { fontSize: 14, fontWeight: '800', color: '#2280b0' },
-  reviewerName:          { fontSize: 13, fontWeight: '700', color: '#fff', marginBottom: 3 },
+  reviewAvatar:          { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(128,0,7,0.15)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.3)', alignItems: 'center', justifyContent: 'center' },
+  reviewAvatarText:      { fontSize: 14, fontWeight: '800', color: '#800007' },
+  reviewerName:          { fontSize: 13, fontWeight: '700', color: '#F9F9F9', marginBottom: 3 },
   reviewStarsRow:        { flexDirection: 'row' },
-  reviewComment:         { fontSize: 13, color: 'rgba(160,174,192,0.65)', lineHeight: 19 },
+  reviewComment:         { fontSize: 13, color: 'rgba(153,98,80,0.7)', lineHeight: 19 },
+  reviewImg:             { width: 92, height: 92, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.10)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.12)' },
 });

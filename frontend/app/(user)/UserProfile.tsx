@@ -18,7 +18,7 @@ import {
 import * as ImagePicker from 'expo-image-picker'
 import axios from 'axios'
 import Constants from 'expo-constants'
-import { useRouter } from 'expo-router'
+import { useRouter, Stack } from 'expo-router'
 import { getItem, removeItem, setItem } from '@/utils/storage'
 
 /* ─── API URL ─── */
@@ -37,15 +37,15 @@ if (debuggerHost && debuggerHost !== 'localhost') {
 
 /* ─── Design tokens ─── */
 const C = {
-  bg:         '#0E1117',
-  bgLayer:    '#12151F',
-  surface:    '#1A1E2E',
-  border:     '#1F2540',
-  accent:     '#00C2C7',
-  accentText: '#00E5EB',
-  text:       '#E8EDF5',
-  textSub:    '#7A859E',
-  textBody:   '#C6CCDC',
+  bg:         '#1a0204',
+  bgLayer:    '#200305',
+  surface:    '#2a0508',
+  border:     '#3d0a0d',
+  accent:     '#800007',
+  accentText: '#c0000a',
+  text:       '#F9F9F9',
+  textSub:    '#996250',
+  textBody:   '#c8a090',
   danger:     '#FF5A6E',
 } as const
 
@@ -124,8 +124,6 @@ export default function UserProfile() {
           timeout: 10000,
         })
         const fetched: UserShape = res.data.user
-        // The server only stores a combined address string; merge the individual
-        // fields (addressObj) that we saved locally so the form stays split.
         const cached = await getItem('user')
         if (cached) {
           const local = JSON.parse(cached) as UserShape
@@ -146,11 +144,11 @@ export default function UserProfile() {
     setUser(parsed)
     setName(parsed.name || '')
     if (parsed.addressObj) {
-      setAddress(parsed.addressObj.street   || '')
-      setCity(parsed.addressObj.city        || '')
+      setAddress(parsed.addressObj.street      || '')
+      setCity(parsed.addressObj.city           || '')
       setPostalCode(parsed.addressObj.postalCode || '')
-      setCountry(parsed.addressObj.country  || '')
-      setPhoneNo(parsed.addressObj.phone    || '')
+      setCountry(parsed.addressObj.country     || '')
+      setPhoneNo(parsed.addressObj.phone       || '')
     } else if (parsed.address) {
       setAddress(parsed.address)
     }
@@ -174,8 +172,8 @@ export default function UserProfile() {
     } else {
       Alert.alert('Change Profile Photo', 'Select a source', [
         { text: 'Cancel', style: 'cancel' },
-        { text: '📷  Take Photo',          onPress: () => launchPicker('camera')  },
-        { text: '🖼  Choose from Gallery',  onPress: () => launchPicker('gallery') },
+        { text: '📷  Take Photo',         onPress: () => launchPicker('camera')  },
+        { text: '🖼  Choose from Gallery', onPress: () => launchPicker('gallery') },
       ])
     }
   }
@@ -197,9 +195,7 @@ export default function UserProfile() {
       }
 
       const result = await (mode === 'camera'
-        ? ImagePicker.launchCameraAsync({
-            allowsEditing: true, aspect: [1, 1], quality: 0.75,
-          })
+        ? ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.75 })
         : ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true, aspect: [1, 1], quality: 0.75,
@@ -236,12 +232,10 @@ export default function UserProfile() {
       let res: any
 
       if (newAvatar) {
-        /* multipart/form-data so multer can read req.file */
         const form = new FormData()
         form.append('name',    name)
         form.append('address', addressString)
         form.append('avatar',  { uri: newAvatar.uri, name: newAvatar.name, type: newAvatar.type } as any)
-
         res = await axios.put(`${API_URL}/me/update`, form, {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
           timeout: 30000,
@@ -257,7 +251,6 @@ export default function UserProfile() {
       const updated: UserShape = { ...res.data.user, addressObj }
       setUser(updated)
       setNewAvatar(null)
-      // Re-hydrate all form fields from the merged result so nothing gets stale
       hydrate(updated)
       await setItem('user', JSON.stringify(updated))
       Alert.alert('✓ Saved', 'Your profile has been updated.')
@@ -288,6 +281,7 @@ export default function UserProfile() {
   if (loading) {
     return (
       <View style={s.center}>
+        <Stack.Screen options={{ headerShown: false }} />
         <StatusBar barStyle="light-content" backgroundColor={C.bg} />
         <ActivityIndicator size="large" color={C.accent} />
         <Text style={s.muted}>Loading profile…</Text>
@@ -299,6 +293,7 @@ export default function UserProfile() {
   if (!user) {
     return (
       <View style={s.center}>
+        <Stack.Screen options={{ headerShown: false }} />
         <StatusBar barStyle="light-content" backgroundColor={C.bg} />
         <Text style={{ fontSize: 48, marginBottom: 12 }}>👤</Text>
         <Text style={s.pageTitle}>Sign in to view your profile</Text>
@@ -311,6 +306,7 @@ export default function UserProfile() {
 
   return (
     <View style={s.container}>
+      <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -318,11 +314,8 @@ export default function UserProfile() {
           {/* ── Header ── */}
           <Animated.View style={[s.header, { opacity: headerFade }]}>
             <View style={s.headerTop}>
-              <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-                <Text style={s.backBtnTxt}>←</Text>
-              </TouchableOpacity>
               <View style={{ flex: 1 }}>
-                <Text style={s.eyebrow}>◈ ROMEROS</Text>
+                <Text style={s.eyebrow}>◈ DRIFT N' DASH</Text>
                 <Text style={s.pageTitle}>My Profile</Text>
               </View>
             </View>
@@ -396,7 +389,7 @@ export default function UserProfile() {
           <View style={s.actions}>
             <TouchableOpacity style={[s.saveBtn, saving && s.saveBtnDisabled]} onPress={saveProfile} disabled={saving} activeOpacity={0.85}>
               {saving
-                ? <ActivityIndicator color={C.bg} size="small" />
+                ? <ActivityIndicator color={C.text} size="small" />
                 : <Text style={s.saveBtnTxt}>Save Profile</Text>
               }
             </TouchableOpacity>
@@ -405,6 +398,7 @@ export default function UserProfile() {
               <Text style={s.dangerBtnTxt}>Sign Out</Text>
             </TouchableOpacity>
           </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -425,11 +419,11 @@ const s = StyleSheet.create({
     borderBottomColor: C.border,
     gap: 20,
   },
-  headerTop:   { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  backBtn:     { width: 40, height: 40, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
-  backBtnTxt:  { color: C.text, fontSize: 20 },
-  eyebrow:     { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700' },
-  pageTitle:   { color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
+  headerTop:  { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  backBtn:    { width: 40, height: 40, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
+  backBtnTxt: { color: C.text, fontSize: 20 },
+  eyebrow:    { color: C.accent, fontSize: 10, letterSpacing: 3, fontWeight: '700' },
+  pageTitle:  { color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
 
   avatarSection: { alignItems: 'center', gap: 8 },
   avatarWrap:    { position: 'relative' },
@@ -446,17 +440,17 @@ const s = StyleSheet.create({
     backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: C.bgLayer,
   },
-  cameraIcon:  { fontSize: 14 },
-  pendingBadge:{ backgroundColor: 'rgba(0,194,199,0.12)', borderRadius: 8, borderWidth: 1, borderColor: C.accent, paddingHorizontal: 12, paddingVertical: 6 },
-  pendingTxt:  { color: C.accentText, fontSize: 12, fontWeight: '600' },
-  userName:    { color: C.text, fontSize: 18, fontWeight: '800', marginTop: 4 },
-  userEmail:   { color: C.textSub, fontSize: 13 },
+  cameraIcon:   { fontSize: 14 },
+  pendingBadge: { backgroundColor: 'rgba(128,0,7,0.12)', borderRadius: 8, borderWidth: 1, borderColor: C.accent, paddingHorizontal: 12, paddingVertical: 6 },
+  pendingTxt:   { color: C.accentText, fontSize: 12, fontWeight: '600' },
+  userName:     { color: C.text, fontSize: 18, fontWeight: '800', marginTop: 4 },
+  userEmail:    { color: C.textSub, fontSize: 13 },
 
   quickNavRow: { gap: 8 },
   quickNavBtn: {
     paddingHorizontal: 16, paddingVertical: 11,
     borderRadius: 10, borderWidth: 1, borderColor: C.accent,
-    alignItems: 'center', backgroundColor: 'rgba(0,194,199,0.06)',
+    alignItems: 'center', backgroundColor: 'rgba(128,0,7,0.07)',
   },
   quickNavTxt: { color: C.accent, fontWeight: '700', fontSize: 13 },
 
@@ -467,17 +461,17 @@ const s = StyleSheet.create({
     backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 12, color: C.text, fontSize: 14,
   },
-  textArea:     { minHeight: 72, textAlignVertical: 'top' },
+  textArea: { minHeight: 72, textAlignVertical: 'top' },
 
   actions:         { paddingHorizontal: 20, paddingTop: 8, gap: 12 },
-  saveBtn:         { backgroundColor: C.accent, borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+  saveBtn:         { backgroundColor: C.accent, borderRadius: 12, paddingVertical: 15, alignItems: 'center', shadowColor: C.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 7 },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnTxt:      { color: C.bg, fontWeight: '800', fontSize: 15 },
+  saveBtnTxt:      { color: C.text, fontWeight: '800', fontSize: 15 },
   dangerBtn:       { borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: C.danger, backgroundColor: 'rgba(255,90,110,0.06)' },
   dangerBtnTxt:    { color: C.danger, fontWeight: '700', fontSize: 14 },
 
-  muted:        { color: C.textSub, fontSize: 13, marginTop: 8 },
-  primaryBtn:   { backgroundColor: C.accent, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 8 },
-  primaryBtnTxt:{ color: C.bg, fontWeight: '800', fontSize: 14 },
-  accentText:   {},
+  muted:         { color: C.textSub, fontSize: 13, marginTop: 8 },
+  primaryBtn:    { backgroundColor: C.accent, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 8, shadowColor: C.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
+  primaryBtnTxt: { color: C.text, fontWeight: '800', fontSize: 14 },
+  accentText:    {},
 })

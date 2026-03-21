@@ -36,6 +36,21 @@ if (debuggerHost && debuggerHost !== 'localhost') {
   API_URL = API_URL.replace('localhost', '10.0.2.2')
 }
 
+// ─── DESIGN TOKENS (lighter admin theme) ─────────────────────
+const C = {
+  bg:         '#2a0508',
+  bgLayer:    '#350709',
+  surface:    '#420a0e',
+  border:     '#5a1015',
+  accent:     '#800007',
+  accentText: '#c0000a',
+  mint:       '#996250',
+  text:       '#F9F9F9',
+  textSub:    '#c8a090',
+  textDim:    '#7a3030',
+  danger:     '#FF5A6E',
+}
+
 // ─── THEMED ALERT MODAL ───────────────────────────────────────
 interface ThemedAlertProps {
   visible: boolean
@@ -55,7 +70,7 @@ const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message
             <Ionicons
               name={isSuccess ? 'checkmark-circle' : 'alert-circle'}
               size={32}
-              color={isSuccess ? '#4caf50' : '#ff6b6b'}
+              color={isSuccess ? C.mint : C.danger}
             />
           </View>
           <Text style={al.title}>{title}</Text>
@@ -74,7 +89,7 @@ const ThemedAlert: React.FC<ThemedAlertProps> = ({ visible, type, title, message
   )
 }
 
-// ─── THEMED CONFIRM DIALOG ───────────────────────────────────
+// ─── THEMED CONFIRM DIALOG ────────────────────────────────────
 interface ConfirmDialogProps {
   visible: boolean
   title: string
@@ -87,169 +102,72 @@ interface ConfirmDialogProps {
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
-  visible,
-  title,
-  message,
-  destructiveText = 'Delete',
-  cancelText = 'Cancel',
-  onConfirm,
-  onCancel,
-  isLoading = false,
-}) => {
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={cd.overlay} onPress={onCancel}>
-        <Pressable style={cd.card} onPress={() => {}}>
-          <View style={cd.iconWrap}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={40} color="#ff6b6b" />
-          </View>
-          <Text style={cd.title}>{title}</Text>
-          <Text style={cd.message}>{message}</Text>
-          <View style={cd.divider} />
-          <View style={cd.buttonRow}>
-            <TouchableOpacity
-              style={cd.cancelBtn}
-              onPress={onCancel}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              <Text style={cd.cancelBtnText}>{cancelText}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[cd.confirmBtn, isLoading && cd.confirmBtnDisabled]}
-              onPress={onConfirm}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Feather name="trash-2" size={15} color="#fff" style={{ marginRight: 6 }} />
-                  <Text style={cd.confirmBtnText}>{destructiveText}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        </Pressable>
+  visible, title, message,
+  destructiveText = 'Delete', cancelText = 'Cancel',
+  onConfirm, onCancel, isLoading = false,
+}) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+    <Pressable style={cd.overlay} onPress={onCancel}>
+      <Pressable style={cd.card} onPress={() => {}}>
+        <View style={cd.iconWrap}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={40} color={C.danger} />
+        </View>
+        <Text style={cd.title}>{title}</Text>
+        <Text style={cd.message}>{message}</Text>
+        <View style={cd.divider} />
+        <View style={cd.buttonRow}>
+          <TouchableOpacity style={cd.cancelBtn} onPress={onCancel} disabled={isLoading} activeOpacity={0.8}>
+            <Text style={cd.cancelBtnText}>{cancelText}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[cd.confirmBtn, isLoading && cd.confirmBtnDisabled]}
+            onPress={onConfirm}
+            disabled={isLoading}
+            activeOpacity={0.8}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color={C.text} />
+            ) : (
+              <>
+                <Feather name="trash-2" size={15} color={C.text} style={{ marginRight: 6 }} />
+                <Text style={cd.confirmBtnText}>{destructiveText}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </Pressable>
-    </Modal>
-  )
-}
+    </Pressable>
+  </Modal>
+)
 
 const cd = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 28,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#16213e',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  iconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,107,107,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,107,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  title:   { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' },
-  message: { fontSize: 13, color: 'rgba(160,174,192,0.75)', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  divider: { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 20 },
-  buttonRow: { flexDirection: 'row', gap: 12, width: '100%' },
-  cancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 13,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  cancelBtnText: { fontSize: 14, fontWeight: '700', color: 'rgba(160,174,192,0.7)' },
-  confirmBtn: {
-    flex: 1,
-    backgroundColor: '#ff6b6b',
-    borderRadius: 13,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#ff6b6b',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
+  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
+  card:       { width: '100%', backgroundColor: C.bgLayer, borderRadius: 22, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
+  iconWrap:   { width: 72, height: 72, borderRadius: 20, backgroundColor: 'rgba(255,90,110,0.1)', borderWidth: 1, borderColor: 'rgba(255,90,110,0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  title:      { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 8, textAlign: 'center' },
+  message:    { fontSize: 13, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  divider:    { width: '100%', height: 1, backgroundColor: C.border, marginBottom: 20 },
+  buttonRow:  { flexDirection: 'row', gap: 12, width: '100%' },
+  cancelBtn:  { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 13, paddingVertical: 14, alignItems: 'center', backgroundColor: 'rgba(249,249,249,0.04)' },
+  cancelBtnText: { fontSize: 14, fontWeight: '700', color: C.textSub },
+  confirmBtn: { flex: 1, backgroundColor: C.danger, borderRadius: 13, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: C.danger, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8 },
   confirmBtnDisabled: { opacity: 0.6 },
-  confirmBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  confirmBtnText: { fontSize: 14, fontWeight: '700', color: C.text },
 })
 
 const al = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 28,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#16213e',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  iconSuccess: { backgroundColor: 'rgba(76,175,80,0.12)', borderWidth: 1, borderColor: 'rgba(76,175,80,0.3)' },
-  iconError:   { backgroundColor: 'rgba(255,107,107,0.12)', borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)' },
-  title:   { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 8, textAlign: 'center' },
-  message: { fontSize: 13, color: 'rgba(160,174,192,0.8)', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
-  divider: { width: '100%', height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 20 },
-  btn: {
-    width: '100%',
-    borderRadius: 13,
-    paddingVertical: 14,
-    alignItems: 'center',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  btnSuccess: { backgroundColor: '#4caf50', shadowColor: '#4caf50' },
-  btnError:   { backgroundColor: '#ff6b6b', shadowColor: '#ff6b6b' },
-  btnText:    { color: '#fff', fontSize: 15, fontWeight: '700' },
+  overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28 },
+  card:        { width: '100%', backgroundColor: C.bgLayer, borderRadius: 22, borderWidth: 1, borderColor: C.border, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 0.6, shadowRadius: 40, elevation: 20 },
+  iconWrap:    { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  iconSuccess: { backgroundColor: 'rgba(153,98,80,0.12)', borderWidth: 1, borderColor: 'rgba(153,98,80,0.3)' },
+  iconError:   { backgroundColor: 'rgba(255,90,110,0.1)',  borderWidth: 1, borderColor: 'rgba(255,90,110,0.28)' },
+  title:       { fontSize: 20, fontWeight: '800', color: C.text, marginBottom: 8, textAlign: 'center' },
+  message:     { fontSize: 13, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  divider:     { width: '100%', height: 1, backgroundColor: C.border, marginBottom: 20 },
+  btn:         { width: '100%', borderRadius: 13, paddingVertical: 14, alignItems: 'center', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 6 },
+  btnSuccess:  { backgroundColor: C.accent, shadowColor: C.accent },
+  btnError:    { backgroundColor: C.danger, shadowColor: C.danger },
+  btnText:     { color: C.text, fontSize: 15, fontWeight: '700' },
 })
 
 // ─── TYPES ────────────────────────────────────────────────────
@@ -270,11 +188,9 @@ export default function AdminCategories() {
   const [updating, setUpdating] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
 
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-  })
+  const [formData, setFormData] = useState({ name: '', description: '' })
 
   const [alertVisible, setAlertVisible] = useState(false)
   const [alertType, setAlertType] = useState<'success' | 'error'>('success')
@@ -286,10 +202,7 @@ export default function AdminCategories() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const showAlert = (type: 'success' | 'error', title: string, message: string) => {
-    setAlertType(type)
-    setAlertTitle(title)
-    setAlertMessage(message)
-    setAlertVisible(true)
+    setAlertType(type); setAlertTitle(title); setAlertMessage(message); setAlertVisible(true)
   }
 
   const getAuthHeader = async () => {
@@ -297,9 +210,7 @@ export default function AdminCategories() {
     return token ? { Authorization: `Bearer ${token}` } : {}
   }
 
-  useEffect(() => {
-    fetchCategories()
-  }, [])
+  useEffect(() => { fetchCategories() }, [])
 
   const fetchCategories = async () => {
     try {
@@ -307,7 +218,7 @@ export default function AdminCategories() {
       const headers = await getAuthHeader()
       const res = await axios.get(`${API_URL}/categories`, { headers })
       setCategories(res.data.categories || [])
-    } catch (error) {
+    } catch {
       showAlert('error', 'Failed to Load', 'Could not fetch categories. Please try again.')
     } finally {
       setLoading(false)
@@ -332,15 +243,10 @@ export default function AdminCategories() {
   }
 
   const handleSaveCategory = async () => {
-    if (!formData.name.trim()) {
-      showAlert('error', 'Validation Error', 'Please enter a category name')
-      return
-    }
-
+    if (!formData.name.trim()) { showAlert('error', 'Validation Error', 'Please enter a category name'); return }
     try {
       setUpdating(true)
       const headers = { 'Content-Type': 'application/json', ...(await getAuthHeader()) }
-
       if (selectedCategory) {
         await axios.put(`${API_URL}/admin/category/${selectedCategory._id}`, formData, { headers })
         showAlert('success', 'Updated', 'Category has been updated successfully')
@@ -380,16 +286,21 @@ export default function AdminCategories() {
   }
 
   const filteredCategories = categories.filter((c) =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const sortedCategories = [...filteredCategories].sort((a, b) => {
+    const at = new Date(a?.createdAt || 0).getTime()
+    const bt = new Date(b?.createdAt || 0).getTime()
+    return sortDir === 'desc' ? bt - at : at - bt
+  })
 
   if (loading && categories.length === 0) {
     return (
       <View style={s.root}>
         <AdminHeader title="Categories" icon="folder-multiple" />
         <View style={s.loader}>
-          <ActivityIndicator size="large" color="#2280b0" />
+          <ActivityIndicator size="large" color={C.accent} />
           <Text style={s.loaderText}>Loading categories...</Text>
         </View>
       </View>
@@ -400,16 +311,8 @@ export default function AdminCategories() {
     <View style={s.root}>
       <AdminHeader title="Categories" icon="folder-multiple" />
 
-      {/* Themed Alert */}
-      <ThemedAlert
-        visible={alertVisible}
-        type={alertType}
-        title={alertTitle}
-        message={alertMessage}
-        onClose={() => setAlertVisible(false)}
-      />
+      <ThemedAlert visible={alertVisible} type={alertType} title={alertTitle} message={alertMessage} onClose={() => setAlertVisible(false)} />
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         visible={deleteConfirmVisible}
         title="Delete Category"
@@ -417,53 +320,59 @@ export default function AdminCategories() {
         destructiveText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}
-        onCancel={() => {
-          setDeleteConfirmVisible(false)
-          setDeleteTargetId(null)
-        }}
+        onCancel={() => { setDeleteConfirmVisible(false); setDeleteTargetId(null) }}
         isLoading={isDeleting}
       />
 
       {/* ── Page Header ── */}
       <View style={s.pageHeader}>
         <View>
-          <Text style={s.pageTitle}>Categories</Text>
-          <Text style={s.pageSubtitle}>Manage product categories</Text>
+          <Text style={s.pageTitle}>Category Management</Text>
+          <Text style={s.pageSubtitle}>Create and organize product categories</Text>
         </View>
-        <TouchableOpacity style={s.refreshBtn} onPress={fetchCategories}>
-          <Feather name="refresh-cw" size={15} color="#2280b0" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity
+            style={s.refreshBtn}
+            onPress={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
+            activeOpacity={0.85}
+          >
+            <Feather name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={15} color={C.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.refreshBtn} onPress={fetchCategories}>
+            <Feather name="refresh-cw" size={15} color={C.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Stats Row ── */}
       <View style={s.statsRow}>
         <View style={s.statCard}>
-          <MaterialCommunityIcons name="folder-multiple" size={20} color="#2280b0" />
+          <MaterialCommunityIcons name="folder-multiple" size={20} color={C.accent} />
           <Text style={s.statNum}>{categories.length}</Text>
           <Text style={s.statLabel}>Total</Text>
         </View>
         <View style={s.statCard}>
-          <Feather name="plus-circle" size={20} color="#4caf50" />
-          <Text style={s.statNum}>{filteredCategories.length}</Text>
+          <Feather name="search" size={20} color={C.mint} />
+          <Text style={[s.statNum, { color: C.mint }]}>{filteredCategories.length}</Text>
           <Text style={s.statLabel}>Found</Text>
         </View>
       </View>
 
       {/* ── Search ── */}
       <View style={[s.searchWrap, searchFocused && s.searchWrapFocused]}>
-        <Feather name="search" size={16} color="rgba(160,174,192,0.6)" style={{ marginRight: 10 }} />
+        <Feather name="search" size={16} color={C.textSub} style={{ marginRight: 10 }} />
         <TextInput
           placeholder="Search categories..."
           style={s.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholderTextColor="rgba(160,174,192,0.35)"
+          placeholderTextColor={C.textDim}
           onFocus={() => setSearchFocused(true)}
           onBlur={() => setSearchFocused(false)}
         />
         {!!searchQuery && (
           <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="x" size={15} color="rgba(160,174,192,0.5)" />
+            <Feather name="x" size={15} color={C.textSub} />
           </TouchableOpacity>
         )}
       </View>
@@ -473,12 +382,8 @@ export default function AdminCategories() {
         <Text style={s.resultsCount}>
           {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
         </Text>
-        <TouchableOpacity
-          style={s.createBtn}
-          onPress={() => openCategoryModal()}
-          activeOpacity={0.8}
-        >
-          <Feather name="plus" size={14} color="#fff" style={{ marginRight: 6 }} />
+        <TouchableOpacity style={s.createBtn} onPress={() => openCategoryModal()} activeOpacity={0.8}>
+          <Feather name="plus" size={14} color={C.text} style={{ marginRight: 6 }} />
           <Text style={s.createBtnText}>New</Text>
         </TouchableOpacity>
       </View>
@@ -487,55 +392,36 @@ export default function AdminCategories() {
       {filteredCategories.length === 0 ? (
         <View style={s.emptyState}>
           <View style={s.emptyIconWrap}>
-            <MaterialCommunityIcons name="folder-open-outline" size={36} color="rgba(160,174,192,0.4)" />
+            <MaterialCommunityIcons name="folder-open-outline" size={36} color={C.textDim} />
           </View>
           <Text style={s.emptyTitle}>No categories found</Text>
-          <Text style={s.emptySubtitle}>
-            {searchQuery ? 'Try a different search' : 'Create your first category'}
-          </Text>
+          <Text style={s.emptySubtitle}>{searchQuery ? 'Try a different search' : 'Create your first category'}</Text>
         </View>
       ) : (
         <FlatList
-          data={filteredCategories}
+          data={sortedCategories}
           keyExtractor={(item) => item._id}
           onRefresh={fetchCategories}
           refreshing={loading}
           contentContainerStyle={{ paddingBottom: 24 }}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={s.card}
-              onPress={() => openCategoryModal(item)}
-              activeOpacity={0.75}
-            >
+            <TouchableOpacity style={s.card} onPress={() => openCategoryModal(item)} activeOpacity={0.75}>
               <View style={s.cardIcon}>
-                <MaterialCommunityIcons name="folder" size={20} color="#2280b0" />
+                <MaterialCommunityIcons name="folder" size={20} color={C.accent} />
               </View>
-
               <View style={s.cardInfo}>
                 <Text style={s.cardName}>{item.name}</Text>
                 {item.description && (
                   <Text style={s.cardDesc} numberOfLines={1}>{item.description}</Text>
                 )}
-                <Text style={s.cardDate}>
-                  {new Date(item.createdAt).toLocaleDateString()}
-                </Text>
+                <Text style={s.cardDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
               </View>
-
               <View style={s.cardActions}>
-                <TouchableOpacity
-                  style={s.actionIcon}
-                  onPress={() => openCategoryModal(item)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Feather name="edit-2" size={14} color="#2280b0" />
+                <TouchableOpacity style={s.actionIcon} onPress={() => openCategoryModal(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="edit-2" size={14} color={C.accent} />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.actionIcon}
-                  onPress={() => handleDeleteCategory(item._id)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="trash-2" size={14} color="#ff6b6b" />
+                <TouchableOpacity style={[s.actionIcon, s.actionIconDanger]} onPress={() => handleDeleteCategory(item._id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.7}>
+                  <Feather name="trash-2" size={14} color={C.danger} />
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -548,20 +434,14 @@ export default function AdminCategories() {
         <View style={s.modalOverlay}>
           <Pressable style={s.modalBackdrop} onPress={closeModal} />
           <View style={s.modalSheet}>
-
             <View style={s.modalHandle} />
-
             <View style={s.modalHeader}>
               <View>
-                <Text style={s.modalTitle}>
-                  {selectedCategory ? 'Edit Category' : 'New Category'}
-                </Text>
-                <Text style={s.modalSubtitle}>
-                  {selectedCategory ? 'Update category details' : 'Create a new product category'}
-                </Text>
+                <Text style={s.modalTitle}>{selectedCategory ? 'Edit Category' : 'New Category'}</Text>
+                <Text style={s.modalSubtitle}>{selectedCategory ? 'Update category details' : 'Create a new product category'}</Text>
               </View>
               <TouchableOpacity onPress={closeModal} style={s.modalCloseBtn}>
-                <Feather name="x" size={18} color="rgba(160,174,192,0.7)" />
+                <Feather name="x" size={18} color={C.textSub} />
               </TouchableOpacity>
             </View>
 
@@ -572,17 +452,16 @@ export default function AdminCategories() {
               <TextInput
                 style={s.input}
                 placeholder="Enter category name"
-                placeholderTextColor="rgba(160,174,192,0.35)"
+                placeholderTextColor={C.textDim}
                 value={formData.name}
                 onChangeText={(text) => setFormData({ ...formData, name: text })}
                 editable={!updating}
               />
-
               <Text style={s.sectionLabel}>Description</Text>
               <TextInput
                 style={[s.input, s.multilineInput]}
                 placeholder="Enter category description (optional)"
-                placeholderTextColor="rgba(160,174,192,0.35)"
+                placeholderTextColor={C.textDim}
                 value={formData.description}
                 onChangeText={(text) => setFormData({ ...formData, description: text })}
                 multiline
@@ -596,24 +475,17 @@ export default function AdminCategories() {
               <TouchableOpacity style={s.cancelBtn} onPress={closeModal} disabled={updating}>
                 <Text style={s.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.saveBtn, updating && s.saveBtnDisabled]}
-                onPress={handleSaveCategory}
-                disabled={updating}
-              >
+              <TouchableOpacity style={[s.saveBtn, updating && s.saveBtnDisabled]} onPress={handleSaveCategory} disabled={updating}>
                 {updating ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={C.text} />
                 ) : (
                   <>
-                    <Feather name="save" size={15} color="#fff" />
-                    <Text style={s.saveBtnText}>
-                      {selectedCategory ? ' Update' : ' Create'}
-                    </Text>
+                    <Feather name="save" size={15} color={C.text} />
+                    <Text style={s.saveBtnText}>{selectedCategory ? ' Update' : ' Create'}</Text>
                   </>
                 )}
               </TouchableOpacity>
             </View>
-
           </View>
         </View>
       </Modal>
@@ -624,289 +496,62 @@ export default function AdminCategories() {
 
 // ─── STYLES ──────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  loaderText: {
-    color: 'rgba(160,174,192,0.6)',
-    fontSize: 14,
-  },
+  root:       { flex: 1, backgroundColor: C.bg },
+  loader:     { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  loaderText: { color: C.textSub, fontSize: 14 },
 
-  // ── Page Header ──
-  pageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingTop: 20,
-    paddingBottom: 14,
-  },
-  pageTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  pageSubtitle: {
-    fontSize: 12,
-    color: 'rgba(160,174,192,0.6)',
-  },
-  refreshBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: 'rgba(34,128,176,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(34,128,176,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  pageHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 14 },
+  pageTitle:   { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: 0.3, marginBottom: 2 },
+  pageSubtitle:{ fontSize: 12, color: C.textSub },
+  refreshBtn:  { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.12)', borderWidth: 1, borderColor: 'rgba(128,0,7,0.25)', alignItems: 'center', justifyContent: 'center' },
 
-  // ── Stats ──
-  statsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 18,
-    gap: 10,
-    marginBottom: 16,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 14,
-    padding: 12,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statNum:   { fontSize: 18, fontWeight: '800', color: '#fff' },
-  statLabel: { fontSize: 10, color: 'rgba(160,174,192,0.6)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  statsRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 10, marginBottom: 16 },
+  statCard: { flex: 1, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, alignItems: 'center', gap: 4 },
+  statNum:  { fontSize: 18, fontWeight: '800', color: C.accent },
+  statLabel:{ fontSize: 10, color: C.textSub, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  // ── Search ──
-  searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 18,
-    marginBottom: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-    borderRadius: 13,
-    paddingHorizontal: 14,
-    height: 48,
-  },
-  searchWrapFocused: {
-    borderColor: '#2280b0',
-    backgroundColor: 'rgba(34,128,176,0.08)',
-  },
-  searchInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 14,
-    height: '100%',
-  },
+  searchWrap:        { flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, marginBottom: 10, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 13, paddingHorizontal: 14, height: 48 },
+  searchWrapFocused: { borderColor: C.accent, backgroundColor: 'rgba(128,0,7,0.08)' },
+  searchInput:       { flex: 1, color: C.text, fontSize: 14, height: '100%' },
 
-  // ── Action Bar ──
-  actionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    marginBottom: 12,
-  },
-  resultsCount: {
-    fontSize: 11,
-    color: 'rgba(160,174,192,0.45)',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  createBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    backgroundColor: '#4caf50',
-    borderRadius: 12,
-  },
-  createBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  actionBar:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, marginBottom: 12 },
+  resultsCount: { fontSize: 11, color: C.textDim, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 },
+  createBtn:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.accent, borderRadius: 12, shadowColor: C.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
+  createBtnText:{ color: C.text, fontSize: 13, fontWeight: '700' },
 
-  // ── Empty ──
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 80,
-    gap: 10,
-  },
-  emptyIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  emptyTitle:    { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.6)' },
-  emptySubtitle: { fontSize: 13, color: 'rgba(160,174,192,0.4)' },
+  emptyState:   { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 80, gap: 10 },
+  emptyIconWrap:{ width: 72, height: 72, borderRadius: 22, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  emptyTitle:   { fontSize: 16, fontWeight: '700', color: C.textSub },
+  emptySubtitle:{ fontSize: 13, color: C.textDim },
 
-  // ── Category Card ──
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginHorizontal: 18,
-    marginBottom: 10,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-  },
-  cardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(34,128,176,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  cardInfo:  { flex: 1 },
-  cardName:  { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 3 },
-  cardDesc:  { fontSize: 12, color: 'rgba(160,174,192,0.55)', marginBottom: 5 },
-  cardDate:  { fontSize: 11, color: 'rgba(160,174,192,0.4)' },
+  card:        { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, marginHorizontal: 18, marginBottom: 10, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
+  cardIcon:    { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(128,0,7,0.15)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  cardInfo:    { flex: 1 },
+  cardName:    { fontSize: 15, fontWeight: '700', color: C.text, marginBottom: 3 },
+  cardDesc:    { fontSize: 12, color: C.textSub, marginBottom: 5 },
+  cardDate:    { fontSize: 11, color: C.textDim },
   cardActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  actionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  actionIcon:  { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(128,0,7,0.1)', alignItems: 'center', justifyContent: 'center' },
+  actionIconDanger: { backgroundColor: 'rgba(255,90,110,0.08)' },
 
-  // ── Modal ──
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-  },
-  modalSheet: {
-    backgroundColor: '#16213e',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-    paddingTop: 12,
-    maxHeight: '88%',
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  modalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignSelf: 'center',
-    marginBottom: 18,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  modalTitle:    { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 2 },
-  modalSubtitle: { fontSize: 12, color: 'rgba(160,174,192,0.6)' },
-  modalCloseBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    marginBottom: 20,
-  },
+  modalOverlay:  { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },
+  modalSheet:    { backgroundColor: C.bgLayer, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: 20, paddingBottom: 32, paddingTop: 12, maxHeight: '88%', borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: C.border },
+  modalHandle:   { width: 36, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 18 },
+  modalHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  modalTitle:    { fontSize: 20, fontWeight: '800', color: C.text, marginBottom: 2 },
+  modalSubtitle: { fontSize: 12, color: C.textSub },
+  modalCloseBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
+  modalDivider:  { height: 1, backgroundColor: C.border, marginBottom: 20 },
 
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: 'rgba(160,174,192,0.7)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
+  sectionLabel:  { fontSize: 11, fontWeight: '700', color: C.textSub, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
+  input:         { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, color: C.text, fontSize: 14, marginBottom: 20 },
+  multilineInput:{ minHeight: 100, textAlignVertical: 'top', paddingTop: 13 },
 
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    color: '#fff',
-    fontSize: 14,
-    marginBottom: 20,
-  },
-  multilineInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-    paddingTop: 13,
-  },
-
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  cancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 13,
-    paddingVertical: 15,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  cancelBtnText: { fontSize: 14, fontWeight: '700', color: 'rgba(160,174,192,0.7)' },
-  saveBtn: {
-    flex: 1,
-    backgroundColor: '#2280b0',
-    borderRadius: 13,
-    paddingVertical: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#2280b0',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  modalActions:   { flexDirection: 'row', gap: 12, marginTop: 8 },
+  cancelBtn:      { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 13, paddingVertical: 15, alignItems: 'center', backgroundColor: 'rgba(249,249,249,0.04)' },
+  cancelBtnText:  { fontSize: 14, fontWeight: '700', color: C.textSub },
+  saveBtn:        { flex: 1, backgroundColor: C.accent, borderRadius: 13, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: C.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8 },
+  saveBtnDisabled:{ opacity: 0.6 },
+  saveBtnText:    { fontSize: 14, fontWeight: '700', color: C.text },
 })

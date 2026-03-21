@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import axios from 'axios';
 import Constants from 'expo-constants';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, Stack } from 'expo-router';
 
 import { getItem } from '@/utils/storage';
 
@@ -38,26 +38,26 @@ interface VoucherItem {
 
 /* ── Design tokens ── */
 const C = {
-  bg:         '#0E1117',
-  bgLayer:    '#12151F',
-  surface:    '#1A1E2E',
-  border:     '#1F2540',
-  accent:     '#00C2C7',
-  accentText: '#00E5EB',
-  mint:       '#3DFFC0',
-  text:       '#E8EDF5',
-  textSub:    '#7A859E',
-  textDim:    '#2B3247',
+  bg:         '#1a0204',
+  bgLayer:    '#200305',
+  surface:    '#2a0508',
+  border:     '#3d0a0d',
+  accent:     '#800007',
+  accentText: '#c0000a',
+  mint:       '#996250',
+  text:       '#F9F9F9',
+  textSub:    '#996250',
+  textDim:    '#4a2020',
   danger:     '#FF5A6E',
   dangerBg:   'rgba(255,90,110,0.10)',
   warning:    '#FFB347',
   warningBg:  'rgba(255,179,71,0.12)',
-  success:    '#3DFFC0',
-  successBg:  'rgba(61,255,192,0.10)',
-  info:       '#6EA8FE',
-  infoBg:     'rgba(110,168,254,0.12)',
-  purple:     '#A78BFA',
-  purpleBg:   'rgba(167,139,250,0.12)',
+  success:    '#996250',
+  successBg:  'rgba(153,98,80,0.12)',
+  info:       '#c0000a',
+  infoBg:     'rgba(192,0,10,0.10)',
+  purple:     '#c0000a',
+  purpleBg:   'rgba(192,0,10,0.10)',
 } as const;
 
 /* ── Category config ── */
@@ -75,14 +75,14 @@ const MONTHS = [
   'July','August','September','October','November','December',
 ];
 
-const CURRENT_MONTH           = new Date().getMonth() + 1; // 3 = March
-const CLAIMABLE_MONTHLY_MONTH = CURRENT_MONTH + 1;         // 4 = April
+const CURRENT_MONTH           = new Date().getMonth() + 1;
+const CLAIMABLE_MONTHLY_MONTH = CURRENT_MONTH + 1;
 
 function getMonthlyLockReason(month?: number | null): string | null {
   if (month === undefined || month === null) return 'Not yet available';
   if (month < CURRENT_MONTH)                return 'Expired';
   if (month === CURRENT_MONTH)              return 'This month has passed';
-  if (month === CLAIMABLE_MONTHLY_MONTH)    return null; // claimable
+  if (month === CLAIMABLE_MONTHLY_MONTH)    return null;
   return 'Not yet available';
 }
 
@@ -104,13 +104,11 @@ if (!API_URL.endsWith('/api/v1')) API_URL = `${API_URL}/api/v1`;
 
 /* ==============================================
    USED VOUCHER CARD
-   Compact read-only card shown in the Used tab
 ============================================== */
 const UsedVoucherCard = ({ voucher }: { voucher: VoucherItem }) => {
   const catCfg = CATEGORY_CONFIG[voucher.category];
   return (
     <View style={styles.usedCard}>
-      {/* Left stamp panel */}
       <View style={styles.usedCardLeft}>
         {voucher.category === 'monthly-voucher' && voucher.month && (
           <Text style={styles.monthLabel}>{MONTHS[voucher.month - 1]}</Text>
@@ -121,7 +119,6 @@ const UsedVoucherCard = ({ voucher }: { voucher: VoucherItem }) => {
         </View>
       </View>
 
-      {/* Right content */}
       <View style={styles.cardRight}>
         <View style={styles.badgeRow}>
           <View style={[styles.badgeChip, { backgroundColor: catCfg.bg, borderColor: catCfg.color }]}>
@@ -131,28 +128,21 @@ const UsedVoucherCard = ({ voucher }: { voucher: VoucherItem }) => {
             <Text style={styles.rightTagInline} numberOfLines={1}>{voucher.label}</Text>
           )}
         </View>
-
         <Text style={[styles.description, { color: C.textSub }]} numberOfLines={2}>
           {voucher.description}
         </Text>
-
         <View style={styles.innerDivider} />
-
-        {/* Code — struck through feel via opacity */}
         <Text style={styles.usedCodeValue}>{voucher.code}</Text>
-
-        {/* Status row */}
         <View style={styles.cardBottom}>
           <View style={styles.statusRow}>
             <Text style={{ fontSize: 11 }}>✦</Text>
-            <Text style={[styles.statusLabel, { color: C.purple }]}>Fully Redeemed</Text>
+            <Text style={[styles.statusLabel, { color: C.accent }]}>Fully Redeemed</Text>
           </View>
         </View>
       </View>
 
-      {/* Purple corner accent */}
-      <View style={[styles.corner, styles.cornerTL, { backgroundColor: C.purple }]} />
-      <View style={[styles.corner, styles.cornerBR, { backgroundColor: C.purple }]} />
+      <View style={[styles.corner, styles.cornerTL, { backgroundColor: C.accent }]} />
+      <View style={[styles.corner, styles.cornerBR, { backgroundColor: C.accent }]} />
     </View>
   );
 };
@@ -161,11 +151,7 @@ const UsedVoucherCard = ({ voucher }: { voucher: VoucherItem }) => {
    VOUCHER CARD (active/locked)
 ============================================== */
 const VoucherCard = ({
-  voucher,
-  claimed,
-  redeemed,
-  isClaiming,
-  onClaim,
+  voucher, claimed, redeemed, isClaiming, onClaim,
 }: {
   voucher: VoucherItem;
   claimed: boolean;
@@ -180,13 +166,11 @@ const VoucherCard = ({
   const pressOut = () => Animated.spring(scale, { toValue: 1,     useNativeDriver: true }).start();
 
   const monthlyLockReason =
-    voucher.category === 'monthly-voucher'
-      ? getMonthlyLockReason(voucher.month)
-      : null;
+    voucher.category === 'monthly-voucher' ? getMonthlyLockReason(voucher.month) : null;
   const isLocked    = !!monthlyLockReason;
   const btnDisabled = claimed || redeemed || isClaiming || isLocked;
 
-  const statusColor = redeemed ? C.purple : claimed ? C.mint : isLocked ? C.textSub : C.warning;
+  const statusColor = redeemed ? C.accent : claimed ? C.mint : isLocked ? C.textSub : C.warning;
   const statusLabel = redeemed ? 'Redeemed' : claimed ? 'Claimed' : isLocked ? monthlyLockReason! : 'Not Claimed';
   const statusIcon  = redeemed ? '✦' : claimed ? '✓' : isLocked ? '🔒' : '◌';
   const btnLabel    = isClaiming ? '' : redeemed ? 'Redeemed' : claimed ? 'Claimed' : isLocked ? 'Locked' : 'Claim';
@@ -197,9 +181,8 @@ const VoucherCard = ({
         onPressIn={pressIn}
         onPressOut={pressOut}
         style={[styles.card, isLocked && styles.cardLocked]}
-        android_ripple={{ color: 'rgba(0,194,199,0.06)' }}
+        android_ripple={{ color: 'rgba(128,0,7,0.06)' }}
       >
-        {/* Left value panel */}
         <View style={[styles.cardLeft, { borderRightColor: C.border }]}>
           {voucher.category === 'monthly-voucher' && voucher.month && (
             <Text style={styles.monthLabel}>{MONTHS[voucher.month - 1]}</Text>
@@ -216,7 +199,6 @@ const VoucherCard = ({
           )}
         </View>
 
-        {/* Right content panel */}
         <View style={styles.cardRight}>
           <View style={styles.badgeRow}>
             <View style={[styles.badgeChip, { backgroundColor: catCfg.bg, borderColor: catCfg.color }]}>
@@ -230,11 +212,8 @@ const VoucherCard = ({
           <Text style={[styles.description, isLocked && { color: C.textDim }]} numberOfLines={2}>
             {voucher.description}
           </Text>
-
           <Text style={styles.validity}>{voucher.validText}</Text>
-
           <View style={styles.innerDivider} />
-
           <Text style={[styles.codeValue, isLocked && { color: C.textSub }]}>
             {voucher.code}
           </Text>
@@ -251,7 +230,7 @@ const VoucherCard = ({
               android_ripple={{ color: 'rgba(0,0,0,0.15)' }}
             >
               {isClaiming ? (
-                <ActivityIndicator size="small" color={C.bg} />
+                <ActivityIndicator size="small" color={C.text} />
               ) : (
                 <Text style={[styles.claimBtnText, btnDisabled && styles.claimBtnTextDisabled]}>
                   {btnLabel}
@@ -276,12 +255,7 @@ const VoucherCard = ({
    CATEGORY SECTION
 ============================================== */
 const CategorySection = ({
-  category,
-  vouchers,
-  claimedIds,
-  redeemedIds,
-  claimingId,
-  onClaim,
+  category, vouchers, claimedIds, redeemedIds, claimingId, onClaim,
 }: {
   category: VoucherCategory;
   vouchers: VoucherItem[];
@@ -315,7 +289,6 @@ const CategorySection = ({
           </View>
         )}
       </View>
-
       {vouchers.map(v => (
         <VoucherCard
           key={v._id}
@@ -333,13 +306,7 @@ const CategorySection = ({
 /* ==============================================
    USED TAB VIEW
 ============================================== */
-const UsedTabView = ({
-  vouchers,
-  redeemedIds,
-}: {
-  vouchers: VoucherItem[];
-  redeemedIds: Set<string>;
-}) => {
+const UsedTabView = ({ vouchers, redeemedIds }: { vouchers: VoucherItem[]; redeemedIds: Set<string> }) => {
   const usedVouchers = vouchers.filter(v => redeemedIds.has(v._id));
 
   if (usedVouchers.length === 0) {
@@ -347,14 +314,11 @@ const UsedTabView = ({
       <View style={styles.emptyBox}>
         <Text style={{ fontSize: 48, marginBottom: 12 }}>🎫</Text>
         <Text style={styles.emptyTitle}>No used vouchers yet</Text>
-        <Text style={styles.emptyText}>
-          Vouchers you've redeemed at checkout will appear here.
-        </Text>
+        <Text style={styles.emptyText}>Vouchers you've redeemed at checkout will appear here.</Text>
       </View>
     );
   }
 
-  // Group used vouchers by category
   const grouped: Partial<Record<VoucherCategory, VoucherItem[]>> = {};
   for (const v of usedVouchers) {
     if (!grouped[v.category]) grouped[v.category] = [];
@@ -365,7 +329,6 @@ const UsedTabView = ({
 
   return (
     <>
-      {/* Summary banner */}
       <View style={styles.usedBanner}>
         <Text style={{ fontSize: 20 }}>✦</Text>
         <View style={{ flex: 1 }}>
@@ -377,7 +340,6 @@ const UsedTabView = ({
           </Text>
         </View>
       </View>
-
       {categoryOrder.map(cat => {
         const items = grouped[cat];
         if (!items?.length) return null;
@@ -393,9 +355,7 @@ const UsedTabView = ({
                 </View>
               </View>
             </View>
-            {items.map(v => (
-              <UsedVoucherCard key={v._id} voucher={v} />
-            ))}
+            {items.map(v => <UsedVoucherCard key={v._id} voucher={v} />)}
           </View>
         );
       })}
@@ -475,7 +435,6 @@ export default function UserVouchersScreen() {
     }
   };
 
-  /* Grouped data for category tabs */
   const grouped = useMemo(() => {
     const base = activeTab === 'all' || activeTab === 'used'
       ? vouchers
@@ -516,28 +475,28 @@ export default function UserVouchersScreen() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
       {/* HEADER */}
       <Animated.View style={[styles.header, { opacity: headerFade }]}>
-        <Text style={styles.eyebrow}>ROMEROS</Text>
+        <Text style={styles.eyebrow}>◈ DRIFT N' DASH</Text>
         <Text style={styles.title}>My Vouchers</Text>
         <Text style={styles.subtitle}>Claim exclusive deals and save on your next order.</Text>
 
-        {/* Summary pills */}
         {!loading && (
           <View style={styles.pillRow}>
             {[
-              { label: 'Available', value: stats.available, accent: true },
-              { label: 'Claimed',   value: stats.claimed   },
-              { label: 'Used',      value: stats.redeemed, purple: true },
-              { label: 'Total',     value: stats.total     },
+              { label: 'Available', value: stats.available, accent: true  },
+              { label: 'Claimed',   value: stats.claimed                  },
+              { label: 'Used',      value: stats.redeemed,  purple: true  },
+              { label: 'Total',     value: stats.total                    },
             ].map(p => (
               <View key={p.label} style={styles.pill}>
                 <Text style={[
                   styles.pillValue,
                   p.accent && { color: C.mint },
-                  p.purple && { color: C.purple },
+                  p.purple && { color: C.accent },
                 ]}>
                   {p.value}
                 </Text>
@@ -547,7 +506,6 @@ export default function UserVouchersScreen() {
           </View>
         )}
 
-        {/* Tab bar */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -561,18 +519,14 @@ export default function UserVouchersScreen() {
             return (
               <TouchableOpacity
                 key={tab.key}
-                style={[
-                  styles.tab,
-                  isActive && styles.tabActive,
-                  isActive && isUsed && styles.tabActiveUsed,
-                ]}
+                style={[styles.tab, isActive && styles.tabActive, isActive && isUsed && styles.tabActiveUsed]}
                 onPress={() => setActiveTab(tab.key)}
               >
                 <Text style={{ fontSize: 13 }}>{tab.icon}</Text>
                 <Text style={[
                   styles.tabText,
                   isActive && styles.tabTextActive,
-                  isActive && isUsed && { color: C.purple },
+                  isActive && isUsed && { color: C.accentText },
                 ]}>
                   {tab.label}
                 </Text>
@@ -580,7 +534,7 @@ export default function UserVouchersScreen() {
                   <View style={[
                     styles.tabBadge,
                     isActive && styles.tabBadgeActive,
-                    isActive && isUsed && { backgroundColor: C.purple, borderColor: C.purple },
+                    isActive && isUsed && { backgroundColor: C.accent, borderColor: C.accent },
                   ]}>
                     <Text style={[styles.tabBadgeTxt, isActive && styles.tabBadgeTxtActive]}>
                       {count}
@@ -612,12 +566,10 @@ export default function UserVouchersScreen() {
             />
           }
         >
-          {/* Used tab */}
           {activeTab === 'used' && (
             <UsedTabView vouchers={vouchers} redeemedIds={redeemedIds} />
           )}
 
-          {/* All / category tabs */}
           {activeTab !== 'used' && (
             <>
               {showMonthlyNote && (
@@ -651,9 +603,7 @@ export default function UserVouchersScreen() {
                 <View style={styles.emptyBox}>
                   <Text style={{ fontSize: 48, marginBottom: 12 }}>🏷️</Text>
                   <Text style={styles.emptyTitle}>No vouchers yet</Text>
-                  <Text style={styles.emptyText}>
-                    Check back soon — exclusive deals are on their way.
-                  </Text>
+                  <Text style={styles.emptyText}>Check back soon — exclusive deals are on their way.</Text>
                 </View>
               )}
             </>
@@ -672,7 +622,6 @@ const styles = StyleSheet.create({
   center:      { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
   loadingText: { color: C.textSub, fontSize: 14 },
 
-  /* Header */
   header: {
     backgroundColor: C.bgLayer,
     paddingTop: Platform.OS === 'ios' ? 60 : 44,
@@ -685,289 +634,84 @@ const styles = StyleSheet.create({
   title:    { color: C.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   subtitle: { color: C.textSub, fontSize: 13, marginTop: 4, marginBottom: 14, lineHeight: 18 },
 
-  /* Pills */
   pillRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  pill: {
-    flex: 1,
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: 10,
-    alignItems: 'center',
-  },
+  pill:    { flex: 1, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 10, alignItems: 'center' },
   pillValue: { color: C.accent, fontSize: 15, fontWeight: '800' },
   pillLabel: { color: C.textSub, fontSize: 9, marginTop: 3, textAlign: 'center' },
 
-  /* Tab bar */
   tabBar:        { marginHorizontal: -20 },
   tabBarContent: { paddingHorizontal: 20, gap: 4 },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 2.5,
-    borderBottomColor: 'transparent',
-  },
-  tabActive:         { borderBottomColor: C.accent },
-  tabActiveUsed:     { borderBottomColor: C.purple },
-  tabText:           { color: C.textSub, fontSize: 13, fontWeight: '600' },
-  tabTextActive:     { color: C.accentText, fontWeight: '700' },
-  tabBadge: {
-    minWidth: 18, height: 18, borderRadius: 9,
-    backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.border,
-    justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: 4,
-  },
+  tab:           { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 2.5, borderBottomColor: 'transparent' },
+  tabActive:     { borderBottomColor: C.accent },
+  tabActiveUsed: { borderBottomColor: C.accentText },
+  tabText:       { color: C.textSub, fontSize: 13, fontWeight: '600' },
+  tabTextActive: { color: C.accentText, fontWeight: '700' },
+  tabBadge:      { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
   tabBadgeActive:    { backgroundColor: C.accent, borderColor: C.accent },
   tabBadgeTxt:       { color: C.textSub, fontSize: 9, fontWeight: '800' },
-  tabBadgeTxtActive: { color: C.bg },
+  tabBadgeTxtActive: { color: C.text },
 
-  /* List */
-  listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 60,
-    gap: 4,
-  },
+  listContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60, gap: 4 },
 
-  /* Section */
-  section: { marginBottom: 20 },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
+  section:           { marginBottom: 20 },
+  sectionHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle:      { color: C.text, fontSize: 16, fontWeight: '800' },
-  countBadge: {
-    backgroundColor: C.surface,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.border,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  countBadgeText: { color: C.textSub, fontSize: 11, fontWeight: '700' },
-  claimableTag: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  claimableTagText: { fontSize: 11, fontWeight: '700' },
+  countBadge:        { backgroundColor: C.surface, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 7, paddingVertical: 2 },
+  countBadgeText:    { color: C.textSub, fontSize: 11, fontWeight: '700' },
+  claimableTag:      { borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
+  claimableTagText:  { fontSize: 11, fontWeight: '700' },
 
-  /* Active voucher card */
-  card: {
-    flexDirection: 'row',
-    backgroundColor: C.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: C.border,
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
+  card:     { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 10 },
   cardLocked: { opacity: 0.52 },
 
-  /* Used voucher card */
-  usedCard: {
-    flexDirection: 'row',
-    backgroundColor: C.bgLayer,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.25)',
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  usedCardLeft: {
-    width: 88,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRightWidth: 1,
-    borderStyle: 'dashed',
-    borderRightColor: 'rgba(167,139,250,0.25)',
-    gap: 6,
-  },
-  usedLeftValue: {
-    color: C.textSub,
-    fontSize: 19,
-    fontWeight: '900',
-    textAlign: 'center',
-    lineHeight: 23,
-  },
-  usedStamp: {
-    borderWidth: 1.5,
-    borderColor: C.purple,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    transform: [{ rotate: '-12deg' }],
-  },
-  usedStampText: {
-    color: C.purple,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  usedCodeValue: {
-    color: C.textSub,
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginBottom: 4,
-    textDecorationLine: 'line-through',
-    textDecorationColor: C.textSub,
-  },
+  usedCard:     { flexDirection: 'row', backgroundColor: C.bgLayer, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(128,0,7,0.3)', overflow: 'hidden', marginBottom: 10 },
+  usedCardLeft: { width: 88, justifyContent: 'center', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 8, borderRightWidth: 1, borderStyle: 'dashed', borderRightColor: 'rgba(128,0,7,0.25)', gap: 6 },
+  usedLeftValue:{ color: C.textSub, fontSize: 19, fontWeight: '900', textAlign: 'center', lineHeight: 23 },
+  usedStamp:    { borderWidth: 1.5, borderColor: C.accent, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, transform: [{ rotate: '-12deg' }] },
+  usedStampText:{ color: C.accent, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  usedCodeValue:{ color: C.textSub, fontSize: 14, fontWeight: '900', letterSpacing: 2, marginBottom: 4, textDecorationLine: 'line-through', textDecorationColor: C.textSub },
 
-  /* Used banner */
-  usedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: C.purpleBg,
-    borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.35)',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-  },
-  usedBannerTitle: { color: C.purple, fontSize: 14, fontWeight: '800' },
+  usedBanner:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.purpleBg, borderWidth: 1, borderColor: 'rgba(128,0,7,0.35)', borderRadius: 14, padding: 14, marginBottom: 16 },
+  usedBannerTitle: { color: C.accent, fontSize: 14, fontWeight: '800' },
   usedBannerSub:   { color: C.textSub, fontSize: 12, marginTop: 2, lineHeight: 16 },
 
-  /* Left panel (shared) */
-  cardLeft: {
-    width: 88,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRightWidth: 1,
-    borderStyle: 'dashed',
-    gap: 4,
-  },
-  monthLabel: {
-    color: C.textSub,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  leftValue: {
-    color: C.mint,
-    fontSize: 19,
-    fontWeight: '900',
-    textAlign: 'center',
-    lineHeight: 23,
-  },
-  multiTag: {
-    backgroundColor: 'rgba(0,194,199,0.12)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.accent,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    marginTop: 2,
-  },
+  cardLeft:   { width: 88, justifyContent: 'center', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 8, borderRightWidth: 1, borderStyle: 'dashed', gap: 4 },
+  monthLabel: { color: C.textSub, fontSize: 9, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2, textAlign: 'center' },
+  leftValue:  { color: C.mint, fontSize: 19, fontWeight: '900', textAlign: 'center', lineHeight: 23 },
+  multiTag:   { backgroundColor: 'rgba(128,0,7,0.12)', borderRadius: 8, borderWidth: 1, borderColor: C.accent, paddingHorizontal: 5, paddingVertical: 2, marginTop: 2 },
   multiTagText: { color: C.accentText, fontSize: 10, fontWeight: '800' },
 
-  /* Right panel (shared) */
-  cardRight: {
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    gap: 3,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 3,
-    flexWrap: 'wrap',
-  },
-  badgeChip: {
-    borderRadius: 6,
-    borderWidth: 1,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
+  cardRight:      { flex: 1, paddingHorizontal: 12, paddingVertical: 12, gap: 3 },
+  badgeRow:       { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' },
+  badgeChip:      { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 3 },
   badgeChipText:  { fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
   rightTagInline: { color: C.textSub, fontSize: 11, flexShrink: 1 },
   description:    { color: C.text, fontSize: 12, lineHeight: 17 },
   validity:       { color: C.textSub, fontSize: 10, marginTop: 2 },
 
-  innerDivider: {
-    height: 1,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: C.border,
-    marginVertical: 8,
-  },
+  innerDivider: { height: 1, borderStyle: 'dashed', borderWidth: 1, borderColor: C.border, marginVertical: 8 },
 
-  codeValue: {
-    color: C.accentText,
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
+  codeValue: { color: C.accentText, fontSize: 14, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
 
-  cardBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginTop: 2,
-  },
+  cardBottom:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 },
   statusRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
   statusLabel: { fontSize: 11, fontWeight: '700', flexShrink: 1 },
 
-  claimBtn: {
-    backgroundColor: C.accent,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 8,
-    minWidth: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  claimBtnDisabled: {
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  claimBtnText:         { color: C.bg, fontSize: 11, fontWeight: '800' },
+  claimBtn:             { backgroundColor: C.accent, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, minWidth: 60, alignItems: 'center', justifyContent: 'center', shadowColor: C.accent, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 4 },
+  claimBtnDisabled:     { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, shadowOpacity: 0, elevation: 0 },
+  claimBtnText:         { color: C.text, fontSize: 11, fontWeight: '800' },
   claimBtnTextDisabled: { color: C.textSub, fontSize: 10 },
 
-  /* Corner accents */
   corner:   { position: 'absolute', backgroundColor: C.accent, opacity: 0.4 },
   cornerTL: { top: 0, left: 0, width: 14, height: 1.5 },
   cornerBR: { bottom: 0, right: 0, width: 14, height: 1.5 },
 
-  /* Empty */
   emptyBox:  { marginTop: 40, alignItems: 'center', gap: 8, paddingHorizontal: 20 },
   emptyTitle:{ color: C.text, fontSize: 18, fontWeight: '700' },
   emptyText: { color: C.textSub, textAlign: 'center', lineHeight: 20, fontSize: 13 },
 
-  /* Note */
-  noteBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: C.successBg,
-    borderWidth: 1,
-    borderColor: C.mint,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
+  noteBox:  { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: C.successBg, borderWidth: 1, borderColor: C.mint, borderRadius: 12, padding: 12, marginBottom: 16 },
   noteIcon: { color: C.mint, fontSize: 12, fontWeight: '800', marginTop: 1 },
   noteText: { color: C.textSub, fontSize: 12, lineHeight: 18, flex: 1 },
 });

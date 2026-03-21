@@ -21,6 +21,23 @@ import { registerFirebasePushToken } from '@/utils/notifications';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import Svg, { Path, Rect } from 'react-native-svg';
 
+import Constants from 'expo-constants';
+import { auth } from '@/utils/firebase';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import * as WebBrowser from 'expo-web-browser';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_AUTH_ENABLED =
+  String(process.env.EXPO_PUBLIC_ENABLE_GOOGLE_AUTH || '').toLowerCase() === 'true';
+
+const IS_EXPO_GO =
+  (Constants as any)?.executionEnvironment === 'storeClient' ||
+  (Constants as any)?.appOwnership === 'expo';
+
+const CAN_USE_GOOGLE_AUTH = GOOGLE_AUTH_ENABLED && !IS_EXPO_GO;
+
 const API_URL =
   process.env.NGROK_URL ||
   process.env.EXPO_PUBLIC_API_URL ||
@@ -36,32 +53,95 @@ const GoogleLogo = () => (
   </Svg>
 );
 
-// ─── Robot SVG Icon ───────────────────────────────────────────
-const RobotIcon = () => (
-  <Svg width={40} height={40} viewBox="0 0 64 64" fill="none">
-    <Path d="M32 4 L32 12" stroke="#a0aec0" strokeWidth="2" strokeLinecap="round"/>
-    <Rect x="29" y="2" width="6" height="6" rx="3" fill="#ffca28"/>
-    <Rect x="12" y="12" width="40" height="22" rx="6" fill="#2280b0"/>
-    <Rect x="18" y="19" width="10" height="8" rx="3" fill="#1a1a2e"/>
-    <Rect x="36" y="19" width="10" height="8" rx="3" fill="#1a1a2e"/>
-    <Rect x="20" y="21" width="4" height="4" rx="2" fill="#4caf50"/>
-    <Rect x="38" y="21" width="4" height="4" rx="2" fill="#4caf50"/>
-    <Rect x="19" y="30" width="26" height="4" rx="2" fill="#16213e"/>
-    <Rect x="21" y="31" width="4" height="2" rx="1" fill="#4caf50"/>
-    <Rect x="27" y="31" width="4" height="2" rx="1" fill="#4caf50"/>
-    <Rect x="33" y="31" width="4" height="2" rx="1" fill="#ffca28"/>
-    <Rect x="39" y="31" width="4" height="2" rx="1" fill="#4caf50"/>
-    <Rect x="28" y="34" width="8" height="4" rx="2" fill="#16213e"/>
-    <Rect x="10" y="38" width="44" height="20" rx="5" fill="#2280b0"/>
-    <Rect x="20" y="42" width="24" height="12" rx="3" fill="#16213e"/>
-    <Rect x="24" y="45" width="6" height="6" rx="3" fill="#2280b0"/>
-    <Rect x="26" y="47" width="2" height="2" rx="1" fill="#4caf50"/>
-    <Rect x="34" y="45" width="4" height="3" rx="1.5" fill="#ffca28"/>
-    <Rect x="34" y="50" width="4" height="3" rx="1.5" fill="#2280b0" opacity="0.6"/>
-    <Rect x="2"  y="39" width="8" height="14" rx="4" fill="#16213e"/>
-    <Rect x="54" y="39" width="8" height="14" rx="4" fill="#16213e"/>
-    <Rect x="14" y="57" width="14" height="6" rx="3" fill="#16213e"/>
-    <Rect x="36" y="57" width="14" height="6" rx="3" fill="#16213e"/>
+// ─── Car Logo SVG (side profile silhouette) ───────────────────
+const CarIcon = () => (
+  <Svg width={48} height={36} viewBox="0 0 120 70" fill="none">
+    {/* ── Main body lower chassis ── */}
+    <Path
+      d="M6 46 Q6 54 14 54 L106 54 Q114 54 114 46 L114 40 L6 40 Z"
+      fill="#800007"
+    />
+    {/* ── Cabin upper silhouette ── */}
+    <Path
+      d="M28 40 Q32 22 42 16 Q52 10 60 10 Q72 10 82 16 Q90 22 94 40 Z"
+      fill="#800007"
+    />
+    {/* ── Windshield (front) ── */}
+    <Path
+      d="M76 40 Q80 26 86 20 Q90 16 93 18 L94 40 Z"
+      fill="#3d0003"
+      opacity="0.85"
+    />
+    {/* ── Rear window ── */}
+    <Path
+      d="M28 40 Q30 26 36 19 Q40 14 44 14 Q48 12 52 11 L58 11 Q56 20 54 40 Z"
+      fill="#3d0003"
+      opacity="0.85"
+    />
+    {/* ── Side window (middle) ── */}
+    <Path
+      d="M56 40 Q57 18 62 11 Q70 10 78 14 Q82 22 80 40 Z"
+      fill="#3d0003"
+      opacity="0.7"
+    />
+    {/* ── Highlight line along roofline ── */}
+    <Path
+      d="M42 16 Q60 8 82 16"
+      stroke="#996250"
+      strokeWidth="1.5"
+      fill="none"
+      strokeLinecap="round"
+      opacity="0.8"
+    />
+    {/* ── Body crease / side line ── */}
+    <Path
+      d="M10 43 Q60 39 110 43"
+      stroke="#996250"
+      strokeWidth="1"
+      fill="none"
+      strokeLinecap="round"
+      opacity="0.5"
+    />
+    {/* ── Front bumper lip ── */}
+    <Path
+      d="M100 54 Q114 54 116 50 Q117 47 114 46 L114 54 Z"
+      fill="#3d0003"
+    />
+    {/* ── Rear bumper lip ── */}
+    <Path
+      d="M20 54 Q6 54 4 50 Q3 47 6 46 L6 54 Z"
+      fill="#3d0003"
+    />
+    {/* ── Front headlight ── */}
+    <Path
+      d="M104 38 Q108 37 112 39 Q113 41 110 42 L104 42 Z"
+      fill="#F9F9F9"
+      opacity="0.95"
+    />
+    {/* ── Rear taillight ── */}
+    <Path
+      d="M16 38 Q12 37 8 39 Q7 41 10 42 L16 42 Z"
+      fill="#996250"
+      opacity="0.9"
+    />
+    {/* ── Front wheel arch ── */}
+    <Path d="M82 54 Q82 64 92 64 Q102 64 102 54 Z" fill="#1a0204"/>
+    {/* ── Front wheel ── */}
+    <Path d="M84 54 Q84 62 92 62 Q100 62 100 54 Z" fill="#2a0508"/>
+    {/* ── Front wheel rim ── */}
+    <Path d="M87 54 Q87 59 92 59 Q97 59 97 54 Z" fill="#800007" opacity="0.6"/>
+    {/* ── Rear wheel arch ── */}
+    <Path d="M18 54 Q18 64 28 64 Q38 64 38 54 Z" fill="#1a0204"/>
+    {/* ── Rear wheel ── */}
+    <Path d="M20 54 Q20 62 28 62 Q36 62 36 54 Z" fill="#2a0508"/>
+    {/* ── Rear wheel rim ── */}
+    <Path d="M23 54 Q23 59 28 59 Q33 59 33 54 Z" fill="#800007" opacity="0.6"/>
+    {/* ── Door handle ── */}
+    <Path
+      d="M58 43 Q64 42 70 43 Q70 45 64 45 Q58 45 58 43 Z"
+      fill="#996250"
+      opacity="0.7"
+    />
   </Svg>
 );
 
@@ -107,13 +187,13 @@ const InputField: React.FC<InputFieldProps> = ({
           autoCapitalize={autoCapitalize || 'none'}
           editable={editable}
           placeholder={placeholder}
-          placeholderTextColor="rgba(160,174,192,0.35)"
+          placeholderTextColor="rgba(153,98,80,0.4)"
         />
         {rightElement}
       </View>
       {!!error && (
         <View style={inp.errorRow}>
-          <Ionicons name="alert-circle-outline" size={13} color="#ff6b6b" />
+          <Ionicons name="alert-circle-outline" size={13} color="#800007" />
           <Text style={inp.errorText}> {error}</Text>
         </View>
       )}
@@ -126,8 +206,8 @@ const inp = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '700',
-    color: 'rgba(160,174,192,0.85)',
-    letterSpacing: 0.8,
+    color: 'rgba(153,98,80,0.9)',
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginBottom: 8,
     marginLeft: 2,
@@ -135,25 +215,25 @@ const inp = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(249,249,249,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
+    borderColor: 'rgba(153,98,80,0.25)',
+    borderRadius: 10,
     paddingHorizontal: 14,
     height: 52,
   },
   wrapFocused: {
-    borderColor: '#2280b0',
-    backgroundColor: 'rgba(34,128,176,0.08)',
+    borderColor: '#800007',
+    backgroundColor: 'rgba(128,0,7,0.07)',
   },
   wrapError: {
-    borderColor: '#ff6b6b',
-    backgroundColor: 'rgba(255,107,107,0.06)',
+    borderColor: '#800007',
+    backgroundColor: 'rgba(128,0,7,0.08)',
   },
   iconWrap: { marginRight: 10 },
   input: {
     flex: 1,
-    color: '#fff',
+    color: '#F9F9F9',
     fontSize: 15,
     height: '100%',
   },
@@ -164,7 +244,7 @@ const inp = StyleSheet.create({
     marginLeft: 2,
   },
   errorText: {
-    color: '#ff6b6b',
+    color: '#800007',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -276,6 +356,92 @@ export default function Register() {
     }
   };
 
+  // Remove AuthSession web flow. Use native Google Sign-In for Android/dev-client.
+  React.useEffect(() => {
+    if (!CAN_USE_GOOGLE_AUTH) return;
+    GoogleSignin.configure({
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      offlineAccess: false,
+    });
+  }, []);
+
+  // Native Google sign-in handler using @react-native-google-signin/google-signin
+  const handleGoogleRegister = async () => {
+    if (IS_EXPO_GO) {
+      Alert.alert(
+        'Google Sign-in',
+        'Google sign-in requires a dev build (not Expo Go). You can still use email/password in Expo Go.'
+      );
+      return;
+    }
+
+    if (!GOOGLE_AUTH_ENABLED) {
+      Alert.alert(
+        'Google Sign-in',
+        'Google sign-in is disabled. Enable it by setting EXPO_PUBLIC_ENABLE_GOOGLE_AUTH=true in your dev build env.'
+      );
+      return;
+    }
+
+    if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) {
+      Alert.alert('Google Sign-in', 'Missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      // Force account picker (avoid reusing previously selected Google account)
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // ignore
+      }
+
+      const userInfo = await GoogleSignin.signIn();
+      console.log('[GoogleSignin][Register] userInfo keys=', Object.keys((userInfo as any) || {}));
+      console.log('[GoogleSignin][Register] idToken=', (userInfo as any)?.idToken);
+      console.log('[GoogleSignin][Register] data.idToken=', (userInfo as any)?.data?.idToken);
+
+      const idToken = (userInfo as any)?.data?.idToken ?? (userInfo as any)?.idToken;
+      if (!idToken) {
+        Alert.alert('Google Sign-in Failed', 'Missing id token from Google.');
+        return;
+      }
+
+      // Sign in to Firebase with Google id_token
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCred = await signInWithCredential(auth, credential);
+      const firebaseIdToken = await userCred.user.getIdToken();
+
+      // Use /login for Google (backend auto-registers on first social sign-in)
+      const res = await axios.post(
+        `${API_URL}/login`,
+        { provider: 'google', idToken: firebaseIdToken },
+        { timeout: 10000 }
+      );
+
+      if (res.data.success) {
+        const { token, user } = res.data;
+
+        await setItem('authToken', token);
+        await setItem('user', JSON.stringify(user));
+        await registerFirebasePushToken(API_URL, token).catch(() => null);
+
+        setSuccessMessage('Account created successfully!');
+        setTimeout(() => {
+          router.replace('/(user)/UserProfile');
+        }, 1200);
+      }
+    } catch (e: any) {
+      const message = e?.response?.data?.message || e?.message || 'Google registration failed';
+      Alert.alert('Google Registration Failed', message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -292,7 +458,7 @@ export default function Register() {
           <Pressable style={s.modalCard} onPress={() => {}}>
             {/* Icon */}
             <View style={s.modalIconWrap}>
-              <MaterialCommunityIcons name="file-document-outline" size={32} color="#ffca28" />
+              <MaterialCommunityIcons name="file-document-outline" size={32} color="#996250" />
             </View>
 
             {/* Title */}
@@ -313,7 +479,7 @@ export default function Register() {
               }}
               activeOpacity={0.85}
             >
-              <Feather name="check-circle" size={16} color="#fff" />
+              <Feather name="check-circle" size={16} color="#F9F9F9" />
               <Text style={s.modalAcceptText}>  I Accept the Terms</Text>
             </TouchableOpacity>
 
@@ -328,6 +494,7 @@ export default function Register() {
           </Pressable>
         </Pressable>
       </Modal>
+
       <ScrollView
         contentContainerStyle={s.scroll}
         showsVerticalScrollIndicator={false}
@@ -337,10 +504,10 @@ export default function Register() {
         {/* ── Brand ── */}
         <View style={s.brandWrap}>
           <View style={s.robotBadge}>
-            <RobotIcon />
+            <CarIcon />
           </View>
-          <Text style={s.brandTitle}>ROMEROS KINGDOM</Text>
-          <Text style={s.brandSub}>Your premium shopping destination</Text>
+          <Text style={s.brandTitle}>DRIFT N' DASH </Text>
+          <Text style={s.brandSub}>Your premium hot wheels shopping destination</Text>
         </View>
 
         {/* ── Card ── */}
@@ -349,7 +516,7 @@ export default function Register() {
           {/* Success Banner */}
           {!!successMessage && (
             <View style={s.successBanner}>
-              <Ionicons name="checkmark-circle" size={18} color="#4caf50" />
+              <Ionicons name="checkmark-circle" size={18} color="#996250" />
               <Text style={s.successText}> {successMessage}</Text>
             </View>
           )}
@@ -368,7 +535,7 @@ export default function Register() {
             autoCapitalize="words"
             editable={!loading}
             error={errors.name}
-            leftIcon={<Feather name="user" size={17} color="rgba(160,174,192,0.55)" />}
+            leftIcon={<Feather name="user" size={17} color="rgba(153,98,80,0.6)" />}
           />
 
           {/* Email */}
@@ -380,7 +547,7 @@ export default function Register() {
             keyboardType="email-address"
             editable={!loading}
             error={errors.email}
-            leftIcon={<Feather name="mail" size={17} color="rgba(160,174,192,0.55)" />}
+            leftIcon={<Feather name="mail" size={17} color="rgba(153,98,80,0.6)" />}
           />
 
           {/* Password */}
@@ -392,7 +559,7 @@ export default function Register() {
             secureTextEntry={!showPassword}
             editable={!loading}
             error={errors.password}
-            leftIcon={<Feather name="lock" size={17} color="rgba(160,174,192,0.55)" />}
+            leftIcon={<Feather name="lock" size={17} color="rgba(153,98,80,0.6)" />}
             rightElement={
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -400,7 +567,7 @@ export default function Register() {
                 style={s.eyeBtn}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name={showPassword ? 'eye' : 'eye-off'} size={17} color="rgba(160,174,192,0.55)" />
+                <Feather name={showPassword ? 'eye' : 'eye-off'} size={17} color="rgba(153,98,80,0.6)" />
               </TouchableOpacity>
             }
           />
@@ -414,7 +581,7 @@ export default function Register() {
             secureTextEntry={!showConfirmPassword}
             editable={!loading}
             error={errors.confirmPassword}
-            leftIcon={<Feather name="shield" size={17} color="rgba(160,174,192,0.55)" />}
+            leftIcon={<Feather name="shield" size={17} color="rgba(153,98,80,0.6)" />}
             rightElement={
               <TouchableOpacity
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -422,7 +589,7 @@ export default function Register() {
                 style={s.eyeBtn}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name={showConfirmPassword ? 'eye' : 'eye-off'} size={17} color="rgba(160,174,192,0.55)" />
+                <Feather name={showConfirmPassword ? 'eye' : 'eye-off'} size={17} color="rgba(153,98,80,0.6)" />
               </TouchableOpacity>
             }
           />
@@ -436,7 +603,7 @@ export default function Register() {
           >
             <View style={[s.checkbox, agreedToTerms && s.checkboxChecked]}>
               {agreedToTerms && (
-                <Feather name="check" size={12} color="#fff" />
+                <Feather name="check" size={12} color="#F9F9F9" />
               )}
             </View>
             <Text style={s.termsText}>
@@ -458,11 +625,11 @@ export default function Register() {
               activeOpacity={1}
             >
               {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color="#F9F9F9" />
               ) : (
                 <>
                   <Text style={s.registerBtnText}>Create Account</Text>
-                  <Feather name="arrow-right" size={18} color="#fff" style={{ marginLeft: 8 }} />
+                  <Feather name="arrow-right" size={18} color="#F9F9F9" style={{ marginLeft: 8 }} />
                 </>
               )}
             </TouchableOpacity>
@@ -476,7 +643,12 @@ export default function Register() {
           </View>
 
           {/* Google */}
-          <TouchableOpacity style={s.socialBtn} disabled={loading} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.socialBtn}
+            disabled={loading}
+            activeOpacity={0.8}
+            onPress={handleGoogleRegister}
+          >
             <View style={s.socialLogoWrap}>
               <GoogleLogo />
             </View>
@@ -495,7 +667,7 @@ export default function Register() {
 
         {/* Admin pill */}
         <TouchableOpacity style={s.adminPill} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="shield-crown-outline" size={13} color="rgba(34,128,176,0.8)" />
+          <MaterialCommunityIcons name="shield-crown-outline" size={13} color="rgba(153,98,80,0.85)" />
           <Text style={s.adminPillText}> Admin access available</Text>
         </TouchableOpacity>
 
@@ -508,7 +680,7 @@ export default function Register() {
 const s = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#1a0204',
   },
   scroll: {
     flexGrow: 1,
@@ -523,61 +695,61 @@ const s = StyleSheet.create({
     marginBottom: 26,
   },
   robotBadge: {
-    width: 78,
-    height: 78,
-    backgroundColor: '#16213e',
-    borderRadius: 22,
+    width: 100,
+    height: 68,
+    backgroundColor: '#2a0508',
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: 'rgba(34,128,176,0.35)',
-    shadowColor: '#2280b0',
+    borderColor: 'rgba(128,0,7,0.5)',
+    shadowColor: '#800007',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.5,
     shadowRadius: 18,
     elevation: 10,
   },
   brandTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 2.5,
+    color: '#F9F9F9',
+    letterSpacing: 3,
     marginBottom: 5,
   },
   brandSub: {
     fontSize: 12,
-    color: 'rgba(160,174,192,0.55)',
-    letterSpacing: 0.4,
+    color: 'rgba(153,98,80,0.7)',
+    letterSpacing: 0.6,
   },
 
   // ── Card ──
   card: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(249,249,249,0.04)',
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(153,98,80,0.18)',
     padding: 26,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.55,
     shadowRadius: 36,
     elevation: 14,
   },
   cardTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
+    color: '#F9F9F9',
     marginBottom: 3,
   },
   cardSub: {
     fontSize: 13,
-    color: 'rgba(160,174,192,0.65)',
+    color: 'rgba(153,98,80,0.75)',
     marginBottom: 18,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(153,98,80,0.15)',
     marginBottom: 20,
   },
 
@@ -585,16 +757,16 @@ const s = StyleSheet.create({
   successBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(76,175,80,0.12)',
+    backgroundColor: 'rgba(153,98,80,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(76,175,80,0.4)',
+    borderColor: 'rgba(153,98,80,0.45)',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 11,
     marginBottom: 18,
   },
   successText: {
-    color: '#4caf50',
+    color: '#996250',
     fontSize: 13,
     fontWeight: '600',
     flex: 1,
@@ -610,56 +782,54 @@ const s = StyleSheet.create({
     marginBottom: 22,
     marginTop: 4,
   },
-  termsRowError: {
-    // subtle indicator when terms not accepted and form submitted
-  },
+  termsRowError: {},
   checkbox: {
     width: 20,
     height: 20,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(153,98,80,0.35)',
+    backgroundColor: 'rgba(249,249,249,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
     marginTop: 1,
   },
   checkboxChecked: {
-    backgroundColor: '#4caf50',
-    borderColor: '#4caf50',
+    backgroundColor: '#800007',
+    borderColor: '#800007',
   },
   termsText: {
     flex: 1,
     fontSize: 13,
-    color: 'rgba(160,174,192,0.7)',
+    color: 'rgba(153,98,80,0.75)',
     lineHeight: 20,
   },
   termsLink: {
-    color: '#2280b0',
+    color: '#996250',
     fontWeight: '600',
   },
 
   // ── Register button ──
   registerBtn: {
-    backgroundColor: '#2280b0',
+    backgroundColor: '#800007',
     borderRadius: 13,
     paddingVertical: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2280b0',
+    shadowColor: '#800007',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.55,
     shadowRadius: 14,
     elevation: 8,
   },
   disabledBtn: { opacity: 0.6 },
   registerBtnText: {
-    color: '#fff',
+    color: '#F9F9F9',
     fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 0.4,
+    letterSpacing: 0.8,
   },
 
   // ── OR divider ──
@@ -671,12 +841,13 @@ const s = StyleSheet.create({
   orLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(153,98,80,0.15)',
   },
   orText: {
-    color: 'rgba(160,174,192,0.5)',
+    color: 'rgba(153,98,80,0.55)',
     fontSize: 12,
     marginHorizontal: 12,
+    letterSpacing: 0.4,
   },
 
   // ── Social ──
@@ -684,15 +855,15 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(249,249,249,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(153,98,80,0.2)',
     borderRadius: 13,
     paddingVertical: 13,
   },
   socialLogoWrap: { marginRight: 10 },
   socialText: {
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(249,249,249,0.85)',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -705,11 +876,11 @@ const s = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: 'rgba(160,174,192,0.65)',
+    color: 'rgba(153,98,80,0.65)',
     fontSize: 13,
   },
   loginLink: {
-    color: '#4caf50',
+    color: '#996250',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -719,16 +890,16 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignSelf: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(34,128,176,0.1)',
+    backgroundColor: 'rgba(128,0,7,0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(34,128,176,0.2)',
+    borderColor: 'rgba(128,0,7,0.25)',
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 7,
     marginTop: 16,
   },
   adminPillText: {
-    color: 'rgba(34,128,176,0.8)',
+    color: 'rgba(153,98,80,0.85)',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -736,17 +907,17 @@ const s = StyleSheet.create({
   // ── Terms Modal ──
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 28,
   },
   modalCard: {
     width: '100%',
-    backgroundColor: '#16213e',
+    backgroundColor: '#2a0508',
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(255,202,40,0.25)',
+    borderColor: 'rgba(153,98,80,0.3)',
     padding: 28,
     alignItems: 'center',
     shadowColor: '#000',
@@ -759,9 +930,9 @@ const s = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,202,40,0.1)',
+    backgroundColor: 'rgba(153,98,80,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(255,202,40,0.3)',
+    borderColor: 'rgba(153,98,80,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 18,
@@ -769,14 +940,14 @@ const s = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#fff',
+    color: '#F9F9F9',
     letterSpacing: 0.5,
     marginBottom: 10,
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 13,
-    color: 'rgba(160,174,192,0.8)',
+    color: 'rgba(153,98,80,0.8)',
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 22,
@@ -785,26 +956,26 @@ const s = StyleSheet.create({
   modalDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(153,98,80,0.15)',
     marginBottom: 20,
   },
   modalAcceptBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4caf50',
+    backgroundColor: '#800007',
     borderRadius: 13,
     paddingVertical: 14,
     width: '100%',
     marginBottom: 12,
-    shadowColor: '#4caf50',
+    shadowColor: '#800007',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 6,
   },
   modalAcceptText: {
-    color: '#fff',
+    color: '#F9F9F9',
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -813,7 +984,7 @@ const s = StyleSheet.create({
     paddingVertical: 8,
   },
   modalDismissText: {
-    color: 'rgba(160,174,192,0.5)',
+    color: 'rgba(153,98,80,0.5)',
     fontSize: 13,
     fontWeight: '500',
   },
