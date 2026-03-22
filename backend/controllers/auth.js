@@ -1,5 +1,7 @@
 const User = require('../models/user');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const cloudinary = require('../config/cloudinary');
 const sendEmail = require('../utils/sendEmail');
 const fetch = require('node-fetch');
@@ -76,6 +78,52 @@ async function resolveUserAfterDuplicate(uid, email) {
       ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
     ],
   })
+}
+
+const AVATAR_UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'avatars')
+
+function getFileExtensionFromMimetype(mimetype) {
+  const map = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  }
+  return map[mimetype] || 'jpg'
+}
+
+function isLocalAvatarUrl(url) {
+  return typeof url === 'string' && url.includes('/uploads/avatars/')
+}
+
+async function deleteLocalAvatarByUrl(url) {
+  try {
+    if (!isLocalAvatarUrl(url)) return
+    const fileName = path.basename(String(url).split('?')[0])
+    if (!fileName) return
+    const filePath = path.join(AVATAR_UPLOAD_DIR, fileName)
+    await fs.promises.unlink(filePath)
+  } catch {
+    // Ignore delete failures for old local avatars
+  }
+}
+
+async function saveAvatarLocally(file, req) {
+  await fs.promises.mkdir(AVATAR_UPLOAD_DIR, { recursive: true })
+  const ext = getFileExtensionFromMimetype(file.mimetype)
+  const fileName = `avatar_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+  const filePath = path.join(AVATAR_UPLOAD_DIR, fileName)
+
+  await fs.promises.writeFile(filePath, file.buffer)
+
+  const baseUrl = (process.env.PUBLIC_API_URL || process.env.NGROK_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '')
+  const url = `${baseUrl}/uploads/avatars/${fileName}`
+
+  return {
+    public_id: `local/avatars/${fileName}`,
+    url,
+  }
 }
 
 // REGISTER USER
@@ -174,20 +222,24 @@ exports.registerUser = async (req, res, next) => {
 
     if (req.file) {
       try {
-        // Convert buffer to base64 for upload
-        const b64 = Buffer.from(req.file.buffer).toString('base64');
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-        
-        const result = await cloudinary.uploader.upload(dataURI, {
-          folder: 'avatars',
-          width: 150,
-          crop: 'scale',
-        });
+        if (cloudinary.isConfigured) {
+          // Convert buffer to base64 for upload
+          const b64 = Buffer.from(req.file.buffer).toString('base64');
+          const dataURI = `data:${req.file.mimetype};base64,${b64}`;
 
-        avatarData = {
-          public_id: result.public_id,
-          url: result.secure_url,
-        };
+          const result = await cloudinary.uploader.upload(dataURI, {
+            folder: 'avatars',
+            width: 150,
+            crop: 'scale',
+          });
+
+          avatarData = {
+            public_id: result.public_id,
+            url: result.secure_url,
+          };
+        } else {
+          avatarData = await saveAvatarLocally(req.file, req)
+        }
       } catch (uploadError) {
         console.warn('Avatar upload failed, using default:', uploadError.message);
         // Continue with default avatar if upload fails
@@ -423,21 +475,26 @@ exports.updateProfile = async (req, res, next) => {
       try {
         const user = await User.findById(req.user.id)
 
-        // Delete old avatar if it's not the default placeholder
-        if (user.avatar?.public_id && user.avatar.public_id !== 'avatars/default') {
-          await cloudinary.uploader.destroy(user.avatar.public_id).catch(() => {})
+        if (cloudinary.isConfigured) {
+          // Delete old avatar if it's not the default placeholder
+          if (user.avatar?.public_id && user.avatar.public_id !== 'avatars/default' && !String(user.avatar.public_id).startsWith('local/avatars/')) {
+            await cloudinary.uploader.destroy(user.avatar.public_id).catch(() => {})
+          }
+
+          // Upload buffer as base64 data URI
+          const b64 = Buffer.from(req.file.buffer).toString('base64')
+          const dataURI = `data:${req.file.mimetype};base64,${b64}`
+          const result = await cloudinary.uploader.upload(dataURI, {
+            folder: 'avatars',
+            width: 300,
+            crop: 'scale',
+          })
+
+          newUserData.avatar = { public_id: result.public_id, url: result.secure_url }
+        } else {
+          await deleteLocalAvatarByUrl(user.avatar?.url)
+          newUserData.avatar = await saveAvatarLocally(req.file, req)
         }
-
-        // Upload buffer as base64 data URI
-        const b64 = Buffer.from(req.file.buffer).toString('base64')
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`
-        const result = await cloudinary.uploader.upload(dataURI, {
-          folder: 'avatars',
-          width: 300,
-          crop: 'scale',
-        })
-
-        newUserData.avatar = { public_id: result.public_id, url: result.secure_url }
       } catch (uploadErr) {
         console.warn('[updateProfile] avatar upload failed:', uploadErr.message)
         return res.status(400).json({
