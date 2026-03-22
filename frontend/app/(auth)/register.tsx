@@ -23,6 +23,7 @@ import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import Constants from 'expo-constants';
 import { auth } from '@/utils/firebase';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { getApiUrl } from '@/store/api';
 import * as WebBrowser from 'expo-web-browser';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
@@ -39,10 +40,7 @@ const CAN_USE_GOOGLE_AUTH = GOOGLE_AUTH_ENABLED && !IS_EXPO_GO;
 
 const GOOGLE_ANDROID_PACKAGE = 'romeroskingdom.ph';
 
-const API_URL =
-  process.env.NGROK_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:4000/api/v1';
+const API_URL = getApiUrl();
 
 /* ─────────────────────────────────────────
    Palette — Blue Robotics

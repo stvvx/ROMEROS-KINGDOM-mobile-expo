@@ -24,6 +24,7 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import Constants from 'expo-constants';
 import { auth } from '@/utils/firebase';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { getApiUrl } from '@/store/api';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -40,10 +41,7 @@ const GOOGLE_ANDROID_PACKAGE = 'romeroskingdom.ph';
 
 const { width } = Dimensions.get('window');
 
-const API_URL =
-  process.env.NGROK_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:4000/api/v1';
+const API_URL = getApiUrl();
 
 // ─── Palette ──────────────────────────────────────────────────
 // Deep navy base, electric cyan accent, steel blue mid-tones

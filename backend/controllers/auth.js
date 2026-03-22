@@ -69,6 +69,17 @@ function extractBearerToken(req) {
   return m ? m[1] : null
 }
 
+async function resolveUserAfterDuplicate(uid, email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  if (!uid && !normalizedEmail) return null
+  return User.findOne({
+    $or: [
+      ...(uid ? [{ uid }] : []),
+      ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+    ],
+  })
+}
+
 // REGISTER USER
 exports.registerUser = async (req, res, next) => {
   try {
@@ -99,10 +110,11 @@ exports.registerUser = async (req, res, next) => {
 
       const uid = decoded.uid
       const tokenEmail = decoded.email
+      const normalizedEmail = String(tokenEmail || '').trim().toLowerCase()
       const displayName = decoded.name || decoded.displayName
       const picture = decoded.picture
 
-      if (!uid || !tokenEmail) {
+      if (!uid || !normalizedEmail) {
         return res.status(400).json({ message: 'Firebase token missing uid/email' })
       }
 
@@ -110,22 +122,29 @@ exports.registerUser = async (req, res, next) => {
       let user = await User.findOne({
         $or: [
           { uid },
-          { email: tokenEmail, provider: { $in: ['firebase', 'google'] } },
-          { email: tokenEmail, provider: 'local' },
+          { email: normalizedEmail, provider: { $in: ['firebase', 'google'] } },
+          { email: normalizedEmail, provider: 'local' },
         ],
       })
 
       if (!user) {
-        user = await User.create({
-          uid,
-          name: name || displayName || tokenEmail.split('@')[0],
-          email: tokenEmail,
-          address: address || '',
-          provider: provider === 'google' || tokenSource === 'google' ? 'google' : 'firebase',
-          avatar: picture ? { url: picture } : undefined,
-          isVerified: true,
-          lastLogin: new Date(),
-        })
+        try {
+          user = await User.create({
+            uid,
+            name: name || displayName || normalizedEmail.split('@')[0],
+            email: normalizedEmail,
+            address: address || '',
+            provider: provider === 'google' || tokenSource === 'google' ? 'google' : 'firebase',
+            avatar: picture ? { url: picture } : undefined,
+            isVerified: true,
+            lastLogin: new Date(),
+          })
+        } catch (createError) {
+          if (createError && createError.code === 11000) {
+            user = await resolveUserAfterDuplicate(uid, normalizedEmail)
+          }
+          if (!user) throw createError
+        }
       } else {
         // Update synced fields only (avoid breaking existing accounts)
         const updates = {
@@ -227,32 +246,40 @@ exports.loginUser = async (req, res, next) => {
 
       const uid = decoded.uid
       const tokenEmail = decoded.email
+      const normalizedEmail = String(tokenEmail || '').trim().toLowerCase()
       const displayName = decoded.name || decoded.displayName
       const picture = decoded.picture
 
-      if (!uid || !tokenEmail) {
+      if (!uid || !normalizedEmail) {
         return res.status(400).json({ message: 'Firebase token missing uid/email' })
       }
 
       let user = await User.findOne({
         $or: [
           { uid },
-          { email: tokenEmail, provider: { $in: ['firebase', 'google'] } },
-          { email: tokenEmail, provider: 'local' },
+          { email: normalizedEmail, provider: { $in: ['firebase', 'google'] } },
+          { email: normalizedEmail, provider: 'local' },
         ],
       })
 
       if (!user) {
         // Auto-register on first social sign-in
-        user = await User.create({
-          uid,
-          name: displayName || tokenEmail.split('@')[0],
-          email: tokenEmail,
-          provider: provider === 'google' || tokenSource === 'google' ? 'google' : 'firebase',
-          avatar: picture ? { url: picture } : undefined,
-          isVerified: true,
-          lastLogin: new Date(),
-        })
+        try {
+          user = await User.create({
+            uid,
+            name: displayName || normalizedEmail.split('@')[0],
+            email: normalizedEmail,
+            provider: provider === 'google' || tokenSource === 'google' ? 'google' : 'firebase',
+            avatar: picture ? { url: picture } : undefined,
+            isVerified: true,
+            lastLogin: new Date(),
+          })
+        } catch (createError) {
+          if (createError && createError.code === 11000) {
+            user = await resolveUserAfterDuplicate(uid, normalizedEmail)
+          }
+          if (!user) throw createError
+        }
       } else {
         const updates = {
           uid: user.uid || uid,
@@ -526,8 +553,9 @@ exports.registerFirebaseUser = async (req, res, next) => {
     console.log('Firebase register endpoint hit');
     
     const { uid, name, email, provider = 'firebase', avatar, address } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    if (!uid || !email) {
+    if (!uid || !normalizedEmail) {
       return res.status(400).json({ 
         message: 'UID and email are required' 
       });
@@ -537,7 +565,7 @@ exports.registerFirebaseUser = async (req, res, next) => {
     let existingUser = await User.findOne({
       $or: [
         { uid },
-        { email, provider: { $in: ['firebase', 'google', 'local'] } }
+        { email: normalizedEmail, provider: { $in: ['firebase', 'google', 'local'] } }
       ]
     });
 
@@ -564,15 +592,23 @@ exports.registerFirebaseUser = async (req, res, next) => {
     }
 
     // Create new user
-    const user = await User.create({
-      uid,
-      name: name || email.split('@')[0],
-      email,
-      address: address || '',
-      provider,
-      avatar: avatar ? { url: avatar } : undefined,
-      lastLogin: new Date()
-    });
+    let user
+    try {
+      user = await User.create({
+        uid,
+        name: name || normalizedEmail.split('@')[0],
+        email: normalizedEmail,
+        address: address || '',
+        provider,
+        avatar: avatar ? { url: avatar } : undefined,
+        lastLogin: new Date()
+      });
+    } catch (createError) {
+      if (createError && createError.code === 11000) {
+        user = await resolveUserAfterDuplicate(uid, normalizedEmail)
+      }
+      if (!user) throw createError
+    }
 
     const token = user.getJwtToken();
 
@@ -603,8 +639,9 @@ exports.syncFirebaseUser = async (req, res, next) => {
     console.log('Firebase sync endpoint hit');
     
     const { uid, name, email, provider = 'firebase', avatar, address } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    if (!uid || !email) {
+    if (!uid || !normalizedEmail) {
       return res.status(400).json({ 
         message: 'UID and email are required' 
       });
@@ -614,7 +651,7 @@ exports.syncFirebaseUser = async (req, res, next) => {
     let user = await User.findOne({
       $or: [
         { uid },
-        { email, provider: { $in: ['firebase', 'google', 'local'] } }
+        { email: normalizedEmail, provider: { $in: ['firebase', 'google', 'local'] } }
       ]
     });
 
@@ -642,15 +679,22 @@ exports.syncFirebaseUser = async (req, res, next) => {
       }
     } else {
       // Create new user
-      user = await User.create({
-        uid,
-        name: name || email.split('@')[0],
-        email,
-        address: address || '',
-        provider,
-        avatar: avatar ? { url: avatar } : undefined,
-        lastLogin: new Date()
-      });
+      try {
+        user = await User.create({
+          uid,
+          name: name || normalizedEmail.split('@')[0],
+          email: normalizedEmail,
+          address: address || '',
+          provider,
+          avatar: avatar ? { url: avatar } : undefined,
+          lastLogin: new Date()
+        });
+      } catch (createError) {
+        if (createError && createError.code === 11000) {
+          user = await resolveUserAfterDuplicate(uid, normalizedEmail)
+        }
+        if (!user) throw createError
+      }
     }
 
     const token = user.getJwtToken();
