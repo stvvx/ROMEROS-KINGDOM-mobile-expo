@@ -16,6 +16,19 @@ app.use(express.urlencoded({limit: "50mb", extended: true }));
 app.use(cors());
 app.use(cookieParser());
 
+// Lightweight liveness endpoints for clients and hosting health checks.
+app.get('/', (req, res) => {
+	res.status(200).json({ success: true, message: 'ROMEROS backend is running' });
+});
+
+app.get('/api/v1', (req, res) => {
+	res.status(200).json({ success: true, message: 'ROMEROS API v1 online' });
+});
+
+app.get('/api/v1/health', (req, res) => {
+	res.status(200).json({ success: true, status: 'ok' });
+});
+
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
