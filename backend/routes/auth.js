@@ -19,7 +19,6 @@ const {
 } = require('../controllers/auth');
 
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth');
-const { syncFirebaseUser: syncFirebaseUserMiddleware } = require('../middlewares/firebaseAuth');
 
 // Public routes
 router.post('/register', upload.single("avatar"), registerUser);
@@ -28,8 +27,8 @@ router.post('/password/forgot', forgotPassword);
 router.put('/password/reset/:token', resetPassword);
 
 // New Firebase routes (public)
-router.post('/firebase/register', syncFirebaseUserMiddleware, registerFirebaseUser);
-router.post('/firebase/sync', syncFirebaseUserMiddleware, syncFirebaseUser);
+router.post('/firebase/register', registerFirebaseUser);
+router.post('/firebase/sync', syncFirebaseUser);
 
 // Protected routes
 router.get('/me', isAuthenticatedUser, getUserProfile);

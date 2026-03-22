@@ -534,17 +534,31 @@ exports.registerFirebaseUser = async (req, res, next) => {
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({
+    let existingUser = await User.findOne({
       $or: [
         { uid },
-        { email, provider: { $in: ['firebase', 'google'] } }
+        { email, provider: { $in: ['firebase', 'google', 'local'] } }
       ]
     });
 
     if (existingUser) {
+      const updates = {
+        uid: existingUser.uid || uid,
+        lastLogin: new Date(),
+      };
+
+      if (name && existingUser.name !== name) updates.name = name;
+      if (avatar && existingUser.avatar?.url !== avatar) updates.avatar = { ...(existingUser.avatar || {}), url: avatar };
+      if (typeof address === 'string' && address && existingUser.address !== address) updates.address = address;
+      if (existingUser.provider !== 'local') updates.provider = provider;
+
+      existingUser = await User.findByIdAndUpdate(existingUser._id, updates, { new: true });
+      const token = existingUser.getJwtToken();
+
       return res.status(200).json({
         success: true,
         user: existingUser,
+        token,
         message: 'User already exists'
       });
     }
@@ -560,9 +574,12 @@ exports.registerFirebaseUser = async (req, res, next) => {
       lastLogin: new Date()
     });
 
+    const token = user.getJwtToken();
+
     return res.status(201).json({
       success: true,
       user,
+      token,
       message: 'User registered successfully'
     });
   } catch (error) {
@@ -585,7 +602,7 @@ exports.syncFirebaseUser = async (req, res, next) => {
   try {
     console.log('Firebase sync endpoint hit');
     
-    const { uid, name, email, provider = 'firebase', avatar } = req.body;
+    const { uid, name, email, provider = 'firebase', avatar, address } = req.body;
 
     if (!uid || !email) {
       return res.status(400).json({ 
@@ -597,22 +614,27 @@ exports.syncFirebaseUser = async (req, res, next) => {
     let user = await User.findOne({
       $or: [
         { uid },
-        { email, provider: { $in: ['firebase', 'google'] } }
+        { email, provider: { $in: ['firebase', 'google', 'local'] } }
       ]
     });
 
-      if (user) {
+    if (user) {
       // Update existing user
-      const updates = {};
+      const updates = {
+        uid: user.uid || uid,
+      };
       if (name && user.name !== name) {
         updates.name = name;
       }
       if (avatar && user.avatar?.url !== avatar) {
-        updates.avatar = { url: avatar };
+        updates.avatar = { ...(user.avatar || {}), url: avatar };
       }
-        if (address && user.address !== address) {
-          updates.address = address;
-        }
+      if (address && user.address !== address) {
+        updates.address = address;
+      }
+      if (user.provider !== 'local') {
+        updates.provider = provider;
+      }
       updates.lastLogin = new Date();
 
       if (Object.keys(updates).length > 0) {
@@ -624,15 +646,19 @@ exports.syncFirebaseUser = async (req, res, next) => {
         uid,
         name: name || email.split('@')[0],
         email,
+        address: address || '',
         provider,
         avatar: avatar ? { url: avatar } : undefined,
         lastLogin: new Date()
       });
     }
 
+    const token = user.getJwtToken();
+
     res.status(200).json({
       success: true,
       user,
+      token,
       message: 'User synced successfully'
     });
   } catch (error) {
