@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { store } from '@/store';
+import { getApiUrl } from '@/store/api';
 import { registerFirebasePushToken, setupNotificationResponseHandler } from '../utils/notifications';
 import { getItem } from '@/utils/storage';
 
@@ -18,10 +19,7 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const API_URL =
-    process.env.NGROK_URL ||
-    process.env.EXPO_PUBLIC_API_URL ||
-    'http://localhost:4000/api/v1';
+  const API_URL = getApiUrl();
 
   useEffect(() => {
     // Ensure foreground notifications are presented to the user

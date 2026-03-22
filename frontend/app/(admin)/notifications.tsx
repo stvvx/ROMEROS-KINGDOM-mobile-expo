@@ -9,26 +9,14 @@ import {
   Platform,
 } from 'react-native'
 import axios from 'axios'
-import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import { getItem } from '@/utils/storage'
+import { getApiUrl } from '@/store/api'
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import AdminHeader from '@/components/adminHeader'
 
 // ─── API CONFIG ───────────────────────────────────────────────
-let API_URL =
-  process.env.NGROK_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:4000/api/v1'
-
-const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig
-const debuggerHost = manifest?.debuggerHost?.split(':')[0]
-
-if (debuggerHost && debuggerHost !== 'localhost') {
-  API_URL = API_URL.replace('localhost', debuggerHost)
-} else if (Platform.OS === 'android' && API_URL.includes('localhost')) {
-  API_URL = API_URL.replace('localhost', '10.0.2.2')
-}
+let API_URL = getApiUrl()
 
 /* ─────────────────────────────────────────
    Palette — Blue Robotics (Admin variant)

@@ -1,10 +1,8 @@
 const User = require('../models/user');
 const crypto = require('crypto');
-const cloudinary = require('cloudinary');
+const cloudinary = require('../config/cloudinary');
 const sendEmail = require('../utils/sendEmail');
-const multer = require('multer');
 const fetch = require('node-fetch');
-const upload = multer({ storage: multer.memoryStorage() }); // For avatar upload
 
 // Firebase Admin (optional) for verifying ID tokens
 const { getAuth: getFirebaseAuth } = require('../config/firebase')
@@ -180,7 +178,7 @@ exports.registerUser = async (req, res, next) => {
         const b64 = Buffer.from(req.file.buffer).toString('base64');
         const dataURI = `data:${req.file.mimetype};base64,${b64}`;
         
-        const result = await cloudinary.v2.uploader.upload(dataURI, {
+        const result = await cloudinary.uploader.upload(dataURI, {
           folder: 'avatars',
           width: 150,
           crop: 'scale',
@@ -427,13 +425,13 @@ exports.updateProfile = async (req, res, next) => {
 
         // Delete old avatar if it's not the default placeholder
         if (user.avatar?.public_id && user.avatar.public_id !== 'avatars/default') {
-          await cloudinary.v2.uploader.destroy(user.avatar.public_id).catch(() => {})
+          await cloudinary.uploader.destroy(user.avatar.public_id).catch(() => {})
         }
 
         // Upload buffer as base64 data URI
         const b64 = Buffer.from(req.file.buffer).toString('base64')
         const dataURI = `data:${req.file.mimetype};base64,${b64}`
-        const result = await cloudinary.v2.uploader.upload(dataURI, {
+        const result = await cloudinary.uploader.upload(dataURI, {
           folder: 'avatars',
           width: 300,
           crop: 'scale',
@@ -442,16 +440,19 @@ exports.updateProfile = async (req, res, next) => {
         newUserData.avatar = { public_id: result.public_id, url: result.secure_url }
       } catch (uploadErr) {
         console.warn('[updateProfile] avatar upload failed:', uploadErr.message)
-        // Continue saving other fields even if avatar upload fails
+        return res.status(400).json({
+          success: false,
+          message: uploadErr.message || 'Avatar upload failed. Please try another image.',
+        })
       }
     } else if (req.body.avatar && req.body.avatar !== '') {
       // Legacy base64 path (kept for backward compat)
       try {
         const user = await User.findById(req.user.id)
         if (user.avatar?.public_id && user.avatar.public_id !== 'avatars/default') {
-          await cloudinary.v2.uploader.destroy(user.avatar.public_id).catch(() => {})
+          await cloudinary.uploader.destroy(user.avatar.public_id).catch(() => {})
         }
-        const result = await cloudinary.v2.uploader.upload(req.body.avatar, {
+        const result = await cloudinary.uploader.upload(req.body.avatar, {
           folder: 'avatars', width: 300, crop: 'scale',
         })
         newUserData.avatar = { public_id: result.public_id, url: result.secure_url }
@@ -511,7 +512,7 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ message: `User not found with id: ${req.params.id}` });
     }
 
-    await cloudinary.v2.uploader.destroy(user.avatar.public_id);
+    await cloudinary.uploader.destroy(user.avatar.public_id);
     await user.deleteOne();
 
     res.status(200).json({ success: true });

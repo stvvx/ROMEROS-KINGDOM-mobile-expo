@@ -3,58 +3,102 @@ const Notification = require('../models/notification')
 const User = require('../models/user')
 const { sendExpoPush } = require('../utils/push')
 
-async function notifyAllUsersForNewVoucher(voucher) {
-  const users = await User.find({
-    role: { $ne: 'admin' },
-    isActive: { $ne: false },
-  }).select('_id expoPushToken')
+async function notifyAudienceForNewVoucher(voucher, actorName = 'Admin') {
+  const [users, admins] = await Promise.all([
+    User.find({
+      role: { $ne: 'admin' },
+      isActive: { $ne: false },
+    }).select('_id expoPushToken'),
+    User.find({
+      role: 'admin',
+      isActive: { $ne: false },
+    }).select('_id expoPushToken'),
+  ])
 
-  if (!users.length) {
-    return
+  const userTitle = 'New voucher available'
+  const userMessage = `${voucher.label} (${voucher.code}) is now available. Claim it while stocks last.`
+
+  const adminTitle = 'Voucher created'
+  const adminMessage = `${actorName} published voucher ${voucher.code} (${voucher.label}).`
+
+  const now = new Date()
+  const baseData = {
+    voucherId: String(voucher._id),
+    voucherCode: voucher.code,
+    category: voucher.category,
   }
 
-  const title = 'New voucher available'
-  const message = `${voucher.label} (${voucher.code}) is now available. Claim it while stocks last.`
-  const now = new Date()
-
-  const notifications = users.map((user) => ({
+  const userNotifications = users.map((user) => ({
     user: user._id,
     role: 'user',
-    title,
-    message,
+    title: userTitle,
+    message: userMessage,
     type: 'system',
     refId: String(voucher._id),
     refModel: 'Voucher',
-    data: {
-      voucherId: String(voucher._id),
-      voucherCode: voucher.code,
-      category: voucher.category,
-    },
+    data: baseData,
     isRead: false,
     createdAt: now,
   }))
 
-  await Notification.insertMany(notifications, { ordered: false })
+  const adminNotification = {
+    user: null,
+    role: 'admin',
+    title: adminTitle,
+    message: adminMessage,
+    type: 'system',
+    refId: String(voucher._id),
+    refModel: 'Voucher',
+    data: baseData,
+    isRead: false,
+    createdAt: now,
+  }
 
-  const tokens = [...new Set(
+  if (userNotifications.length || admins.length) {
+    await Notification.insertMany(
+      admins.length ? [...userNotifications, adminNotification] : userNotifications,
+      { ordered: false }
+    )
+  }
+
+  const userTokens = [...new Set(
     users
       .map((user) => user.expoPushToken)
-      .filter((token) => typeof token === 'string' && token.startsWith('ExponentPushToken['))
+      .filter((token) => typeof token === 'string' && token.startsWith('Expo'))
   )]
 
-  if (tokens.length) {
-    await sendExpoPush(tokens, {
-      title,
-      body: message,
-      data: {
-        type: 'system',
-        refId: String(voucher._id),
-        refModel: 'Voucher',
-        voucherId: String(voucher._id),
-        voucherCode: voucher.code,
-      },
-    })
-  }
+  const adminTokens = [...new Set(
+    admins
+      .map((admin) => admin.expoPushToken)
+      .filter((token) => typeof token === 'string' && token.startsWith('Expo'))
+  )]
+
+  await Promise.all([
+    userTokens.length
+      ? sendExpoPush(userTokens, {
+          title: userTitle,
+          body: userMessage,
+          data: {
+            type: 'system',
+            refId: String(voucher._id),
+            refModel: 'Voucher',
+            ...baseData,
+          },
+        })
+      : Promise.resolve(),
+    adminTokens.length
+      ? sendExpoPush(adminTokens, {
+          title: adminTitle,
+          body: adminMessage,
+          data: {
+            type: 'system',
+            refId: String(voucher._id),
+            refModel: 'Voucher',
+            ...baseData,
+          },
+        })
+      : Promise.resolve(),
+  ])
 }
 
 /* ─── Helper: check if a monthly voucher is claimable ─── */
@@ -93,7 +137,7 @@ exports.createVoucher = async (req, res) => {
     }
 
     const voucher = await Voucher.create(payload)
-    await notifyAllUsersForNewVoucher(voucher)
+    await notifyAudienceForNewVoucher(voucher, req.user?.name || 'Admin')
 
     return res.status(201).json({
       success: true,

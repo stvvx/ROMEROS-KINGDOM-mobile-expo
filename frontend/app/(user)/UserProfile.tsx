@@ -20,13 +20,11 @@ import axios from 'axios'
 import Constants from 'expo-constants'
 import { useRouter, Stack } from 'expo-router'
 import { getItem, removeItem, setItem } from '@/utils/storage'
+import { getApiUrl } from '@/store/api'
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 
 /* ─── API URL ─── */
-let API_URL =
-  process.env.NGROK_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:4000/api/v1'
+let API_URL = getApiUrl()
 
 const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig
 const debuggerHost = manifest?.debuggerHost?.split(':')[0]
@@ -273,8 +271,10 @@ export default function UserProfile() {
       if (result.canceled) return
       const asset = result.assets?.[0]
       if (!asset?.uri) return
-      const ext      = asset.uri.split('.').pop() || 'jpg'
-      const mimeType = asset.mimeType || `image/${ext}`
+      const guessedExt = asset.uri.split('.').pop()?.split('?')[0]?.toLowerCase()
+      const rawExt = guessedExt && /^[a-z0-9]+$/.test(guessedExt) ? guessedExt : 'jpg'
+      const ext = rawExt === 'heic' || rawExt === 'heif' ? 'jpg' : rawExt
+      const mimeType = asset.mimeType || `image/${ext === 'jpg' ? 'jpeg' : ext}`
       const fileName = `avatar_${Date.now()}.${ext}`
       setAvatarUri(asset.uri)
       setNewAvatar({ uri: asset.uri, name: fileName, type: mimeType })
@@ -297,7 +297,11 @@ export default function UserProfile() {
         form.append('address', addressString)
         form.append('avatar',  { uri: newAvatar.uri, name: newAvatar.name, type: newAvatar.type } as any)
         res = await axios.put(`${API_URL}/me/update`, form, {
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }, timeout: 30000,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: 30000,
         })
       } else {
         res = await axios.put(`${API_URL}/me/update`, { name, address: addressString }, {
