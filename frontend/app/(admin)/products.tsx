@@ -192,6 +192,7 @@ export default function AdminProducts() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [isSubmittingProduct, setIsSubmittingProduct] = useState(false)
 
   const showAlert = (type: 'success' | 'error', title: string, message: string) => {
     setAlertType(type); setAlertTitle(title); setAlertMessage(message); setAlertVisible(true)
@@ -273,11 +274,14 @@ export default function AdminProducts() {
   }
 
   const submitProduct = async () => {
+    if (isSubmittingProduct || submitting) return
+
     if (!form.name.trim())     { showAlert('error', 'Validation Error', 'Product name is required'); return }
     if (!form.price.trim())    { showAlert('error', 'Validation Error', 'Product price is required'); return }
     if (!form.category.trim()) { showAlert('error', 'Validation Error', 'Please select a category'); return }
     if (!form.stock.trim())    { showAlert('error', 'Validation Error', 'Product stock is required'); return }
 
+    setIsSubmittingProduct(true)
     try {
       let images = [...remoteImages]
       if (pickedImages.length) {
@@ -298,6 +302,8 @@ export default function AdminProducts() {
       fetchProducts({ silent: true })
     } catch (err: any) {
       showAlert('error', 'Operation Failed', err || 'Failed to save product')
+    } finally {
+      setIsSubmittingProduct(false)
     }
   }
 
@@ -305,6 +311,14 @@ export default function AdminProducts() {
     setEditingId(null); setPickedImages([]); setRemoteImages([])
     setForm({ name: '', price: '', description: '', category: '', stock: '' })
     setModalVisible(false)
+  }
+
+  const openCreateForm = () => {
+    setEditingId(null)
+    setPickedImages([])
+    setRemoteImages([])
+    setForm({ name: '', price: '', description: '', category: '', stock: '' })
+    setModalVisible(true)
   }
 
   const handleEdit = (product: Product) => {
@@ -381,6 +395,10 @@ export default function AdminProducts() {
           <Text style={s.pageSubtitle}>Add, update and manage products</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity style={s.createBtn} onPress={openCreateForm} activeOpacity={0.85}>
+            <Feather name="plus" size={14} color={C.text} style={{ marginRight: 6 }} />
+            <Text style={s.createBtnText}>Add Product</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={s.refreshBtn}
             onPress={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
@@ -447,9 +465,21 @@ export default function AdminProducts() {
       />
 
       {/* Product Form Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={resetForm}>
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          if (!isSubmittingProduct && !submitting) resetForm()
+        }}
+      >
         <View style={s.modalOverlay}>
-          <Pressable style={s.modalBackdrop} onPress={resetForm} />
+          <Pressable
+            style={s.modalBackdrop}
+            onPress={() => {
+              if (!isSubmittingProduct && !submitting) resetForm()
+            }}
+          />
           <View style={s.modalSheet}>
             <View style={s.modalHandle} />
 
@@ -458,7 +488,11 @@ export default function AdminProducts() {
                 <Text style={s.modalTitle}>{editingId ? 'Edit Product' : 'New Product'}</Text>
                 <Text style={s.modalSubtitle}>{editingId ? 'Update product details' : 'Create a new product'}</Text>
               </View>
-              <TouchableOpacity onPress={resetForm} style={s.modalCloseBtn}>
+              <TouchableOpacity
+                onPress={resetForm}
+                style={s.modalCloseBtn}
+                disabled={isSubmittingProduct || submitting}
+              >
                 <Feather name="x" size={18} color={C.textSub} />
               </TouchableOpacity>
             </View>
@@ -538,11 +572,21 @@ export default function AdminProducts() {
 
               <Text style={s.sectionLabel}>Images *</Text>
               <View style={s.imageButtonGroup}>
-                <TouchableOpacity style={[s.imageBtn, s.imageBtnGallery]} onPress={pickImage} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={[s.imageBtn, s.imageBtnGallery]}
+                  onPress={pickImage}
+                  activeOpacity={0.7}
+                  disabled={isSubmittingProduct || submitting}
+                >
                   <Feather name="image" size={18} color={C.accent} style={{ marginRight: 8 }} />
                   <Text style={s.imageBtnText}>Gallery</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[s.imageBtn, s.imageBtnCamera]} onPress={takePhoto} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={[s.imageBtn, s.imageBtnCamera]}
+                  onPress={takePhoto}
+                  activeOpacity={0.7}
+                  disabled={isSubmittingProduct || submitting}
+                >
                   <Feather name="camera" size={18} color={C.mint} style={{ marginRight: 8 }} />
                   <Text style={s.imageBtnText}>Camera</Text>
                 </TouchableOpacity>
@@ -574,11 +618,15 @@ export default function AdminProducts() {
             </ScrollView>
 
             <View style={s.modalActions}>
-              <TouchableOpacity style={s.cancelBtn} onPress={resetForm} disabled={submitting}>
+              <TouchableOpacity style={s.cancelBtn} onPress={resetForm} disabled={isSubmittingProduct || submitting}>
                 <Text style={s.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.saveBtn, submitting && s.saveBtnDisabled]} onPress={submitProduct} disabled={submitting}>
-                {submitting ? (
+              <TouchableOpacity
+                style={[s.saveBtn, (isSubmittingProduct || submitting) && s.saveBtnDisabled]}
+                onPress={submitProduct}
+                disabled={isSubmittingProduct || submitting}
+              >
+                {isSubmittingProduct || submitting ? (
                   <ActivityIndicator size="small" color={C.text} />
                 ) : (
                   <>

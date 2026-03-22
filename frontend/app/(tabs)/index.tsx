@@ -424,6 +424,20 @@ export default function Home() {
     return products.filter((p) => accepted.has(normalize(p.category)));
   }, [products, activeCategory]);
 
+  const uniqueVisibleProducts = useMemo(() => {
+    const seen = new Set<string>();
+    const deduped: IProduct[] = [];
+
+    for (const p of visibleProducts) {
+      const key = String(p?._id ?? '').trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(p);
+    }
+
+    return deduped;
+  }, [visibleProducts]);
+
   /* Live Search */
   const [searchQuery,   setSearchQuery]   = useState(routeKw ?? '');
   const [activeKeyword, setActiveKeyword] = useState(routeKw ?? '');
@@ -732,7 +746,7 @@ export default function Home() {
               <View style={s.sidebarCats}>
                 {categories.map((cat) => (
                   <TouchableOpacity
-                    key={cat._id}
+                    key={`${cat._id}-${cat.name}`}
                     onPress={() => setActiveCategory(cat)}
                     style={[s.sidebarCatRow, activeCategory._id === cat._id && s.sidebarCatRowActive]}
                   >
@@ -755,7 +769,7 @@ export default function Home() {
           {isWeb && !webLayout && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.chipRow, { marginBottom: 12 }]}>
               {categories.map((cat) => (
-                <Chip key={cat._id} label={cat.name} active={activeCategory._id === cat._id} onPress={() => setActiveCategory(cat)} />
+                <Chip key={`${cat._id}-${cat.name}`} label={cat.name} active={activeCategory._id === cat._id} onPress={() => setActiveCategory(cat)} />
               ))}
             </ScrollView>
           )}
@@ -773,7 +787,7 @@ export default function Home() {
                 </TouchableOpacity>
               </View>
             </View>
-          ) : visibleProducts.length === 0 ? (
+          ) : uniqueVisibleProducts.length === 0 ? (
             <View style={s.centerWrap}>
               <MaterialCommunityIcons name="robot-confused-outline" size={52} color={C.textDim} />
               <Text style={s.emptyTitle}>NO UNITS FOUND</Text>
@@ -782,7 +796,7 @@ export default function Home() {
           ) : (
             <FlatList<IProduct>
               key={`grid-${numCols}`}
-              data={visibleProducts}
+              data={uniqueVisibleProducts}
               keyExtractor={(item) => item._id}
               numColumns={numCols}
               showsVerticalScrollIndicator={false}
@@ -794,7 +808,7 @@ export default function Home() {
               ListHeaderComponent={
                 <View style={s.resultsBar}>
                   <View style={s.resultsBarTick} />
-                  <Text style={s.resultsCount}>{visibleProducts.length.toLocaleString()} UNITS INDEXED</Text>
+                  <Text style={s.resultsCount}>{uniqueVisibleProducts.length.toLocaleString()} UNITS INDEXED</Text>
                   {activeKeyword ? <Text style={s.resultsKw}>· "{activeKeyword}"</Text> : null}
                   {activeCategory._id !== 'All' ? <Text style={s.resultsCat}>· {activeCategory.name}</Text> : null}
                 </View>
@@ -807,7 +821,7 @@ export default function Home() {
                       <Text style={s.loadingMoreText}>FETCHING DATA...</Text>
                     </View>
                   )}
-                  {!hasMore && visibleProducts.length > 0 && (
+                  {!hasMore && uniqueVisibleProducts.length > 0 && (
                     <View style={s.endOfListContainer}>
                       <MaterialCommunityIcons name="check-circle-outline" size={16} color={C.textDim} style={{ marginBottom: 4 }} />
                       <Text style={s.endOfListText}>END OF INVENTORY</Text>

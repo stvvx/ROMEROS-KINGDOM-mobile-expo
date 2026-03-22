@@ -11,6 +11,7 @@ import {
   Pressable,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { saveCartItemsSync, loadCartAsync } from '@/utils/cartDb';
@@ -313,7 +314,7 @@ export default function Cart() {
   /* ── Empty State ── */
   if (cartItems.length === 0) {
     return (
-      <View style={s.root}>
+      <SafeAreaView style={s.root} edges={['top']}>
         <ThemedConfirm
           visible={confirmVisible} title={confirmConfig.title}
           message={confirmConfig.message} confirmLabel={confirmConfig.confirmLabel}
@@ -347,12 +348,12 @@ export default function Cart() {
             <Text style={s.browseBtnText}>BROWSE INVENTORY</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={s.root}>
+    <SafeAreaView style={s.root} edges={['top']}>
       <ThemedConfirm
         visible={confirmVisible} title={confirmConfig.title}
         message={confirmConfig.message} confirmLabel={confirmConfig.confirmLabel}
@@ -529,7 +530,7 @@ export default function Cart() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

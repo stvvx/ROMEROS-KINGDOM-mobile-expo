@@ -186,6 +186,7 @@ export default function ProductDetails() {
   const [hasPurchased,     setHasPurchased]     = useState(false);
   const [hasOrdered,       setHasOrdered]       = useState(false);
   const [reviewImages,     setReviewImages]     = useState<Array<{ uri: string; name: string; type: string }>>([]);
+  const [categoryName,     setCategoryName]     = useState('');
 
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertType,    setAlertType]    = useState<'success' | 'error' | 'warning' | 'info'>('success');
@@ -218,6 +219,7 @@ export default function ProductDetails() {
       const res = await axios.get(`${API_URL}/product/${id}`, { timeout: 10000 });
       if (res.data.product) {
         setProduct(res.data.product);
+        await resolveCategoryName(res.data.product.category);
         if (res.data.product.reviews && user) {
           const mine = res.data.product.reviews.find((r: any) => String(r.user) === String(user._id));
           if (mine) { setRating(mine.rating); setComment(mine.comment); }
@@ -227,6 +229,25 @@ export default function ProductDetails() {
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || 'Failed to fetch product details');
     } finally { setLoading(false); }
+  };
+
+  const resolveCategoryName = async (rawCategory?: string) => {
+    const value = String(rawCategory || '').trim();
+    if (!value) { setCategoryName(''); return; }
+
+    // Support both legacy values (already name) and current values (category id).
+    if (!/^[0-9a-fA-F]{24}$/.test(value)) {
+      setCategoryName(value);
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${API_URL}/category/${value}`, { timeout: 8000 });
+      const resolvedName = res.data?.category?.name;
+      setCategoryName(typeof resolvedName === 'string' && resolvedName.trim() ? resolvedName.trim() : value);
+    } catch {
+      setCategoryName(value);
+    }
   };
 
   const checkPurchaseStatus = async (productId: string) => {
@@ -449,10 +470,10 @@ export default function ProductDetails() {
 
           {/* Meta row */}
           <View style={s.metaRow}>
-            {product.category ? (
+            {categoryName ? (
               <View style={s.categoryBadge}>
                 <MaterialCommunityIcons name="tag-outline" size={11} color={C.accent} />
-                <Text style={s.categoryText}>{product.category.toUpperCase()}</Text>
+                <Text style={s.categoryText}>{categoryName.toUpperCase()}</Text>
               </View>
             ) : null}
             <Text style={s.productId}>#{product._id.slice(-8).toUpperCase()}</Text>
