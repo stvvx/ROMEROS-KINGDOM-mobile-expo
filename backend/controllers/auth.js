@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const cloudinary = require('cloudinary');
 const sendEmail = require('../utils/sendEmail');
 const multer = require('multer');
+const fetch = require('node-fetch');
 const upload = multer({ storage: multer.memoryStorage() }); // For avatar upload
 
 // Firebase Admin (optional) for verifying ID tokens
@@ -15,6 +16,48 @@ async function verifyFirebaseIdToken(idToken) {
   try {
     return await fbAuth.verifyIdToken(idToken)
   } catch (e) {
+    return null
+  }
+}
+
+function getAllowedGoogleAudiences() {
+  const candidates = [
+    process.env.GOOGLE_WEB_CLIENT_ID,
+    process.env.GOOGLE_ANDROID_CLIENT_ID,
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    // Safe defaults from current Firebase project config.
+    '724001311783-6g9ph4863lh788uptne069n7hce08cau.apps.googleusercontent.com',
+    '724001311783-2jb1erml690k31bsdrhvthkqnkvvs8nr.apps.googleusercontent.com',
+  ]
+
+  return [...new Set(candidates.filter(Boolean))]
+}
+
+async function verifyGoogleIdToken(googleIdToken) {
+  if (!googleIdToken || typeof googleIdToken !== 'string') return null
+
+  try {
+    const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(googleIdToken)}`
+    const response = await fetch(url)
+    if (!response.ok) return null
+
+    const payload = await response.json()
+    const aud = payload && payload.aud
+    const allowedAudiences = getAllowedGoogleAudiences()
+    if (!aud || (allowedAudiences.length > 0 && !allowedAudiences.includes(aud))) {
+      return null
+    }
+
+    if (!payload.sub || !payload.email) return null
+
+    return {
+      uid: payload.sub,
+      email: payload.email,
+      name: payload.name,
+      picture: payload.picture,
+    }
+  } catch {
     return null
   }
 }
@@ -36,9 +79,20 @@ exports.registerUser = async (req, res, next) => {
     // Firebase-backed register (does not break existing local flow)
     const provider = String(req.body.provider || '').toLowerCase()
     const idToken = req.body.idToken || extractBearerToken(req)
+    const googleIdToken = req.body.googleIdToken
 
     if ((provider === 'firebase' || provider === 'google') && idToken) {
-      const decoded = await verifyFirebaseIdToken(idToken)
+      let decoded = await verifyFirebaseIdToken(idToken)
+      let tokenSource = 'firebase'
+
+      if (!decoded && provider === 'google') {
+        const googleDecoded = await verifyGoogleIdToken(googleIdToken)
+        if (googleDecoded) {
+          decoded = googleDecoded
+          tokenSource = 'google'
+        }
+      }
+
       if (!decoded) {
         return res.status(401).json({ message: 'Invalid Firebase token' })
       }
@@ -67,7 +121,7 @@ exports.registerUser = async (req, res, next) => {
           name: name || displayName || tokenEmail.split('@')[0],
           email: tokenEmail,
           address: address || '',
-          provider: provider === 'google' ? 'google' : 'firebase',
+          provider: provider === 'google' || tokenSource === 'google' ? 'google' : 'firebase',
           avatar: picture ? { url: picture } : undefined,
           isVerified: true,
           lastLogin: new Date(),
@@ -76,7 +130,7 @@ exports.registerUser = async (req, res, next) => {
         // Update synced fields only (avoid breaking existing accounts)
         const updates = {
           uid: user.uid || uid,
-          provider: user.provider === 'local' ? user.provider : (provider === 'google' ? 'google' : 'firebase'),
+          provider: user.provider === 'local' ? user.provider : ((provider === 'google' || tokenSource === 'google') ? 'google' : 'firebase'),
           lastLogin: new Date(),
         }
         if (displayName && user.name !== displayName) updates.name = displayName
@@ -153,9 +207,20 @@ exports.loginUser = async (req, res, next) => {
     // Firebase-backed login (does not break existing local flow)
     const provider = String(req.body.provider || '').toLowerCase()
     const idToken = req.body.idToken || extractBearerToken(req)
+    const googleIdToken = req.body.googleIdToken
 
     if ((provider === 'firebase' || provider === 'google') && idToken) {
-      const decoded = await verifyFirebaseIdToken(idToken)
+      let decoded = await verifyFirebaseIdToken(idToken)
+      let tokenSource = 'firebase'
+
+      if (!decoded && provider === 'google') {
+        const googleDecoded = await verifyGoogleIdToken(googleIdToken)
+        if (googleDecoded) {
+          decoded = googleDecoded
+          tokenSource = 'google'
+        }
+      }
+
       if (!decoded) {
         return res.status(401).json({ message: 'Invalid Firebase token' })
       }
@@ -183,7 +248,7 @@ exports.loginUser = async (req, res, next) => {
           uid,
           name: displayName || tokenEmail.split('@')[0],
           email: tokenEmail,
-          provider: provider === 'google' ? 'google' : 'firebase',
+          provider: provider === 'google' || tokenSource === 'google' ? 'google' : 'firebase',
           avatar: picture ? { url: picture } : undefined,
           isVerified: true,
           lastLogin: new Date(),
@@ -195,7 +260,7 @@ exports.loginUser = async (req, res, next) => {
         }
         if (displayName && user.name !== displayName) updates.name = displayName
         if (picture && user.avatar?.url !== picture) updates.avatar = { ...(user.avatar || {}), url: picture }
-        if (user.provider !== 'local') updates.provider = provider === 'google' ? 'google' : 'firebase'
+        if (user.provider !== 'local') updates.provider = (provider === 'google' || tokenSource === 'google') ? 'google' : 'firebase'
 
         user = await User.findByIdAndUpdate(user._id, updates, { new: true })
       }

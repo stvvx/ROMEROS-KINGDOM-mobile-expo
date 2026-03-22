@@ -316,7 +316,11 @@ export default function Login() {
       const credential     = GoogleAuthProvider.credential(idToken);
       const userCred       = await signInWithCredential(auth, credential);
       const firebaseIdToken= await userCred.user.getIdToken();
-      const res = await axios.post(`${API_URL}/login`, { provider: 'google', idToken: firebaseIdToken }, { timeout: 10000 });
+      const res = await axios.post(
+        `${API_URL}/login`,
+        { provider: 'google', idToken: firebaseIdToken, googleIdToken: idToken },
+        { timeout: 10000 }
+      );
       if (res.data.success) {
         const { token, user } = res.data;
         if (user?.isActive === false) { setServerError({ field: 'email', message: 'Account is deactivated' }); Alert.alert('Account Inactive', 'Your account has been deactivated.'); return; }
