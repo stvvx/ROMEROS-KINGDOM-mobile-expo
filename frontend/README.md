@@ -42,6 +42,27 @@ To learn more about developing your project with Expo, look at the following res
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
+## Google Sign-In troubleshooting (Android)
+
+If you get `DEVELOPER_ERROR`, your Firebase Android OAuth fingerprint does not match the keystore used to sign the app build.
+
+1. Confirm package name is `romeroskingdom.ph` in Firebase Android app settings.
+2. Get your local debug SHA-1:
+
+   ```powershell
+   keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android
+   ```
+
+3. Add that SHA-1 in Firebase: Project Settings -> Your apps -> Android app -> Add fingerprint.
+4. Download the updated `google-services.json` and replace:
+   - `frontend/google-services.json`
+   - `frontend/android/app/google-services.json`
+5. Rebuild and reinstall the app (Expo Go cannot run native Google Sign-In):
+
+   ```bash
+   npx expo run:android
+   ```
+
 ## Join the community
 
 Join our community of developers creating universal apps.

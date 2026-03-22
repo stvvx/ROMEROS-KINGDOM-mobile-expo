@@ -24,7 +24,7 @@ import Constants from 'expo-constants';
 import { auth } from '@/utils/firebase';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import * as WebBrowser from 'expo-web-browser';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -36,6 +36,8 @@ const IS_EXPO_GO =
   (Constants as any)?.appOwnership === 'expo';
 
 const CAN_USE_GOOGLE_AUTH = GOOGLE_AUTH_ENABLED && !IS_EXPO_GO;
+
+const GOOGLE_ANDROID_PACKAGE = 'romeroskingdom.ph';
 
 const API_URL =
   process.env.NGROK_URL ||
@@ -298,7 +300,10 @@ export default function Register() {
   const handleGoogleRegister = async () => {
     if (IS_EXPO_GO) { Alert.alert('Google Sign-in', 'Requires a dev build.'); return; }
     if (!GOOGLE_AUTH_ENABLED) { Alert.alert('Google Sign-in', 'Disabled in current env.'); return; }
-    if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) { Alert.alert('Google Sign-in', 'Missing client ID.'); return; }
+    if (!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || !process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) {
+      Alert.alert('Google Sign-in', 'Missing Google client IDs in .env');
+      return;
+    }
     try {
       setLoading(true);
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
@@ -319,7 +324,7 @@ export default function Register() {
         setTimeout(() => router.replace('/(user)/UserProfile'), 1200);
       }
     } catch (e: any) {
-      Alert.alert('Google Registration Failed', e?.response?.data?.message || e?.message || 'Failed');
+      Alert.alert('Google Registration Failed', mapGoogleSignInErrorMessage(e));
     } finally { setLoading(false); }
   };
 
@@ -829,3 +834,30 @@ const s = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 });
+
+function mapGoogleSignInErrorMessage(error: any): string {
+  const code = error?.code;
+  if (code === 'DEVELOPER_ERROR' || String(error?.message || '').includes('DEVELOPER_ERROR')) {
+    return [
+      'Google OAuth config mismatch detected.',
+      `Firebase Android app package must be ${GOOGLE_ANDROID_PACKAGE}.`,
+      'Add the SHA-1 fingerprint of your build keystore in Firebase (Project Settings > Your apps > Android).',
+      'Then download a new google-services.json and rebuild the Android app.',
+      'Local SHA-1 command: keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android',
+    ].join('\n');
+  }
+
+  if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+    return 'Google Play Services is missing or outdated on this device.';
+  }
+
+  if (code === statusCodes.SIGN_IN_CANCELLED) {
+    return 'Google sign-in was cancelled.';
+  }
+
+  if (code === statusCodes.IN_PROGRESS) {
+    return 'Google sign-in is already in progress. Please wait and try again.';
+  }
+
+  return error?.response?.data?.message || error?.message || 'Failed';
+}

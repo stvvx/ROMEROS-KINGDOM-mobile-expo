@@ -20,7 +20,7 @@ import { registerFirebasePushToken } from '@/utils/notifications';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import Svg, { Path, Rect, Circle, Line, Polygon, Defs, LinearGradient, Stop } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import Constants from 'expo-constants';
 import { auth } from '@/utils/firebase';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
@@ -35,6 +35,8 @@ const IS_EXPO_GO =
   (Constants as any)?.appOwnership === 'expo';
 
 const CAN_USE_GOOGLE_AUTH = GOOGLE_AUTH_ENABLED && !IS_EXPO_GO;
+
+const GOOGLE_ANDROID_PACKAGE = 'romeroskingdom.ph';
 
 const { width } = Dimensions.get('window');
 
@@ -328,7 +330,7 @@ export default function Login() {
         }, 1200);
       }
     } catch (e: any) {
-      Alert.alert('Google Login Failed', e?.response?.data?.message || e?.message || 'Google login failed');
+      Alert.alert('Google Login Failed', mapGoogleSignInErrorMessage(e));
     } finally { setLoading(false); }
   };
 
@@ -899,4 +901,31 @@ async function extractGoogleIdToken(userInfo: any): Promise<string | null> {
     if (typeof fallback === 'string' && fallback.length > 0) return fallback;
   } catch { }
   return null;
+}
+
+function mapGoogleSignInErrorMessage(error: any): string {
+  const code = error?.code;
+  if (code === 'DEVELOPER_ERROR' || String(error?.message || '').includes('DEVELOPER_ERROR')) {
+    return [
+      'Google OAuth config mismatch detected.',
+      `Firebase Android app package must be ${GOOGLE_ANDROID_PACKAGE}.`,
+      'Add the SHA-1 fingerprint of your build keystore in Firebase (Project Settings > Your apps > Android).',
+      'Then download a new google-services.json and rebuild the Android app.',
+      'Local SHA-1 command: keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android',
+    ].join('\n');
+  }
+
+  if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+    return 'Google Play Services is missing or outdated on this device.';
+  }
+
+  if (code === statusCodes.SIGN_IN_CANCELLED) {
+    return 'Google sign-in was cancelled.';
+  }
+
+  if (code === statusCodes.IN_PROGRESS) {
+    return 'Google sign-in is already in progress. Please wait and try again.';
+  }
+
+  return error?.response?.data?.message || error?.message || 'Google login failed';
 }
