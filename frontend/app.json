@@ -2,7 +2,7 @@
   "expo": {
     "name": "ROMEROS Kingdom",
     "owner": "tuprosario",
-    "slug": "frontend",
+    "slug": "romeros-kingdom-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/ROMEROSKingdom.jpg",
@@ -50,7 +50,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "80a0591d-c7a0-433c-b264-52d540a9e51a"
+        "projectId": "7eab74ce-3f15-43e5-96b5-ee8395951194"
       }
     }
   }
