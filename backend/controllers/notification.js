@@ -1,5 +1,6 @@
 const Notification = require('../models/notification')
 const User = require('../models/user')
+const { notify } = require('../utils/notification')
 
 // List notifications for authenticated user
 exports.getMyNotifications = async (req, res) => {
@@ -65,6 +66,10 @@ exports.savePushToken = async (req, res) => {
     const expoPushToken = req.body?.expoPushToken || req.body?.firebasePushToken
     if (!expoPushToken) return res.status(400).json({ success: false, message: 'expoPushToken required' })
 
+    if (!/^Expo(nent)?PushToken\[/.test(expoPushToken)) {
+      return res.status(400).json({ success: false, message: 'Invalid Expo push token format' })
+    }
+
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { expoPushToken },
@@ -75,5 +80,38 @@ exports.savePushToken = async (req, res) => {
   } catch (err) {
     console.error('[savePushToken]', err)
     res.status(500).json({ success: false, message: 'Failed to save push token' })
+  }
+}
+
+// Sends a system notification record and attempts direct push to the current user's device.
+exports.sendTestPush = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('expoPushToken name')
+    if (!user?.expoPushToken) {
+      return res.status(400).json({ success: false, message: 'No device push token saved for this user yet' })
+    }
+
+    if (!/^Expo(nent)?PushToken\[/.test(user.expoPushToken)) {
+      return res.status(400).json({ success: false, message: 'Saved push token format is invalid' })
+    }
+
+    const title = 'Push test successful'
+    const message = `Hello ${user.name || 'user'}, your device push channel is working.`
+
+    await notify({
+      userId: req.user._id,
+      role: 'user',
+      title,
+      message,
+      type: 'system',
+      refModel: 'Notification',
+      refId: String(req.user._id),
+      data: { source: 'test-push' },
+    })
+
+    return res.status(200).json({ success: true, message: 'Test notification queued and pushed' })
+  } catch (err) {
+    console.error('[sendTestPush]', err)
+    return res.status(500).json({ success: false, message: 'Failed to send test push' })
   }
 }

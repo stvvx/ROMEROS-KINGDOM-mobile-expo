@@ -8,7 +8,7 @@ import * as Notifications from 'expo-notifications';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { store } from '@/store';
-import { setupNotificationResponseHandler } from '../utils/notifications';
+import { registerFirebasePushToken, setupNotificationResponseHandler } from '../utils/notifications';
 import { getItem } from '@/utils/storage';
 
 export const unstable_settings = {
@@ -18,6 +18,10 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
+  const API_URL =
+    process.env.NGROK_URL ||
+    process.env.EXPO_PUBLIC_API_URL ||
+    'http://localhost:4000/api/v1';
 
   useEffect(() => {
     // Ensure foreground notifications are presented to the user
@@ -77,8 +81,20 @@ export default function RootLayout() {
       router.push('/(user)/notifications');
     });
 
+    // Ensure token is registered even for returning sessions (without re-login).
+    (async () => {
+      try {
+        const authToken = await getItem('authToken');
+        if (authToken) {
+          await registerFirebasePushToken(API_URL, authToken).catch(() => null);
+        }
+      } catch {
+        // no-op; notification setup should not block app startup
+      }
+    })();
+
     return cleanup;
-  }, [router]);
+  }, [router, API_URL]);
 
   return (
     <Provider store={store}>

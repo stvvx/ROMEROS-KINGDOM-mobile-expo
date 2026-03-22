@@ -7,6 +7,7 @@ const {
   markNotificationRead,
   markAllRead,
   savePushToken,
+  sendTestPush,
 } = require('../controllers/notification')
 
 const { isAuthenticatedUser, authorizeRoles } = require('../middlewares/auth')
@@ -16,5 +17,6 @@ router.get('/admin/notifications', isAuthenticatedUser, authorizeRoles('admin'),
 router.post('/notifications/:id/read', isAuthenticatedUser, markNotificationRead)
 router.post('/notifications/read-all', isAuthenticatedUser, markAllRead)
 router.post('/push/token', isAuthenticatedUser, savePushToken)
+router.post('/push/test', isAuthenticatedUser, sendTestPush)
 
 module.exports = router
