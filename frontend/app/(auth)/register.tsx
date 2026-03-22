@@ -294,7 +294,10 @@ export default function Register() {
 
   React.useEffect(() => {
     if (!CAN_USE_GOOGLE_AUTH) return;
-    GoogleSignin.configure({ webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, offlineAccess: false });
+    GoogleSignin.configure({
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      offlineAccess: false,
+    });
   }, []);
 
   const handleGoogleRegister = async () => {

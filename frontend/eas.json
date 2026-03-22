@@ -9,7 +9,10 @@
       "distribution": "internal",
       "env": {
         "NGROK_URL": "https://romerosmobile-backend.onrender.com/api/v1",
-        "EXPO_PUBLIC_API_URL": "https://romerosmobile-backend.onrender.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://romerosmobile-backend.onrender.com/api/v1",
+        "EXPO_PUBLIC_ENABLE_GOOGLE_AUTH": "true",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "724001311783-2pk84qnvtrep1nfd3lm31hpp71jl0k5i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "724001311783-6g9ph4863lh788uptne069n7hce08cau.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "apk"
@@ -19,7 +22,10 @@
       "distribution": "internal",
       "env": {
         "NGROK_URL": "https://romerosmobile-backend.onrender.com/api/v1",
-        "EXPO_PUBLIC_API_URL": "https://romerosmobile-backend.onrender.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://romerosmobile-backend.onrender.com/api/v1",
+        "EXPO_PUBLIC_ENABLE_GOOGLE_AUTH": "true",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "724001311783-2pk84qnvtrep1nfd3lm31hpp71jl0k5i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "724001311783-6g9ph4863lh788uptne069n7hce08cau.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "apk"
@@ -29,7 +35,10 @@
       "autoIncrement": true,
       "env": {
         "NGROK_URL": "https://romerosmobile-backend.onrender.com/api/v1",
-        "EXPO_PUBLIC_API_URL": "https://romerosmobile-backend.onrender.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://romerosmobile-backend.onrender.com/api/v1",
+        "EXPO_PUBLIC_ENABLE_GOOGLE_AUTH": "true",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "724001311783-2pk84qnvtrep1nfd3lm31hpp71jl0k5i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "724001311783-6g9ph4863lh788uptne069n7hce08cau.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "app-bundle"
