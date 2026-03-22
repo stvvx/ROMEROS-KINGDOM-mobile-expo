@@ -331,22 +331,28 @@ export default function ProductDetails() {
     if (!hasPurchased) { showAlert('error', 'PURCHASE REQUIRED', 'You can only review products you have bought.'); return; }
     try {
       setSubmittingReview(true);
+      let reviewRes: any;
       if (reviewImages.length > 0) {
         const formData = new FormData();
         formData.append('rating', String(rating));
         formData.append('comment', comment.trim());
         formData.append('productId', id as string);
         reviewImages.forEach((img) => { formData.append('reviewImages', { uri: img.uri, name: img.name, type: img.type } as any); });
-        await axios.put(`${API_URL}/review`, formData, {
+        reviewRes = await axios.put(`${API_URL}/review`, formData, {
           headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${authToken}` },
           timeout: 20000,
         });
       } else {
-        await axios.put(`${API_URL}/review`, { rating, comment: comment.trim(), productId: id }, {
+        reviewRes = await axios.put(`${API_URL}/review`, { rating, comment: comment.trim(), productId: id }, {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         });
       }
-      showAlert('success', 'REVIEW LOGGED', 'Your review has been posted successfully.');
+      const wasUpdated = Boolean(reviewRes?.data?.updated);
+      showAlert(
+        'success',
+        wasUpdated ? 'REVIEW UPDATED' : 'REVIEW LOGGED',
+        wasUpdated ? 'Your review has been updated successfully.' : 'Your review has been posted successfully.'
+      );
       setComment(''); setRating(0); setReviewImages([]);
       await fetchProductDetails();
     } catch (err: any) {

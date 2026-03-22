@@ -13,6 +13,7 @@ const {
   createProductReview,
   getProductReviews,
   deleteReview,
+  deleteMyReview,
   getMyReviews,
   getAllReviews,
 } = require('../controllers/product')
@@ -69,6 +70,7 @@ router.get(
 
 /* ================= REVIEWS ================= */
 router.put('/review', isAuthenticatedUser, upload.array('reviewImages', 4), createProductReview)
+router.delete('/review/me', isAuthenticatedUser, deleteMyReview)
 router.get('/reviews', isAuthenticatedUser, getProductReviews)
 router.get('/reviews/my', isAuthenticatedUser, getMyReviews)
 router.get(

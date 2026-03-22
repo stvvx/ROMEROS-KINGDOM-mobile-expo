@@ -7,13 +7,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
   Platform,
   Image,
   ScrollView,
   Animated,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { fetchMyReviews } from '@/store/slices/reviewSlice';
+import { deleteMyReview, fetchMyReviews } from '@/store/slices/reviewSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -89,7 +90,7 @@ function ratingColor(r: number) {
 /* ─────────────────────────────────────────
    Review Card
 ───────────────────────────────────────── */
-const ReviewCard = ({ review, onPress }: { review: Review; onPress: () => void }) => {
+const ReviewCard = ({ review, onPress, onDelete }: { review: Review; onPress: () => void; onDelete: () => void }) => {
   const color = ratingColor(review.rating);
   const label = RATING_LABEL[Math.round(review.rating)] ?? '';
 
@@ -145,8 +146,14 @@ const ReviewCard = ({ review, onPress }: { review: Review; onPress: () => void }
 
         {/* CTA */}
         <View style={s.ctaRow}>
-          <Text style={[s.cta, { color }]}>VIEW PRODUCT</Text>
-          <Feather name="arrow-right" size={11} color={color} style={{ marginLeft: 4 }} />
+          <TouchableOpacity style={s.viewBtn} onPress={onPress} activeOpacity={0.85}>
+            <Text style={[s.cta, { color }]}>UPDATE REVIEW</Text>
+            <Feather name="arrow-right" size={11} color={color} style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.deleteBtn} onPress={onDelete} activeOpacity={0.85}>
+            <Feather name="trash-2" size={11} color={C.danger} />
+            <Text style={s.deleteTxt}>DELETE</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -178,6 +185,23 @@ export default function UserReview() {
     const best  = Math.max(...reviews.map(r => r.rating));
     return { avg: total / reviews.length, count: reviews.length, best };
   }, [reviews]);
+
+  const handleDeleteReview = (item: Review) => {
+    Alert.alert('Delete Review', `Delete your review for ${item.productName}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await dispatch(deleteMyReview({ productId: item.productId })).unwrap();
+          } catch (err: any) {
+            Alert.alert('Delete Failed', err || 'Failed to delete review.');
+          }
+        },
+      },
+    ]);
+  };
 
   /* ── Loading ── */
   if (loading) {
@@ -315,6 +339,7 @@ export default function UserReview() {
           <ReviewCard
             review={item}
             onPress={() => router.push({ pathname: '/(user)/ProductDetails', params: { id: item.productId } })}
+            onDelete={() => handleDeleteReview(item)}
           />
         )}
       />
@@ -392,7 +417,21 @@ const s = StyleSheet.create({
   reviewImgScan: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, backgroundColor: C.accent, opacity: 0.25, borderBottomLeftRadius: 10, borderBottomRightRadius: 10 },
 
   ctaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  viewBtn: { flexDirection: 'row', alignItems: 'center' },
   cta:    { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, fontFamily: MONO },
+  deleteBtn: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.dangerBg,
+    borderWidth: 1,
+    borderColor: C.dangerBorder,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    gap: 5,
+  },
+  deleteTxt: { color: C.danger, fontSize: 9, fontWeight: '800', letterSpacing: 1.2, fontFamily: MONO },
 
   cornerTL: { position: 'absolute', top: 0,    left: 3,  width: 12, height: 1.5, opacity: 0.6 },
   cornerBR: { position: 'absolute', bottom: 0, right: 0, width: 12, height: 1.5, opacity: 0.6 },

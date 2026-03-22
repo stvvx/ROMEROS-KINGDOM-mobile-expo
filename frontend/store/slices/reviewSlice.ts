@@ -56,6 +56,28 @@ export const fetchMyReviews = createAsyncThunk(
   }
 );
 
+export const deleteMyReview = createAsyncThunk(
+  'review/deleteMyReview',
+  async (args: { productId: string }, { rejectWithValue }) => {
+    try {
+      const token = await getItem('authToken');
+      if (!token) {
+        return rejectWithValue('You must be signed in.');
+      }
+
+      await axios.delete(`${getApiUrl()}/review/me`, {
+        params: { productId: args.productId },
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000,
+      });
+
+      return { productId: args.productId };
+    } catch (err: any) {
+      return rejectWithValue(err?.response?.data?.message || err?.message || 'Failed to delete review');
+    }
+  }
+);
+
 const reviewSlice = createSlice({
   name: 'review',
   initialState,
@@ -78,6 +100,12 @@ const reviewSlice = createSlice({
         state.loading = false;
         state.refreshing = false;
         state.error = (action.payload as string) || 'Failed to load reviews';
+      })
+      .addCase(deleteMyReview.fulfilled, (state, action: PayloadAction<any>) => {
+        state.reviews = state.reviews.filter((r) => r.productId !== action.payload.productId);
+      })
+      .addCase(deleteMyReview.rejected, (state, action) => {
+        state.error = (action.payload as string) || 'Failed to delete review';
       });
   },
 });

@@ -524,8 +524,10 @@ exports.createProductReview = async (req, res) => {
     notify({
       userId: req.user._id,
       role: 'user',
-      title: 'Review submitted',
-      message: `Thanks for reviewing ${product.name}.`,
+      title: isReviewed ? 'Review updated' : 'Review submitted',
+      message: isReviewed
+        ? `Your review for ${product.name} was updated.`
+        : `Thanks for reviewing ${product.name}.`,
       type: 'review',
       refId: String(product._id),
       refModel: 'Product',
@@ -534,8 +536,10 @@ exports.createProductReview = async (req, res) => {
     notify({
       userId: null,
       role: 'admin',
-      title: 'New review',
-      message: `${req.user.name} left a ${numericRating}/5 on ${product.name}.`,
+      title: isReviewed ? 'Review updated' : 'New review',
+      message: isReviewed
+        ? `${req.user.name} updated a review to ${numericRating}/5 on ${product.name}.`
+        : `${req.user.name} left a ${numericRating}/5 on ${product.name}.`,
       type: 'review',
       refId: String(product._id),
       refModel: 'Product',
@@ -543,7 +547,8 @@ exports.createProductReview = async (req, res) => {
 
     res.status(200).json({ 
       success: true,
-      message: 'Review added successfully'
+      updated: Boolean(isReviewed),
+      message: isReviewed ? 'Review updated successfully' : 'Review added successfully'
     })
   } catch (error) {
     console.error('[createProductReview Error]', error)
@@ -791,6 +796,75 @@ exports.getCategories = async (req, res) => {
       success: false,
       message: 'Error fetching categories',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+}
+
+// ==========================
+// DELETE AUTH USER REVIEW
+// ==========================
+exports.deleteMyReview = async (req, res) => {
+  try {
+    const productId = req.query.productId || req.body?.productId
+    if (!productId) {
+      return res.status(400).json({
+        success: false,
+        message: 'productId is required',
+      })
+    }
+
+    const product = await Product.findById(productId)
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      })
+    }
+
+    const userId = String(req.user._id)
+    const existing = product.reviews.find((r) => String(r.user) === userId)
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found for this product',
+      })
+    }
+
+    const reviews = product.reviews.filter((r) => String(r.user) !== userId)
+    const ratings = reviews.length
+      ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
+      : 0
+
+    await Product.findByIdAndUpdate(
+      productId,
+      {
+        reviews,
+        ratings,
+        numOfReviews: reviews.length,
+      },
+      { new: true }
+    )
+
+    notify({
+      userId: null,
+      role: 'admin',
+      title: 'Review deleted',
+      message: `${req.user.name} deleted their review on ${product.name}.`,
+      type: 'review',
+      refId: String(product._id),
+      refModel: 'Product',
+    })
+
+    return res.status(200).json({
+      success: true,
+      message: 'Review deleted successfully',
+    })
+  } catch (error) {
+    console.error('[deleteMyReview Error]', error)
+    return res.status(500).json({
+      success: false,
+      message: 'Error deleting review',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     })
   }
 }

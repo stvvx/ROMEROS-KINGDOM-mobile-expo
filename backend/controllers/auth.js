@@ -97,6 +97,11 @@ function isLocalAvatarUrl(url) {
   return typeof url === 'string' && url.includes('/uploads/avatars/')
 }
 
+function shouldFallbackToLocalAvatar(err) {
+  const msg = String(err?.message || '').toLowerCase()
+  return msg.includes('cloud_name') || msg.includes('must supply') || msg.includes('api_key') || msg.includes('api_secret')
+}
+
 async function deleteLocalAvatarByUrl(url) {
   try {
     if (!isLocalAvatarUrl(url)) return
@@ -123,6 +128,28 @@ async function saveAvatarLocally(file, req) {
   return {
     public_id: `local/avatars/${fileName}`,
     url,
+  }
+}
+
+async function uploadAvatarPreferCloudinary(file, req, width = 300) {
+  if (!cloudinary.isConfigured) {
+    return saveAvatarLocally(file, req)
+  }
+
+  try {
+    const b64 = Buffer.from(file.buffer).toString('base64')
+    const dataURI = `data:${file.mimetype};base64,${b64}`
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: 'avatars',
+      width,
+      crop: 'scale',
+    })
+    return { public_id: result.public_id, url: result.secure_url }
+  } catch (uploadErr) {
+    if (shouldFallbackToLocalAvatar(uploadErr)) {
+      return saveAvatarLocally(file, req)
+    }
+    throw uploadErr
   }
 }
 
@@ -222,24 +249,7 @@ exports.registerUser = async (req, res, next) => {
 
     if (req.file) {
       try {
-        if (cloudinary.isConfigured) {
-          // Convert buffer to base64 for upload
-          const b64 = Buffer.from(req.file.buffer).toString('base64');
-          const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-
-          const result = await cloudinary.uploader.upload(dataURI, {
-            folder: 'avatars',
-            width: 150,
-            crop: 'scale',
-          });
-
-          avatarData = {
-            public_id: result.public_id,
-            url: result.secure_url,
-          };
-        } else {
-          avatarData = await saveAvatarLocally(req.file, req)
-        }
+        avatarData = await uploadAvatarPreferCloudinary(req.file, req, 150)
       } catch (uploadError) {
         console.warn('Avatar upload failed, using default:', uploadError.message);
         // Continue with default avatar if upload fails
@@ -475,26 +485,12 @@ exports.updateProfile = async (req, res, next) => {
       try {
         const user = await User.findById(req.user.id)
 
-        if (cloudinary.isConfigured) {
-          // Delete old avatar if it's not the default placeholder
-          if (user.avatar?.public_id && user.avatar.public_id !== 'avatars/default' && !String(user.avatar.public_id).startsWith('local/avatars/')) {
-            await cloudinary.uploader.destroy(user.avatar.public_id).catch(() => {})
-          }
-
-          // Upload buffer as base64 data URI
-          const b64 = Buffer.from(req.file.buffer).toString('base64')
-          const dataURI = `data:${req.file.mimetype};base64,${b64}`
-          const result = await cloudinary.uploader.upload(dataURI, {
-            folder: 'avatars',
-            width: 300,
-            crop: 'scale',
-          })
-
-          newUserData.avatar = { public_id: result.public_id, url: result.secure_url }
-        } else {
-          await deleteLocalAvatarByUrl(user.avatar?.url)
-          newUserData.avatar = await saveAvatarLocally(req.file, req)
+        if (user.avatar?.public_id && user.avatar.public_id !== 'avatars/default' && !String(user.avatar.public_id).startsWith('local/avatars/')) {
+          await cloudinary.uploader.destroy(user.avatar.public_id).catch(() => {})
         }
+
+        await deleteLocalAvatarByUrl(user.avatar?.url)
+        newUserData.avatar = await uploadAvatarPreferCloudinary(req.file, req, 300)
       } catch (uploadErr) {
         console.warn('[updateProfile] avatar upload failed:', uploadErr.message)
         return res.status(400).json({
