@@ -3,8 +3,8 @@ import Constants from 'expo-constants';
 
 export function getApiUrl(): string {
   let apiUrl =
-    process.env.NGROK_URL ||
     process.env.EXPO_PUBLIC_API_URL ||
+    process.env.NGROK_URL ||
     'http://localhost:4000/api/v1';
 
   const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig;

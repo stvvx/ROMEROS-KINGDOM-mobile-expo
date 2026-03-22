@@ -57,7 +57,28 @@ export const fetchProducts = createAsyncThunk(
       if (args.keyword) params.append('keyword', args.keyword);
       if (args.category && args.category !== 'All') params.append('category', args.category);
 
-      const res = await axios.get(`${getApiUrl()}/products?${params}`, { timeout: 10000 });
+      const url = `${getApiUrl()}/products?${params}`;
+      let lastErr: any = null;
+      let res: any = null;
+
+      // Retry once for transient network issues (mobile data switch/cold API wake-up).
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          res = await axios.get(url, { timeout: 25000 });
+          break;
+        } catch (err: any) {
+          lastErr = err;
+          const status = err?.response?.status;
+          const isNetwork = !status;
+          const isTimeout = err?.code === 'ECONNABORTED';
+          if (attempt === 1 || (!isNetwork && !isTimeout)) {
+            throw err;
+          }
+        }
+      }
+
+      if (!res) throw lastErr;
+
       const fetched: ProductItem[] = res.data.products ?? [];
       const productsCount = res.data.productsCount ?? 0;
       const filteredCount = res.data.filteredProductsCount ?? productsCount;

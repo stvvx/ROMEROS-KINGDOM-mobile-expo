@@ -36,8 +36,8 @@ import IndexHeader from '@/components/indexHeader';
    API URL Resolution
 ───────────────────────────────────────── */
 let API_URL =
-  process.env.NGROK_URL ||
   process.env.EXPO_PUBLIC_API_URL ||
+  process.env.NGROK_URL ||
   'http://localhost:4000/api/v1';
 
 const manifest: any =
@@ -496,7 +496,7 @@ export default function Home() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_URL}/products/categories`, { timeout: 8000 });
+      const res = await axios.get(`${API_URL}/products/categories`, { timeout: 25000 });
       const raw: any = res.data?.categories ?? res.data ?? [];
       const cats: CategoryItem[] = Array.isArray(raw)
         ? raw.map((c: any): CategoryItem => {
@@ -554,7 +554,7 @@ export default function Home() {
     try {
       const token = await getItem('authToken');
       if (!token) { setNotifCount(0); return; }
-      const res  = await axios.get(`${API_URL}/notifications`, { headers: { Authorization: `Bearer ${token}` }, timeout: 8000 });
+      const res  = await axios.get(`${API_URL}/notifications`, { headers: { Authorization: `Bearer ${token}` }, timeout: 25000 });
       const list = res.data?.notifications || [];
       setNotifCount(Array.isArray(list) ? list.filter((n: any) => !n.isRead).length : 0);
     } catch { setNotifCount(0); }
