@@ -18,9 +18,6 @@ import { getItem } from '@/utils/storage'
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons'
 import AdminHeader from '@/components/adminHeader'
 
-/* ─────────────────────────────────────────
-   API CONFIG
-───────────────────────────────────────── */
 let API_URL =
   process.env.NGROK_URL ||
   process.env.EXPO_PUBLIC_API_URL ||

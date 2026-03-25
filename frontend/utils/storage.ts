@@ -46,7 +46,7 @@ async function sqliteRemove(key: string): Promise<void> {
 }
 
 // Small storage wrapper: prefer browser localStorage when available (web),
-// otherwise use AsyncStorage for React Native (mobile).
+// otherwise use AsyncStorage for React Native (mobile). 
 export async function getItem(key: string): Promise<string | null> {
   try {
     if (typeof window !== 'undefined' && (global as any).localStorage) {
